@@ -1,0 +1,13 @@
+#### Installation virtual environment
+
+```
+python -m venv ./.venv
+
+vanuit powershell:
+         .venv\Scripts\Activate.ps1
+
+On Windows using the Command Prompt:
+         .venv\Scripts\activate.bat
+
+pip install -r requirements.txt
+```
