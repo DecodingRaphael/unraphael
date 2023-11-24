@@ -13,4 +13,7 @@
  https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=7514695
 
 
-
+[ ] Canny edge dection has:
+ * 2 times a double; threshold parameters. determined emperically. https://en.wikipedia.org/wiki/Canny_edge_detector
+ * integer apertureSize=3
+ * boolean flag L2=gradient=false
