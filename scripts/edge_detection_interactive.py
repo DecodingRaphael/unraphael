@@ -10,26 +10,29 @@ def callback(x):
 print("Canny edge detection parameters")
 print("Use sliders to set lower and upper threshold, and apertureSize.")
 
-img = cv2.imread('./data/raw/Bridgewater/0_Edinburgh_Nat_Gallery.jpg', 0) #read image as grayscale
+image_filename = './data/raw/Bridgewater/1_London_Nat_Gallery.jpg'
+window_title = '1_London_Nat_Gallery.jpg'
+
+img = cv2.imread(image_filename, 0)  # read image as grayscale
 
 canny = cv2.Canny(img, 85, 255)
 
-cv2.namedWindow('image')  # make a window with name 'image'
-cv2.createTrackbar('L', 'image', 0, 5000, callback)  # lower threshold trackbar for window 'image
-cv2.createTrackbar('U', 'image', 0, 5000, callback)  # upper threshold trackbar for window 'image
-cv2.createTrackbar('a', 'image', 0, 2, callback)  # aperture size 3, 5, 7
+cv2.namedWindow(window_title)  # make a window with name 'image'
+cv2.createTrackbar('L', window_title, 0, 5000, callback)  # lower threshold trackbar for window 'image
+cv2.createTrackbar('U', window_title, 0, 5000, callback)  # upper threshold trackbar for window 'image
+cv2.createTrackbar('a', window_title, 0, 2, callback)  # aperture size 3, 5, 7
 
 while (True):
     # to display image side by side
     numpy_horizontal_concat = np.concatenate((img, canny), axis=1)
-    cv2.imshow('image', numpy_horizontal_concat)
+    cv2.imshow(window_title, numpy_horizontal_concat)
     k = cv2.waitKey(1) & 0xFF
     if k == 27:  # escape key
         break
 
-    lowerThreshold = cv2.getTrackbarPos('L', 'image')
-    upperThreshold = cv2.getTrackbarPos('U', 'image')
-    apertureSize = cv2.getTrackbarPos('a', 'image') * 2 + 3
+    lowerThreshold = cv2.getTrackbarPos('L', window_title)
+    upperThreshold = cv2.getTrackbarPos('U', window_title)
+    apertureSize = cv2.getTrackbarPos('a', window_title) * 2 + 3
 
     canny = cv2.Canny(img, lowerThreshold, upperThreshold, apertureSize=apertureSize)
 
