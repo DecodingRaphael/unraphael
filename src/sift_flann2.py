@@ -73,11 +73,9 @@ for image_to_compare, title in zip(all_images_to_compare, titles):
     
   # ratio test as per Lowe's paper
     for i,(m,n) in enumerate(matches):
-        if m.distance < 0.7*n.distance:
-            matchesMask[i]=[1,0]
+        if m.distance < 0.75 * n.distance:
+            matchesMask[i] = [1,0]
             
-    # TODO: Use the PROSAC algorithm to further filter matches for accuracy
-    
     number_keypoints = 0
     
     if len(kp_1) >= len(kp_2):
@@ -85,11 +83,10 @@ for image_to_compare, title in zip(all_images_to_compare, titles):
     else:
         number_keypoints = len(kp_2)
     
-    
-    draw_params = dict(matchColor   = (0,255,0),
-                   singlePointColor = (255,0,0),
-                   matchesMask      = matchesMask,
-                   flags            = cv2.DrawMatchesFlags_DEFAULT)
+        draw_params = dict(matchColor = (0,255,0),
+                   singlePointColor   = (255,0,0),
+                   matchesMask        = matchesMask,
+                   flags              = cv2.DrawMatchesFlags_DEFAULT)
     
     result = cv2.drawMatchesKnn(original,kp_1,image_to_compare,kp_2, matches, None,**draw_params)
     # draw lines between the features that match both images
