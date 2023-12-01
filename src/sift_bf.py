@@ -11,7 +11,7 @@ import seaborn as sns
 %matplotlib inline
 plt.rcParams["axes.grid"] = False
 
-# original painting
+# original painting, read in in gray scale
 original = cv2.imread("../data/raw/0_Edinburgh_Nat_Gallery.jpg", cv2.IMREAD_GRAYSCALE)
 
 # plot the original
@@ -24,9 +24,10 @@ kp_1, desc_1 = sift.detectAndCompute(original, None)
 
 # look at keypoints in the original
 img_1 = cv2.drawKeypoints(original, kp_1, original)
+plt.title('SIFT Algorithm for original painting Edinburgh_Nat_Gallery')
 plt.imshow(img_1)
 
-# Brute force, BFMatcher with default params
+# Brute force matcher with default params
 bf = cv2.BFMatcher()
 
 # Load all the copies of the original painting
@@ -67,10 +68,8 @@ for image_to_compare, title in zip(all_images_to_compare, titles):
     
     for m, n in matches:
         if m.distance < 0.75 * n.distance:
-            good_points.append([m])
-            
-    # TODO: Use the PROSAC algorithm to further filter matches for accuracy
-    
+            good_points.append([m])            
+       
     number_keypoints = 0
     
     if len(kp_1) >= len(kp_2):
@@ -87,6 +86,11 @@ for image_to_compare, title in zip(all_images_to_compare, titles):
     # cv.drawMatchesKnn expects list of lists as matches.
     result = cv2.drawMatchesKnn(original, kp_1, image_to_compare, kp_2, good_points[0:100], None,
                              flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
-    # Show the matching result
-    plt.imshow(result), plt.show()
     
+    # Show the matching result
+    plt.figure(figsize=(16, 16))
+    plt.imshow(result)
+    plt.show()
+        
+
+
