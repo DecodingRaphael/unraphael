@@ -30,6 +30,9 @@ plt.imshow(img_1)
 # Brute force matcher with default params
 bf = cv2.BFMatcher()
 
+# We can set crossCheck=True for a more accurate but slower matching
+bf.set_crossCheck(True)
+
 # Load all the copies of the original painting
 all_images_to_compare = []
 
