@@ -6,10 +6,12 @@ import cv2
 import imutils
 from matplotlib import pyplot as plt
 from PIL import Image, ImageChops
+import imagehash
 import numpy as np
 from skimage.transform import resize
-
 from sewar.full_ref import mse, rmse, psnr, uqi, ssim, ergas, scc, rase, sam, msssim, vifp
+import image_similarity_measures
+from image_similarity_measures.quality_metrics import psnr,uiq,sam,sre,issm,fsim,ssim,rmse
 
 # functions ----
 
@@ -262,12 +264,22 @@ print("RASE: ", rase(img00, img01))
 print("SAM: ", sam(img00, img01))
 print("VIF: ", vifp(img00, img01))
 
-import image_similarity_measures
-from image_similarity_measures.quality_metrics import psnr,uiq,sam,sre,issm,fsim,ssim,rmse
-
 out_rmse = rmse(img00, img01)
 out_psnr = psnr(img00, img01)
 # ad... more metrics
+
+## G) Measuring similarity of two images with imagehash ----
+
+# Load the images
+img1 = Image.open('../data/raw/0_Edinburgh_Nat_Gallery.jpg')
+img2 = Image.open('../data/raw/Bridgewater/8_London_OrderStJohn.jpg')
+
+hash1 = imagehash.average_hash(img1)
+hash2 = imagehash.average_hash(img2)
+diff = hash1 - hash2
+print(diff)
+# 8
+
 
 # CALCULATE ALL VALUES FOR ALL PAIRS
 # STANDARDIZE METRICS

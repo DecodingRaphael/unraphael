@@ -96,3 +96,6 @@ linkage_matrix = hierarchy.linkage(heatmap_data.values,metric="euclidean", metho
 sns.clustermap(heatmap_data, cmap = "vlag", linewidths=.5, figsize=(15, 15), row_linkage=linkage_matrix, col_linkage=linkage_matrix, annot=True)
 plt.show()
 
+# plot with plotly
+# see https://plotly.com/python/heatmaps/
+
