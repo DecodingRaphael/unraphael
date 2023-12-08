@@ -20,7 +20,9 @@ edges1 = cv2.Canny(image1, 80, 500) # we use this as the template
 # we need to have the contour or form of - for example - the baby
 # and use that form as the template to look for in the other images
 
-# contour of forms is possible (compare wit canny edge detection)) 
+# contour of forms is possible (compare wit canny edge detection))
+
+ 
 
 # plot images
 plt.imshow(edges1)

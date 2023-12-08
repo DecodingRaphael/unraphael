@@ -65,7 +65,7 @@ cor = np.corrcoef(edges1_norm.flatten(), edges2_norm.flatten())
 # akin to similarity score ranging from 0 to 1
 result = spatial.distance.cosine(edges1_norm.flatten(), edges2_norm.flatten())
 
-res = cv2.matchTemplate(edges1_norm, edges2_norm, cv2.TM_SQDIFF_NORMED)  
+res = cv2.matchTemplate(image1, image2, cv2.TM_SQDIFF_NORMED)  
 
 # Extract edge features from each image
 features_image1 = extract_edge_features(image1)
