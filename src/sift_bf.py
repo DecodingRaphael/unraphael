@@ -1,5 +1,8 @@
 # Brute-Force Matching with SIFT Descriptors and Ratio Test
 
+# The keypoints and descriptors computed by SIFT are used for matching, 
+# making the template matching scale-invariant
+
 # libraries
 import numpy as np
 import glob
