@@ -1,7 +1,10 @@
 # example coding
 example_code/
 .cookiecutters/
-src/old/
+src/2_outline_extraction
+src/models
+reports/
+images/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
