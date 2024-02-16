@@ -1,0 +1,9 @@
+https://towardsdatascience.com/image-processing-using-streamlit-d650fb0ccf8
+
+https://github.com/SiddhantSadangi/ImageWorkdesk
+
+https://medium.com/@developerRegmi/image-similarity-comparison-using-vgg16-deep-learning-model-a663a411cd24
+
+https://python.plainenglish.io/creating-an-image-search-app-in-python-using-clip-and-streamlit-854933d742ca
+
+https://colab.research.google.com/github/sparsh-ai/rec-tutorials/blob/master/_notebooks/2021-04-27-image-similarity-recommendations.ipynb
