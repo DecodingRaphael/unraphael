@@ -1,10 +1,13 @@
 # example coding
 example_code/
 .cookiecutters/
-src/2_outline_extraction
-src/models
+
 reports/
 images/
+
+src/models/
+src/2_outline_extraction/yolo
+src/2_outline_extraction/runs
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

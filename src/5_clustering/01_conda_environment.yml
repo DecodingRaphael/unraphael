@@ -1,0 +1,48 @@
+# DS4B 101-P: PYTHON FOR DATA SCIENCE AUTOMATION ----
+# Environment Setup ----
+
+# Conda Environment Setup Instructions ----
+#  - Using an environment.yml file with conda
+#  - Key Terminal Commands:
+# 
+#    conda env create -f 01_conda_environment.yml
+#    conda env update --file 000_environment_setup/01_conda_environment.yml --prune
+#    conda env export --name ds4b_101p > envname.yml
+#    conda env remove --name ds4b_101p
+#    conda env list
+#
+# Alternative Using pip & virtual environments:
+#  - Create empty virtual environment:
+#      Mac: python3 -m venv ds4b_101_p
+#      Windows: python -m venv ds4b_101_p
+#  - Activate env:
+#      source ds4b_101_p activate
+#      (if this doesn't work, use Command Palette > Select Python Interpreter > ds4b_101_p)
+#  - Install the requirements.txt
+#      pip install -r 000_environment_setup/requirements.txt
+#  - Adding packages from requirements.txt
+#      Mac: where python
+#      Windows: which python
+#      path/to/python -m pip install
+#  - Freezing dependencies
+#      pip freeze > requirements.txt
+
+
+name: imagecluster
+channels:
+  - anaconda
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.7.1
+  - pip
+  - pip:
+      # Core Data
+      - matplotlib==3.0.2
+      - numpy==1.15.4
+      -	opencv-contrib-python==3.4.2.16
+      - opencv-python==3.4.2.16
+      - pyssim==0.4
+      - scikit-image==0.14.1
+      - scikit-learn==0.20.0
+      - scipy==1.1.0
