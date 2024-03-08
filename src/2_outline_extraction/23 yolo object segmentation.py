@@ -27,7 +27,8 @@ model = YOLO("yolov8x-pose.pt") # for classification (huge)
 
 
 # Run inference
-res = model.predict("../../data/interim/no_bg/output_8_London_OrderStJohn.jpg", save = True, save_txt=True)
+#res = model.predict("../../data/interim/no_bg/output_8_London_OrderStJohn.jpg", save = True, save_txt=True)
+res = model.predict("../../data/interim/no_background/output_0_Edinburgh_Nat_Gallery.jpg", save = True, save_txt=True)
 
 #img_segmented = cv2.imread("runs/segment/predict2/output_8_London_OrderStJohn.jpg")
 #rgb = cv2.cvtColor(img_segmented, cv2.COLOR_BGR2RGB)
@@ -36,6 +37,26 @@ res = model.predict("../../data/interim/no_bg/output_8_London_OrderStJohn.jpg", 
 result = res[0] # get first image result
 len(result.boxes)
 len(result.masks) # 2 objects detected
+
+# multiple segmentation masks in a single binary image (baby and madonna) ----
+img = (res[0].cpu().masks.data[0].numpy() * 255).astype("uint8")
+
+height,width = img.shape
+masked = np.zeros((height, width), dtype="uint8")
+
+num_masks = len(res[0].cpu().masks.data)
+
+for i in range(num_masks):
+    masked = cv2.add(masked,(res[0].cpu().masks.data[i].numpy() * 255).astype("uint8"))
+
+# Convert NumPy array to PIL Image
+mask_img = Image.fromarray(masked,"L")
+mask_img
+
+# Save the combined mask image
+mask_img.save("../../data/interim/b_w/0.jpg")
+
+    
 
 # first object (baby) ----
 mask1 = result.masks[0]
@@ -102,3 +123,37 @@ for idx, r in enumerate(res):  # Iterate over the indices and results
         print(f'Isolated Image Dimensions: {isolated.shape}')
 
 
+########################################################################################
+#  apply the segmentation and mask combination to all images in a folder.
+
+# Path to the folder containing input images
+input_folder_path = "../../data/interim/aligned"
+
+# Path to the folder where you want to save the combined mask images
+output_folder_path = "../../data/interim/masks"
+
+# Iterate through each image in the input folder
+for filename in os.listdir(input_folder_path):
+    if filename.endswith(('.jpg', '.png', '.jpeg')):  # Add more extensions if needed
+        # Predict using YOLO model
+        img_path = os.path.join(input_folder_path, filename)
+        res = model.predict(img_path, save=True, save_txt=True)
+
+        # Combine segmentation masks into a single binary image
+        img = (res[0].cpu().masks.data[0].numpy() * 255).astype("uint8")
+        height, width = img.shape
+        masked = np.zeros((height, width), dtype="uint8")
+
+        num_masks = len(res[0].cpu().masks.data)
+
+        for i in range(num_masks):
+            masked = cv2.add(masked, (res[0].cpu().masks.data[i].numpy() * 255).astype("uint8"))
+
+        # Convert NumPy array to PIL Image
+        mask_img = Image.fromarray(masked, "L")
+
+        # Save the combined mask image
+        output_path = os.path.join(output_folder_path, f"{os.path.splitext(filename)[0]}_combined_mask.jpg")
+        mask_img.save(output_path)
+
+print("Segmentation and mask combination for all images completed.")

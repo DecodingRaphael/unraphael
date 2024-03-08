@@ -1,12 +1,14 @@
 #### Installation virtual environment
 
+# https://stackoverflow.com/questions/64207964/venv-base-both-active-on-a-python-project-how-do-i-get-into-venv-only
+
 ```
 python -m venv ./.venv
 
 vanuit powershell:
          .venv\Scripts\Activate.ps1
 
-On Windows using the Command Prompt:
+On Windows using the Command Prompt or from BASH:
          .venv\Scripts\activate.bat
 
 pip install -r requirements.txt
