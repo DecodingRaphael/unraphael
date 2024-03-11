@@ -12,10 +12,10 @@ nav:
 
 theme:
   name: material
-  primary: blue
-  accent: red
   palette:
-    accent: indigo
+    scheme: default
+    primary: deep purple
+    accent: purple
 
 markdown_extensions:
   - admonition
