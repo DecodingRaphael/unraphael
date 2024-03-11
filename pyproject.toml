@@ -10,7 +10,7 @@ description = "Decoding Raphael: Computational Study of the Production and Repro
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [
-	{name = "Thijs Vroeg", email = "t.vroegh@esciencecenter.nl"},
+    {name = "Thijs Vroegh", email = "t.vroegh@esciencecenter.nl"},
 ]
 keywords = [
     "art",
@@ -31,16 +31,16 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Image Processing",
 ]
 dependencies = [
-	"detectron2",
-	"IPython",
-	"matplotlib",
-	"numpy",
-	"opencv",
-	"Pillow",
-	"roboflow",
-	"scikit-image",
-	"tensorflow",
-	"torch",
+    "detectron2",
+    "IPython",
+    "matplotlib",
+    "numpy",
+    "opencv",
+    "Pillow",
+    "roboflow",
+    "scikit-image",
+    "tensorflow",
+    "torch",
 ]
 
 [project.urls]
