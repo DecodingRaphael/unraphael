@@ -1,8 +1,92 @@
 [build-system]
-requires = ["flit_core >=3.2,<4"]
-build-backend = "flit_core.buildapi"
+requires = ["setuptools>=61.2"]
+build-backend = "setuptools.build_meta"
 
+# https://packaging.python.org/en/latest/specifications/declaring-project-metadata/
 [project]
-name = "lumache"
-authors = [{name = "Graziella", email = "graziella@lumache"}]
-dynamic = ["version", "description"]
+name = "unraphael"
+version = "0.1.0"
+description = "Decoding Raphael: Computational Study of the Production and Reproduction of Italian Renaissance Paintings."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+	{name = "Thijs Vroeg", email = "t.vroegh@esciencecenter.nl"},
+]
+keywords = [
+    "art",
+    "raphael",
+    "computer-vision",
+    "renaissance",
+]
+license = {text = "MIT License"}
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Image Processing",
+]
+dependencies = [
+	"detectron2",
+	"IPython",
+	"matplotlib",
+	"numpy",
+	"opencv",
+	"Pillow",
+	"roboflow",
+	"scikit-image",
+	"tensorflow",
+	"torch",
+]
+
+[project.urls]
+homepage = "https://github.com/DecodingRaphael/unraphael"
+issues = "https://github.com/DecodingRaphael/unraphael/issues"
+documentation = "https://unraphael.readthedocs.io"
+changelog = "https://github.com/DecodingRaphael/unraphael/releases"
+
+[project.optional-dependencies]
+develop = [
+    "bump-my-version",
+    "ruff",
+    "pre-commit",
+    "coverage[toml]",
+    "pytest",
+    "pycodestyle",
+]
+docs = [
+    "markdown-include",
+    "mkdocs",
+    "mkdocs-material",
+    "mkdocstrings[python]",
+    # "mknotebooks",
+]
+publishing = [
+    "twine",
+    "wheel",
+    "build",
+]
+
+[project.scripts]
+
+[tool.setuptools]
+zip-safe = false
+package-dir = {"" = "src"}
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+namespaces = true
+
+[tool.coverage.run]
+branch = true
+source = ["unraphael"]
+concurrency = ["multiprocessing"]
+data_file = ".coverage"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
