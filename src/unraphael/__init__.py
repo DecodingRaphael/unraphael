@@ -1,1 +1,3 @@
-hello_world = True
+from __future__ import annotations
+
+__version__ = '0.1.0'
