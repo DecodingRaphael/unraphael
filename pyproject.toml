@@ -31,16 +31,6 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Image Processing",
 ]
 dependencies = [
-    "detectron2",
-    "IPython",
-    "matplotlib",
-    "numpy",
-    "opencv",
-    "Pillow",
-    "roboflow",
-    "scikit-image",
-    "tensorflow",
-    "torch",
 ]
 
 [project.urls]
