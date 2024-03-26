@@ -48,4 +48,3 @@ def add_sidebar_logo():
         logo_markup,
         unsafe_allow_html=True,
     )
-    print('rawr')
