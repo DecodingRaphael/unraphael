@@ -6,35 +6,32 @@ import numpy as np
 import streamlit as st
 from seaborn import clustermap
 from sidebar_logo import add_sidebar_logo
+from widgets import show_images
+
+from unraphael.io import load_images_from_drc
 
 add_sidebar_logo()
 
 st.title('Input images')
 
 with st.sidebar:
-    image_dir = st.text_input(label='Image directory', value='../data/raw/Bridgewater')
-    image_dir = Path(image_dir)
+    image_drc = st.text_input(label='Image directory', value='../data/raw/Bridgewater')
+    image_drc = Path(image_drc)
 
-if not image_dir.exists():
-    st.error(f'Cannot find {image_dir}.')
+    width = st.number_input('Width', value=540, step=10)
 
-image_fns = list(image_dir.glob('*'))
+if not image_drc.exists():
+    st.error(f'Cannot find {image_drc}.')
 
-cols = st.columns(4)
+images = load_images_from_drc(image_drc, width=width)
 
-labels = []
-for i, fn in enumerate(image_fns):
-    col = cols[i % 4]
-    label = fn.stem
-    labels.append(label)
-    col.image(str(fn), caption=label)
+show_images(images, n_cols=4)
 
 st.title('Image similarity')
 
 # SIFT
 
 st.title('Heatmap')
-
 
 n = len(image_fns)
 heatmap = np.random.random((n, n))
