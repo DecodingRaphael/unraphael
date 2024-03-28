@@ -6,8 +6,10 @@ reports/
 images/
 
 src/models/
+src/1_image_preprocessing
 src/2_outline_extraction/yolo
 src/2_outline_extraction/runs
+src/5_clustering
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
