@@ -1,7 +1,7 @@
 version: 0.1
-width: 50
+width: 240
 method: sift
-sift_config:
+sift:
   upsampling: 2
   n_octaves: 8
   n_scales: 3
@@ -15,13 +15,15 @@ sift_config:
   lambda_descr: 6
   n_hist: 4
   n_ori: 8
-ransac_config:
+ransac:
+  min_samples: 8
+  residual_threshold: 1
   max_trials: 100
-  stop_sample_num: inf
+  stop_sample_num: .inf
   stop_residuals_sum: 0
   stop_probability: 1
   rng: null
-orb_config:
+orb:
   downscale: 1.2
   n_scales: 8
   n_keypoints: 500

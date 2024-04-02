@@ -62,7 +62,12 @@ def detect_and_extract(
 
 
 def get_heatmaps(
-    features: dict[str, FeatureContainer], seed: int = 1337, progress: Any = None
+    features: dict[str, FeatureContainer],
+    progress: Any = None,
+    min_samples=8,
+    residual_threshold=1,
+    max_trials=5000,
+    **kwargs,
 ) -> tuple[np.array, np.array]:
     n = len(features)
 
@@ -82,16 +87,14 @@ def get_heatmaps(
 
         heatmap[i1, i2] = heatmap[i2, i1] = len(matches)
 
-        rng = np.random.default_rng(seed)
-
         try:
             model, inliers = ransac(
                 (ft1.keypoints[matches[:, 0]], ft2.keypoints[matches[:, 1]]),
                 FundamentalMatrixTransform,
-                min_samples=8,
-                residual_threshold=1,
-                max_trials=5000,
-                rng=rng,
+                min_samples=min_samples,
+                residual_threshold=residual_threshold,
+                max_trials=max_trials,
+                **kwargs,
             )
 
         except ValueError:

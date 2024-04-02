@@ -7,7 +7,7 @@ import yaml
 from scipy.cluster.hierarchy import linkage
 from seaborn import clustermap
 from sidebar_logo import add_sidebar_logo
-from skimage.feature import SIFT
+from skimage.feature import ORB, SIFT
 from widgets import show_images
 
 from unraphael.feature import (
@@ -21,6 +21,24 @@ from unraphael.io import load_images_from_drc
 @st.cache_data
 def _load_images_from_drc(*args, **kwargs):
     return load_images_from_drc(*args, **kwargs)
+
+
+@st.cache_data
+def load_config(fn: Path | str):
+    fn = Path(fn)
+
+    if not fn.exists():
+        st.error(f'Cannot find {fn}.')
+
+    with open(fn) as f:
+        config = yaml.safe_load(f)
+
+    return config
+
+
+def _to_session_state(key: str, section: str | None = None):
+    section = section if section else key
+    st.session_state.config[section] = yaml.safe_load(st.session_state[key])
 
 
 def _dump_config(cfg: dict) -> str:
@@ -49,33 +67,28 @@ def main():
         image_drc = st.text_input(label='Image directory', value='../data/raw/Bridgewater')
         image_drc = Path(image_drc)
 
-        config_fn = st.text_input(label='Config file', value='config.yaml')
-        config_fn = Path(config_fn)
+        if not image_drc.exists():
+            st.error(f'Cannot find {image_drc}.')
 
-        with open(config_fn) as f:
-            st.session_state.unraph_config = yaml.safe_load(f)
+        config_fn = st.text_input(label='Config file', value='config.yaml')
+        config = load_config(config_fn)
+
+        if 'config' not in st.session_state:
+            st.session_state.config = config
+            st.session_state.width = st.session_state.config['width']
+            st.session_state.method = st.session_state.config['method']
 
         st.download_button(
             label='Download config',
-            data=_dump_config(st.session_state.unraph_config),
+            data=_dump_config(st.session_state.config),
             file_name='my_config.yaml',
             mime='text/yaml',
+            disabled=True,
         )
 
-        width = st.number_input('Width', value=50, step=10)
-
-        # method = st.number_input('Width', value=50, step=10)
-
-    if not image_drc.exists():
-        st.error(f'Cannot find {image_drc}.')
-
-    st.session_state.width = st.session_state.unraph_config['width']
-    st.session_state.method = st.session_state.unraph_config['method']
-    st.session_state.sift_config = _dump_config(st.session_state.unraph_config['sift_config'])
-    st.session_state.orb_config = _dump_config(st.session_state.unraph_config['orb_config'])
-    st.session_state.ransac_config = _dump_config(
-        st.session_state.unraph_config['ransac_config']
-    )
+        width = st.number_input(
+            'Width', step=10, key='width', on_change=_to_session_state, kwargs={'key': 'width'}
+        )
 
     images = _load_images_from_drc(image_drc, width=width)
 
@@ -85,40 +98,49 @@ def main():
 
     col1, col2 = st.columns(2)
 
-    method_options = [None, 'sift', 'orb', 'outline', 'scale']
+    method_options = ['sift', 'orb', 'outline', 'scale']
     method = col1.selectbox(
         'Select similarity metric',
         options=method_options,
-        index=method_options.index(st.session_state.method),
+        key='method',
+        on_change=_to_session_state,
+        kwargs={'key': 'method'},
     )
 
     col1, col2 = st.columns(2)
 
     if method == 'sift':
-        col1.text_area(
-            label='[SIFT config parameters](https://scikit-image.org/docs/stable/api/skimage.feature.html#skimage.feature.SIFT)',
-            key='sift_config',
-            height=200,
-        )
+        label1 = '[SIFT config parameters](https://scikit-image.org/docs/stable/api/skimage.feature.html#skimage.feature.SIFT)'
+        st.session_state.col1 = _dump_config(st.session_state.config['sift'])
     elif method == 'orb':
-        col1.text_area(
-            label='[ORB config parameters](https://scikit-image.org/docs/stable/api/skimage.feature.html#skimage.feature.ORB)',
-            key='sift_config',
-            height=200,
-        )
+        label1 = '[ORB config parameters](https://scikit-image.org/docs/stable/api/skimage.feature.html#skimage.feature.ORB)'
+        st.session_state.col1 = _dump_config(st.session_state.config['orb'])
+    else:
+        label1 = 'nrst'
 
-    if method in ('sift', 'orb'):
-        col2.text_area(
-            label='[RANSAC config parameters](https://scikit-image.org/docs/stable/api/skimage.measure.html#skimage.measure.ransac)',
-            key='ransac_config',
-            height=200,
-        )
+    if st.session_state.method in ('sift', 'orb'):
+        label2 = '[RANSAC config parameters](https://scikit-image.org/docs/stable/api/skimage.measure.html#skimage.measure.ransac)'
+        st.session_state.col2 = _dump_config(st.session_state.config['ransac'])
+    else:
+        label2 = 'heai'
 
-    if not method:
-        st.stop()
+    col1.text_area(
+        label=label1,
+        key='col1',
+        height=200,
+        on_change=_to_session_state,
+        kwargs={'key': 'col1', 'section': method},
+    )
+    col2.text_area(
+        label=label2,
+        key='col2',
+        height=200,
+        on_change=_to_session_state,
+        kwargs={'key': 'col2', 'section': 'ransac'},
+    )
 
-    if method in ('outline', 'scale'):
-        raise NotImplementedError(method)
+    if st.session_state.method in ('outline', 'scale'):
+        raise NotImplementedError(st.session_state.method)
         st.stop()
 
     if not st.button('Start!', type='primary'):
@@ -128,14 +150,20 @@ def main():
 
     bar1 = st.progress(0, text='Extracting features')
 
-    extractor = SIFT()
+    if method == 'sift':
+        extractor = SIFT(**st.session_state.config[method])
+    elif method == 'orb':
+        extractor = ORB(**st.session_state.config[method])
+
     features = detect_and_extract(images=images, extractor=extractor, progress=bar1.progress)
 
     st.subheader('Image matching')
 
     bar2 = st.progress(0, text='Calculating similarity features')
 
-    heatmap, heatmap_inliers = get_heatmaps(features, progress=bar2.progress)
+    heatmap, heatmap_inliers = get_heatmaps(
+        features, progress=bar2.progress, **st.session_state.config['ransac']
+    )
 
     col1, col2 = st.columns(2)
     col1.title('Heatmap')
