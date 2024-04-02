@@ -16,7 +16,6 @@ class FeatureContainer:
     image: np.array
     descriptors: np.array | None = None
     keypoints: np.array | None = None
-    keypoints_inliers: np.array | None = None
     scales: np.array | None = None
 
     def plot_keypoints(self):
@@ -94,9 +93,6 @@ def get_heatmaps(
 
         except ValueError:
             inliers = np.zeros(len(matches), dtype=bool)
-
-        ft1.inlier_keypoints = ft1.keypoints[matches[inliers, 0]]
-        ft2.inlier_keypoints = ft2.keypoints[matches[inliers, 1]]
 
         heatmap_inliers[i1, i2] = inliers.sum()
 
