@@ -31,6 +31,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Image Processing",
 ]
 dependencies = [
+    'PyYAML',
 ]
 
 [project.urls]
@@ -85,6 +86,10 @@ testpaths = ["tests"]
 ignore_missing_imports = true
 files = ["src/unraphael", "tests"]
 allow_redefinition = true
+
+[[tool.mypy.overrides]]
+module = ["yaml.*"]
+ignore_missing_imports = true
 
 [tool.ruff]
 select = [
