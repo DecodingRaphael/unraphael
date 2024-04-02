@@ -53,7 +53,10 @@ def detect_and_extract(
         )
 
         if progress:
-            progress(i / n_tot, name)
+            progress((i + 1) / n_tot, name)
+
+    if progress:
+        progress(1.0, 'Detect and extract complete')
 
     return features
 
@@ -69,7 +72,7 @@ def get_heatmaps(
     features_tup = tuple(features.values())
 
     for (i1, i2), _ in np.ndenumerate(heatmap):
-        if i1 == i2:
+        if i1 >= i2:
             continue
 
         ft1 = features_tup[i1]
@@ -77,7 +80,7 @@ def get_heatmaps(
 
         matches = match_descriptors(ft1.descriptors, ft2.descriptors, cross_check=True)
 
-        heatmap[i1, i2] = len(matches)
+        heatmap[i1, i2] = heatmap[i2, i1] = len(matches)
 
         rng = np.random.default_rng(seed)
 
@@ -94,12 +97,13 @@ def get_heatmaps(
         except ValueError:
             inliers = np.zeros(len(matches), dtype=bool)
 
-        heatmap_inliers[i1, i2] = inliers.sum()
-
-        print(f'{ft1.name}->{ft2.name} matches: {len(matches)}, inliers: {inliers.sum()}')
+        heatmap_inliers[i1, i2] = heatmap_inliers[i2, i1] = inliers.sum()
 
         if progress:
-            progress((i1 * n + i2) / (n * n), f'Matching {ft1.name} -> {ft2.name}')
+            progress((i1 * n + i2 + 1) / (n * n), f'Matching {ft1.name} -> {ft2.name}')
+
+    if progress:
+        progress(1.0, 'Matching complete')
 
     return heatmap, heatmap_inliers
 
