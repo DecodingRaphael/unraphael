@@ -2,16 +2,13 @@ from __future__ import annotations
 
 import streamlit as st
 from config import dump_config, to_session_state
-from scipy.cluster.hierarchy import linkage
-from seaborn import clustermap
 from sidebar_logo import add_sidebar_logo
 from skimage.feature import ORB, SIFT
-from widgets import load_config, load_images, show_images
+from widgets import load_config, load_images, show_heatmaps, show_images
 
 from unraphael.feature import (
     detect_and_extract,
     get_heatmaps,
-    heatmap_to_condensed_distance_matrix,
 )
 
 
@@ -25,13 +22,13 @@ def main():
     )
     add_sidebar_logo()
 
-    st.title('Input images')
-
     with st.sidebar:
         load_config()
         images = load_images()
 
-    ret = show_images(images)
+    st.title('Input images')
+
+    _ = show_images(images)
 
     st.title('Image similarity')
 
@@ -82,7 +79,7 @@ def main():
         raise NotImplementedError(st.session_state.method)
         st.stop()
 
-    if not st.button('Start!', type='primary'):
+    if not st.checkbox('Continue...'):
         st.stop()
 
     st.subheader('Feature extraction')
@@ -100,48 +97,11 @@ def main():
 
     bar2 = st.progress(0, text='Calculating similarity features')
 
-    heatmap, heatmap_inliers = get_heatmaps(
+    heatmaps = get_heatmaps(
         features, progress=bar2.progress, **st.session_state.config['ransac']
     )
 
-    col1, col2 = st.columns(2)
-    col1.title('Heatmap')
-
-    # single average complete median weighted centroid ward
-    method = 'average'
-    names = tuple(features.keys())
-
-    d = heatmap_to_condensed_distance_matrix(heatmap)
-    z = linkage(d, method=method)
-
-    fig1 = clustermap(
-        heatmap,
-        xticklabels=names,
-        yticklabels=names,
-        annot=True,
-        fmt='d',
-        row_linkage=z,
-        col_linkage=z,
-    )
-
-    col1.pyplot(fig1)
-
-    col2.title('Heatmap inliers')
-
-    d = heatmap_to_condensed_distance_matrix(heatmap_inliers)
-    z = linkage(d, method=method)
-
-    fig2 = clustermap(
-        heatmap_inliers,
-        xticklabels=names,
-        yticklabels=names,
-        annot=True,
-        fmt='d',
-        row_linkage=z,
-        col_linkage=z,
-    )
-
-    col2.pyplot(fig2)
+    show_heatmaps(heatmaps=heatmaps, labels=tuple(features.keys()))
 
 
 main()

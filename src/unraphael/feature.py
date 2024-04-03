@@ -68,7 +68,7 @@ def get_heatmaps(
     residual_threshold=1,
     max_trials=5000,
     **kwargs,
-) -> tuple[np.array, np.array]:
+) -> dict[str, np.array]:
     n = len(features)
 
     heatmap = np.zeros((n, n), dtype=int)
@@ -108,7 +108,7 @@ def get_heatmaps(
     if progress:
         progress(1.0, 'Matching complete')
 
-    return heatmap, heatmap_inliers
+    return {'all': heatmap, 'inliers': heatmap_inliers}
 
 
 def heatmap_to_condensed_distance_matrix(heatmap: np.ndarray) -> np.ndarray:
