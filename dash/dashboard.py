@@ -45,6 +45,9 @@ def main():
 
     col1, col2 = st.columns(2)
 
+    col1.subheader('Feature extraction')
+    col2.subheader('Image matching')
+
     if method == 'sift':
         label1 = '[SIFT config parameters](https://scikit-image.org/docs/stable/api/skimage.feature.html#skimage.feature.SIFT)'
         st.session_state.col1 = dump_config(st.session_state.config['sift'])
@@ -79,24 +82,20 @@ def main():
         raise NotImplementedError(st.session_state.method)
         st.stop()
 
-    if not st.checkbox('Continue...'):
-        st.stop()
-
-    st.subheader('Feature extraction')
-
-    bar1 = st.progress(0, text='Extracting features')
-
     if method == 'sift':
         extractor = SIFT(**st.session_state.config[method])
     elif method == 'orb':
         extractor = ORB(**st.session_state.config[method])
 
+    if not st.checkbox('Continue...'):
+        st.stop()
+
+    col1, col2 = st.columns(2)
+
+    bar1 = col1.progress(0, text='Extracting features')
     features = detect_and_extract(images=images, extractor=extractor, progress=bar1.progress)
 
-    st.subheader('Image matching')
-
-    bar2 = st.progress(0, text='Calculating similarity features')
-
+    bar2 = col2.progress(0, text='Calculating similarity features')
     heatmaps = get_heatmaps(
         features, progress=bar2.progress, **st.session_state.config['ransac']
     )
