@@ -7,15 +7,7 @@ import streamlit as st
 import yaml
 
 if TYPE_CHECKING:
-    import numpy as np
-
-
-def show_images(images: dict[str, np.ndarray], *, n_cols: int = 4):
-    cols = st.columns(n_cols)
-
-    for i, (name, im) in enumerate(images.items()):
-        col = cols[i % n_cols]
-        col.image(im, use_column_width=True, caption=name)
+    pass
 
 
 def to_session_state(key: str, section: str | None = None):

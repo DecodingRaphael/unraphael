@@ -5,7 +5,7 @@ from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
-from skimage.feature import match_descriptors
+from skimage.feature import ORB, SIFT, match_descriptors
 from skimage.measure import ransac
 from skimage.transform import FundamentalMatrixTransform
 
@@ -34,12 +34,17 @@ class FeatureContainer:
 
 
 def detect_and_extract(
-    images: dict[str, np.ndarray], *, extractor, progress: Any = None
+    images: dict[str, np.ndarray], *, method: str, **kwargs
 ) -> dict[str, FeatureContainer]:
     """`extractor` must have `detect_and_extract` method."""
     features = {}
 
-    n_tot = len(images)
+    if method == 'sift':
+        extractor = SIFT(**kwargs)
+    elif method == 'orb':
+        extractor = ORB(**kwargs)
+    else:
+        raise ValueError(method)
 
     for i, (name, im) in enumerate(images.items()):
         extractor.detect_and_extract(im)
@@ -52,12 +57,6 @@ def detect_and_extract(
             scales=extractor.scales,
         )
 
-        if progress:
-            progress((i + 1) / n_tot, name)
-
-    if progress:
-        progress(1.0, 'Detect and extract complete')
-
     return features
 
 
@@ -68,7 +67,7 @@ def get_heatmaps(
     residual_threshold=1,
     max_trials=5000,
     **kwargs,
-) -> tuple[np.array, np.array]:
+) -> dict[str, np.array]:
     n = len(features)
 
     heatmap = np.zeros((n, n), dtype=int)
@@ -102,13 +101,7 @@ def get_heatmaps(
 
         heatmap_inliers[i1, i2] = heatmap_inliers[i2, i1] = inliers.sum()
 
-        if progress:
-            progress((i1 * n + i2 + 1) / (n * n), f'Matching {ft1.name} -> {ft2.name}')
-
-    if progress:
-        progress(1.0, 'Matching complete')
-
-    return heatmap, heatmap_inliers
+    return {'all': heatmap, 'inliers': heatmap_inliers}
 
 
 def heatmap_to_condensed_distance_matrix(heatmap: np.ndarray) -> np.ndarray:
