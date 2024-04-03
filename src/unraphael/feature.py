@@ -16,7 +16,6 @@ class FeatureContainer:
     image: np.array
     descriptors: np.array | None = None
     keypoints: np.array | None = None
-    keypoints_inliers: np.array | None = None
     scales: np.array | None = None
 
     def plot_keypoints(self):
@@ -54,13 +53,21 @@ def detect_and_extract(
         )
 
         if progress:
-            progress(i / n_tot, name)
+            progress((i + 1) / n_tot, name)
+
+    if progress:
+        progress(1.0, 'Detect and extract complete')
 
     return features
 
 
 def get_heatmaps(
-    features: dict[str, FeatureContainer], seed: int = 1337, progress: Any = None
+    features: dict[str, FeatureContainer],
+    progress: Any = None,
+    min_samples=8,
+    residual_threshold=1,
+    max_trials=5000,
+    **kwargs,
 ) -> tuple[np.array, np.array]:
     n = len(features)
 
@@ -70,7 +77,7 @@ def get_heatmaps(
     features_tup = tuple(features.values())
 
     for (i1, i2), _ in np.ndenumerate(heatmap):
-        if i1 == i2:
+        if i1 >= i2:
             continue
 
         ft1 = features_tup[i1]
@@ -78,32 +85,28 @@ def get_heatmaps(
 
         matches = match_descriptors(ft1.descriptors, ft2.descriptors, cross_check=True)
 
-        heatmap[i1, i2] = len(matches)
-
-        rng = np.random.default_rng(seed)
+        heatmap[i1, i2] = heatmap[i2, i1] = len(matches)
 
         try:
             model, inliers = ransac(
                 (ft1.keypoints[matches[:, 0]], ft2.keypoints[matches[:, 1]]),
                 FundamentalMatrixTransform,
-                min_samples=8,
-                residual_threshold=1,
-                max_trials=5000,
-                rng=rng,
+                min_samples=min_samples,
+                residual_threshold=residual_threshold,
+                max_trials=max_trials,
+                **kwargs,
             )
 
         except ValueError:
             inliers = np.zeros(len(matches), dtype=bool)
 
-        ft1.inlier_keypoints = ft1.keypoints[matches[inliers, 0]]
-        ft2.inlier_keypoints = ft2.keypoints[matches[inliers, 1]]
-
-        heatmap_inliers[i1, i2] = inliers.sum()
-
-        print(f'{ft1.name}->{ft2.name} matches: {len(matches)}, inliers: {inliers.sum()}')
+        heatmap_inliers[i1, i2] = heatmap_inliers[i2, i1] = inliers.sum()
 
         if progress:
-            progress((i1 * n + i2) / (n * n), f'Matching {ft1.name} -> {ft2.name}')
+            progress((i1 * n + i2 + 1) / (n * n), f'Matching {ft1.name} -> {ft2.name}')
+
+    if progress:
+        progress(1.0, 'Matching complete')
 
     return heatmap, heatmap_inliers
 
