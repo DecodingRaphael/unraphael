@@ -3,4 +3,3 @@ scipy
 scikit-image
 seaborn
 streamlit
-streamlit-image-select

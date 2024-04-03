@@ -17,11 +17,19 @@ if TYPE_CHECKING:
 
 def show_images(images: dict[str, np.ndarray], *, n_cols: int = 4):
     """Widget to show images with given number of columns."""
+    col1, col2 = st.columns(2)
+    n_cols = col1.number_input('Number of columns', value=8, min_value=1, step=1)
+    selected = col2.selectbox('Selected', options=images.keys())
+
     cols = st.columns(n_cols)
 
     for i, (name, im) in enumerate(images.items()):
+        if i % n_cols == 0:
+            cols = st.columns(n_cols)
         col = cols[i % n_cols]
         col.image(im, use_column_width=True, caption=name)
+
+    return selected
 
 
 def load_config():

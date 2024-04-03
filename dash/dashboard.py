@@ -6,7 +6,6 @@ from scipy.cluster.hierarchy import linkage
 from seaborn import clustermap
 from sidebar_logo import add_sidebar_logo
 from skimage.feature import ORB, SIFT
-from streamlit_image_select import image_select
 from widgets import load_config, load_images, show_images
 
 from unraphael.feature import (
@@ -32,23 +31,7 @@ def main():
         load_config()
         images = load_images()
 
-    show_images(images, n_cols=8)
-
-    import numpy as np
-    from PIL import Image
-    from skimage.color import gray2rgb
-
-    ims = [
-        Image.fromarray(gray2rgb(im * 255).astype(np.uint8), 'RGB') for im in images.values()
-    ]
-
-    img = image_select(
-        label='Select an image',
-        images=ims,
-        captions=list(images.keys()),
-    )
-
-    st.stop()
+    ret = show_images(images)
 
     st.title('Image similarity')
 
