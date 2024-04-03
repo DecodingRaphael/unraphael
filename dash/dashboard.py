@@ -3,13 +3,15 @@ from __future__ import annotations
 import streamlit as st
 from config import dump_config, to_session_state
 from sidebar_logo import add_sidebar_logo
-from skimage.feature import ORB, SIFT
 from widgets import load_config, load_images, show_heatmaps, show_images
 
 from unraphael.feature import (
     detect_and_extract,
     get_heatmaps,
 )
+
+_detect_and_extract = st.cache_data(detect_and_extract)
+_get_heatmaps = st.cache_data(get_heatmaps)
 
 
 def main():
@@ -82,23 +84,14 @@ def main():
         raise NotImplementedError(st.session_state.method)
         st.stop()
 
-    if method == 'sift':
-        extractor = SIFT(**st.session_state.config[method])
-    elif method == 'orb':
-        extractor = ORB(**st.session_state.config[method])
-
     if not st.checkbox('Continue...'):
         st.stop()
 
-    col1, col2 = st.columns(2)
-
-    bar1 = col1.progress(0, text='Extracting features')
-    features = detect_and_extract(images=images, extractor=extractor, progress=bar1.progress)
-
-    bar2 = col2.progress(0, text='Calculating similarity features')
-    heatmaps = get_heatmaps(
-        features, progress=bar2.progress, **st.session_state.config['ransac']
+    features = _detect_and_extract(
+        images=images, method=method, **st.session_state.config[method]
     )
+
+    heatmaps = _get_heatmaps(features, **st.session_state.config['ransac'])
 
     show_heatmaps(heatmaps=heatmaps, labels=tuple(features.keys()))
 
