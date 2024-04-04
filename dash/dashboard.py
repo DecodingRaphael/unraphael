@@ -1,85 +1,50 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 import streamlit as st
-from scipy.cluster.hierarchy import linkage
-from seaborn import clustermap
+from config import to_session_state
+from image_sim import image_similarity_feat_ransac
 from sidebar_logo import add_sidebar_logo
-from skimage.feature import SIFT
-from widgets import show_images
+from widgets import load_config, load_images, show_heatmaps, show_images
 
-from unraphael.feature import (
-    detect_and_extract,
-    get_heatmaps,
-    heatmap_to_condensed_distance_matrix,
-)
-from unraphael.io import load_images_from_drc
 
-add_sidebar_logo()
+def main():
+    st.set_page_config(
+        page_title='Unraphael dashboard', page_icon=':framed-picture:', layout='wide'
+    )
+    st.write(
+        '<style>textarea[class^="st-"] { font-family: monospace; font-size: 14px; }</style>',
+        unsafe_allow_html=True,
+    )
+    add_sidebar_logo()
 
-st.title('Input images')
+    with st.sidebar:
+        load_config()
+        images = load_images()
 
-with st.sidebar:
-    image_drc = st.text_input(label='Image directory', value='../data/raw/Bridgewater')
-    image_drc = Path(image_drc)
+    st.title('Input images')
 
-    width = st.number_input('Width', value=540, step=10)
+    _ = show_images(images)
 
-if not image_drc.exists():
-    st.error(f'Cannot find {image_drc}.')
+    st.title('Image similarity')
 
-images = load_images_from_drc(image_drc, width=width)
+    col, _ = st.columns(2)
 
-show_images(images, n_cols=4)
+    method_options = ['sift', 'orb', 'outline', 'scale']
+    method = col.selectbox(
+        'Select similarity metric',
+        options=method_options,
+        key='method',
+        on_change=to_session_state,
+        kwargs={'key': 'method'},
+    )
 
-st.title('Feature extraction')
+    if method in ('sift', 'orb'):
+        heatmaps, features = image_similarity_feat_ransac(images, method=method)
+    else:
+        raise NotImplementedError(method)
+        st.stop()
 
-bar1 = st.progress(0, text='Extracting features')
+    show_heatmaps(heatmaps=heatmaps, labels=tuple(features.keys()))
 
-extractor = SIFT()
-features = detect_and_extract(images=images, extractor=extractor, progress=bar1.progress)
 
-st.title('Image similarity')
-
-bar2 = st.progress(0, text='Calculating similarity features')
-
-heatmap, heatmap_inliers = get_heatmaps(features, progress=bar2.progress)
-
-st.title('Heatmap')
-
-# single average complete median weighted centroid ward
-method = 'average'
-names = tuple(features.keys())
-
-d = heatmap_to_condensed_distance_matrix(heatmap)
-z = linkage(d, method=method)
-
-fig1 = clustermap(
-    heatmap,
-    xticklabels=names,
-    yticklabels=names,
-    annot=True,
-    fmt='d',
-    row_linkage=z,
-    col_linkage=z,
-)
-
-st.pyplot(fig1)
-
-st.title('Heatmap inliers')
-
-d = heatmap_to_condensed_distance_matrix(heatmap_inliers)
-z = linkage(d, method=method)
-
-fig2 = clustermap(
-    heatmap_inliers,
-    xticklabels=names,
-    yticklabels=names,
-    annot=True,
-    fmt='d',
-    row_linkage=z,
-    col_linkage=z,
-)
-
-st.pyplot(fig2)
+main()

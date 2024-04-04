@@ -2,4 +2,4 @@ numpy
 scipy
 scikit-image
 seaborn
-steamlit
+streamlit
