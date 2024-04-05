@@ -3,6 +3,17 @@ import os
 import numpy as np
 
 def extract_colored_outer_contour(input_folder, output_folder):
+    """
+    Extracts colored outer contours from binary images in the input folder and saves the results in the output folder.
+
+    Parameters:
+    - input_folder (str): Path to the folder containing the binary images.
+    - output_folder (str): Path to the folder where the colored outer contour images will be saved.
+
+    Returns:
+    None
+    """
+
     # Ensure the output folder exists
     os.makedirs(output_folder, exist_ok=True)
 

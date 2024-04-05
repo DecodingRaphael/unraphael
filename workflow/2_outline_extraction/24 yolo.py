@@ -11,7 +11,7 @@ def run_inference_for_images(image_folder, model):
     Run inference for a folder of images using a YOLOv8 model.
 
     Args:
-        image_folder (str): Path to the folder containing images.
+        image_folder (str): Path to the folder containing images without background.
         model: YOLOv8 model instance.
 
     Returns:
@@ -58,12 +58,12 @@ def process_detection_result(result, idx, image_file):
         
         x1, y1, x2, y2 = clip_coordinates(c.boxes.xyxy.cpu().numpy().squeeze(), img.shape)
 
-        print(f'Bounding Box Coordinates: x1={x1}, y1={y1}, x2={x2}, y2={y2}')
+        #print(f'Bounding Box Coordinates: x1={x1}, y1={y1}, x2={x2}, y2={y2}')
 
         save_isolated_object(isolated, img_name, idx, label, ci)
 
-        print(f'Original Image Dimensions: {img.shape}')
-        print(f'Isolated Image Dimensions: {isolated.shape}')
+        #print(f'Original Image Dimensions: {img.shape}')
+        #print(f'Isolated Image Dimensions: {isolated.shape}')
 
 def create_binary_mask(contour_result):
     """

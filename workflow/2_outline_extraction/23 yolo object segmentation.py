@@ -85,6 +85,13 @@ draw = ImageDraw.Draw(img_madonna)
 draw.polygon(polygon,outline=(0,255,0), width=3)
 img_madonna
 
+
+
+# segment and save individual figures ----
+model = YOLO("yolov8x-seg.pt")  # for segmentation (huge)
+
+res = model.predict("../../data/interim/no_background/output_0_Edinburgh_Nat_Gallery.jpg", save = True, save_txt=True)
+
 # iterate detection results 
 for idx, r in enumerate(res):  # Iterate over the indices and results
     img = np.copy(r.orig_img)

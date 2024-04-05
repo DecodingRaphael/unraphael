@@ -105,13 +105,17 @@ cv2.destroyAllWindows()
 import cv2
 import os
 import numpy as np
+import random
 
 def get_contour_color(image):
-    # Assuming the image has colored contours, get the color from the center pixel
-    center_pixel = image[image.shape[0] // 2, image.shape[1] // 2]
-    return tuple(center_pixel)
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    _, thresh = cv2.threshold(gray, 1, 255, cv2.THRESH_BINARY)
+    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contour_color = tuple(map(int, cv2.mean(image, mask=thresh)[:3]))
+    return contour_color
 
-def overlay_images(base_image_path, overlay_images):
+
+def overlaying_images(base_image_path, overlay_images, scale_factor=1.50):
     # Read the base image
     base_image = cv2.imread(base_image_path)
 
@@ -127,11 +131,14 @@ def overlay_images(base_image_path, overlay_images):
     base_title = os.path.basename(base_image_path).split(".")[0]
 
     # Add the base image title to the legend
-    legend_text_base = f"Base Image: {base_title}"
+    legend_text_base = f"{base_title}"
     cv2.putText(output, legend_text_base, (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2, cv2.LINE_AA)
 
+    # Initialize y-coordinate for legend text
+    text_y = 60
+    
     # Iterate over each overlay image and blend it with the output
-    for i, overlay_path in enumerate(overlay_images):
+    for overlay_path in overlay_images:
         overlay = cv2.imread(overlay_path)
 
         # Check if the overlay image is valid
@@ -141,26 +148,37 @@ def overlay_images(base_image_path, overlay_images):
             # Get contour color from the overlay image
             contour_color = get_contour_color(overlay)
 
-            # Extract legend text from the filename
+            # Add legend text with contour color above the contours
             legend_text = os.path.basename(overlay_path).split(".")[0]  # Extract text before the file extension
-
-            # Add legend text with contour color
-            cv2.putText(output, legend_text, (20, 60 + i * 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, contour_color, 2, cv2.LINE_AA)
+            cv2.putText(output, legend_text, (20, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.8, contour_color, 2, cv2.LINE_AA)
+            
+            # Increment y-coordinate for next legend text
+            text_y += 30
         else:
             print(f"Error: Unable to read {overlay_path}")
 
+    # Resize the output image
+    output = cv2.resize(output, None, fx=scale_factor, fy=scale_factor)
+    
+    # Convert black areas to white
+    #output[np.all(output == [0, 0, 0], axis=-1)] = [255, 255, 255]
+    
     # Display the result
     cv2.imshow("Overlayed Images", output)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
-
-# Example usage:
+    
+    # Example usage:
 base_image_path = "../../data/interim/outlines/0_Edinburgh_Nat_Gallery.jpg"
-overlay_images_list = [#"../../data/interim/outlines/1_London_Nat_Gallery.jpg",
-                  "../../data/interim/outlines/2_Naples_Museo Capodimonte.jpg",
-                  "../../data/interim/outlines/3_Milan_private.jpg",
-                  "../../data/interim/outlines/4_Oxford_Ashmolean.jpg",
-                  "../../data/interim/outlines/5_UK_Nostrell Priory.jpg"]
+
+overlay_images = [
+                  #"../../data/interim/outlines/1_London_Nat_Gallery.jpg",
+                  #"../../data/interim/outlines/2_Naples_Museo Capodimonte.jpg",
+                  #"../../data/interim/outlines/3_Milan_private.jpg",
+                  #"../../data/interim/outlines/4_Oxford_Ashmolean.jpg",
+                  "../../data/interim/outlines/5_UK_Nostrell Priory.jpg",
+                  "../../data/interim/outlines/6_Oxford_Christ_Church.jpg"
+                  ]
 
 
-overlay_images(base_image_path, overlay_images_list)
+overlaying_images(base_image_path, overlay_images, scale_factor=2.0)

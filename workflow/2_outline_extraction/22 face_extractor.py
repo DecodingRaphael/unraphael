@@ -21,14 +21,6 @@ faces = faceCascade.detectMultiScale(
     minSize=(40, 40)
 )
 
-bodies = faceCascade.detectMultiScale(
-    gray,
-    scaleFactor=1.3,
-    minNeighbors=3,
-    minSize=(30, 30)
-)
-
-
 print("[INFO] Found {0} Faces!".format(len(faces)))
 
 for (x, y, w, h) in faces:

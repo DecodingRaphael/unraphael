@@ -51,18 +51,18 @@ import cv2
 from matplotlib import pyplot as plt
 
 # Open the input image
-        input_image = Image.open("../data/interim/no_background/output_0_Edinburgh_Nat_Gallery.jpg")
-        image = cv2.imread("../data/interim/no_background/output_0_Edinburgh_Nat_Gallery.jpg")
+input_image = Image.open("../../data/interim/no_background/output_0_Edinburgh_Nat_Gallery.jpg")
+image = cv2.imread("../../data/interim/no_background/output_0_Edinburgh_Nat_Gallery.jpg")
 
-        plt.imshow(image)
+plt.imshow(image)
 
-        gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        gray_image = cv2.equalizeHist(gray_image)
+gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+gray_image = cv2.equalizeHist(gray_image)
 
-        # Use rembg to remove the background
-        output_image = remove(gray_image)
+# Use rembg to remove the background
+output_image = remove(gray_image)
         
-        plt.imshow(output_image)
+plt.imshow(output_image)
         
         
 
@@ -76,8 +76,8 @@ def remove_background_advanced(input_path, output_path, alpha_matte=False, backg
         output_file.write(output_data)
 
 # Specify input and output paths
-input_image_path = "../../data/interim/no_background/output_0_Edinburgh_Nat_Gallery.jpg"
-input_image_path = "../data/raw/baby.jpg"
+#input_image_path = "../../data/interim/no_background/output_0_Edinburgh_Nat_Gallery.jpg"
+input_image_path = "../../data/raw/Lamb/1 Madrid_Museo del Prado.jpg"
 output_image_path_advanced = "output_image_advanced.png"
 
 # Remove background with advanced options
