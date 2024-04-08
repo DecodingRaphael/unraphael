@@ -13,10 +13,8 @@ from __future__ import division
 import matplotlib.pyplot as plt
 from skimage.metrics import structural_similarity as compare_ssim
 from PIL import Image
-
-from skimage import data
-from skimage import exposure
 from skimage.exposure import match_histograms
+
 
 
 def align_images(image, template, maxFeatures=500, keepPercent=0.2, debug=False):
@@ -354,3 +352,57 @@ def normalize_sharpness(template, target):
     plt.show()
 
     return normalized_img
+
+def normalize_colors(template, target):
+    """
+    Normalize the colors of the target image to match the color distribution of the template image.
+
+    Parameters:
+    - template: Reference image (template) in BGR color format.
+    - target: Target image to be adjusted in BGR color format.
+
+    Returns:
+    - normalized_img: Target image with colors normalized to match the template image.
+    """
+    matched = match_histograms(target, template, channel_axis=-1)
+
+    # Visualization check ----
+    fig, axes = plt.subplots(1, 3, figsize=(12, 6))
+    axes[0].imshow(cv2.cvtColor(template, cv2.COLOR_BGR2RGB))
+    axes[0].set_title('Original Template')
+    axes[0].axis('off')
+    axes[1].imshow(cv2.cvtColor(target, cv2.COLOR_BGR2RGB))
+    axes[1].set_title('Original Target')
+    axes[1].axis('off')
+    axes[2].imshow(cv2.cvtColor(matched, cv2.COLOR_BGR2RGB))
+    axes[2].set_title('Target (adapted colors)')
+    axes[2].axis('off')
+    plt.show()
+
+    return matched
+
+def normalize_image(template, image):
+    """
+    Normalize the brightness, contrast, sharpness, and color of the target image 
+    to match the characteristics of the template image.
+
+    Parameters:
+    - template: Reference image (template) in BGR format.
+    - image: Target image to be adjusted in BGR format.
+
+    Returns:
+    - normalized_img: Target image with normalized characteristics.
+    """
+    # Step 1: Normalize brightness
+    normalized_brightness_img = normalize_brightness(template, image)
+    
+    # Step 2: Normalize contrast
+    normalized_contrast_img = normalize_contrast(template, normalized_brightness_img)
+    
+    # Step 3: Normalize sharpness
+    normalized_sharpness_img = normalize_sharpness(template, normalized_contrast_img)
+    
+    # Step 4: Normalize colors
+    normalized_color_img = normalize_colors(template, normalized_sharpness_img)
+    
+    return normalized_color_img
