@@ -15,6 +15,8 @@ import numpy as np
 from pathlib import Path
 import imutils
 
+from image_preprocessing import adaptive_hist, adjust_brightness, contrast_enhancement,morphological_operations
+
 # load a pretrained YOLOv8x segmentation model
 model = YOLO("yolov8x-seg.pt") 
        
@@ -31,30 +33,41 @@ def remove_background_from_images(input_folder, output_folder):
 
     # Iterate through each file in the input folder
     for filename in os.listdir(input_folder):
-        if filename.endswith(('.jpg', '.png')):  
-            
-            # Construct the full path for input and output
+        if filename.endswith(('.jpg', '.png')): 
+                        
             input_path = os.path.join(input_folder, filename)
             output_path = os.path.join(output_folder, f"{filename}")
-
-            # Open the input image
+            
             input_image = Image.open(input_path)
             
-            # Preprocess the image before removing the background
-            #TODO: Add preprocessing steps here
+            # Preprocessing 
+            input_image = adaptive_hist(input_image, clipLimit=4.0)  
+            input_image = adjust_brightness(input_image, alpha=0.9, beta=15)                   
+            input_image = contrast_enhancement(input_image, alpha=1.4, beta=10)
+                                
+            #input_image = noise_reduction(input_image, kernel_size=(3, 3))
+                    
+            #input_image = edge_enhancement(input_image)
+                    
+            #input_image = thresholding(input_image, threshold_value=150)
+            
+            input_image = morphological_operations(input_image, kernel_size=(5, 5))
+            
+            output_image = remove(input_image, 
+                                  alpha_matte=True,
+                                  only_mask = False, 
+                                  background_color=(0, 0, 0),
+                                  alpha_matting_foreground_threshold = 200,
+                                  alpha_matting_background_threshold = 10,
+                                  alpha_matting_erode_structure_size = 5,
+                                  alpha_matting_base_size = 500)
 
-            # Use rembg to remove the background
-            output_image = remove(input_image, alpha_matte=True,
-                                  only_mask = False, background_color=(0, 0, 0),
-                                  alpha_matting_foreground_threshold=200,
-                                  alpha_matting_background_threshold=10,
-                                  alpha_matting_erode_structure_size=5,
-                                  alpha_matting_base_size=500)
-
+            # convert the NumPy array to a PIL Image
+            output_image = Image.fromarray(output_image)
+        
             # Convert the image to PNG format
             output_image = output_image.convert('RGBA')
-            
-            # Save the output image to the output folder
+                        
             output_image.save(output_path, format='PNG')
     
 def detect_and_save_faces(image_path):
