@@ -17,15 +17,7 @@ import imutils
 
 # load a pretrained YOLOv8x segmentation model
 model = YOLO("yolov8x-seg.pt") 
-
-def remove_background_advanced(input_path, output_path, alpha_matte=True, background_color=(255, 255, 255)):
-    with open(input_path, "rb") as input_file, open(output_path, "wb") as output_file:
-        
-        input_data  = input_file.read()              
-        output_data = remove(input_data, alpha_matte=alpha_matte, background_color=background_color)        
-        output_file.write(output_data)
-        
-
+       
 def remove_background_from_images(input_folder, output_folder):
     """
     Remove background from images in the input folder and save them in the output folder.
@@ -47,13 +39,17 @@ def remove_background_from_images(input_folder, output_folder):
 
             # Open the input image
             input_image = Image.open(input_path)
+            
+            # Preprocess the image before removing the background
+            #TODO: Add preprocessing steps here
 
             # Use rembg to remove the background
-            output_image = remove(input_image, alpha_matte=True, background_color=(0, 0, 0),
-                                  alpha_matting_foreground_threshold=240,
+            output_image = remove(input_image, alpha_matte=True,
+                                  only_mask = False, background_color=(0, 0, 0),
+                                  alpha_matting_foreground_threshold=200,
                                   alpha_matting_background_threshold=10,
-                                  alpha_matting_erode_structure_size=10,
-                                  alpha_matting_base_size=1000)
+                                  alpha_matting_erode_structure_size=5,
+                                  alpha_matting_base_size=500)
 
             # Convert the image to PNG format
             output_image = output_image.convert('RGBA')
