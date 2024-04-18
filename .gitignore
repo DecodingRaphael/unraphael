@@ -5,6 +5,8 @@ example_code/
 reports/
 images/
 
+Raphael.code-workspace
+
 src/models/
 src/1_image_preprocessing
 src/2_outline_extraction/yolo
