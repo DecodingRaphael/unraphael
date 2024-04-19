@@ -59,8 +59,7 @@ def remove_background_from_images(input_folder, output_folder):
                                   background_color=(0, 0, 0),
                                   alpha_matting_foreground_threshold = 200,
                                   alpha_matting_background_threshold = 10,
-                                  alpha_matting_erode_structure_size = 5,
-                                  alpha_matting_base_size = 500)
+                                  alpha_matting_erode_structure_size = 5)
 
             # convert the NumPy array to a PIL Image
             output_image = Image.fromarray(output_image)
@@ -396,8 +395,8 @@ def connected_component_analysis(segmentation_mask, min_area=100):
 
 def combine_masks_from_image_folder(input_folder_path, output_folder_path):
     """
-    Combine segmentation masks from an image into a single binary image and save it in the output folder. All images in the input folder
-    are processed and saved at once
+    Combine segmentation masks from an image into a single binary image and save it in the output folder. 
+    All images in the input folder are processed and saved at once
 
     Parameters:
         input_folder_path (str): Path to the folder containing input images.
