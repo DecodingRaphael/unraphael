@@ -8,8 +8,8 @@ import imutils
 import cv2
 import os
 from IPython.display import display, HTML
-from __future__ import print_function
-from __future__ import division
+#from __future__ import print_function
+#from __future__ import division
 import matplotlib.pyplot as plt
 from skimage.metrics import structural_similarity as compare_ssim
 from PIL import Image
@@ -108,8 +108,7 @@ def align_images(image, template, maxFeatures=500, keepPercent=0.2, debug=False)
     axes[1].set_title('Aligned image')
     axes[1].axis('off')
     plt.show()
-
-    # return the aligned image
+    
     return aligned
 
 def align_all_images_in_folder_to_template(template_path, input_directory, output_directory, maxFeatures=500, keepPercent=0.2, debug=False):
@@ -133,7 +132,7 @@ def align_all_images_in_folder_to_template(template_path, input_directory, outpu
     # create output directory if it does not exist yet
     os.makedirs(output_directory, exist_ok=True)
 
-    # loop over all files in the input directory
+    # loop over all images in the input directory
     for filename in os.listdir(input_directory):
         if filename.endswith(('.jpg', '.jpeg', '.png')):
             
@@ -141,7 +140,7 @@ def align_all_images_in_folder_to_template(template_path, input_directory, outpu
             image_path = os.path.join(input_directory, filename)
             image = cv2.imread(image_path)
 
-            # align the images by applying the alignment function
+            # align the image by applying the alignment function
             aligned = align_images(image, template, maxFeatures, keepPercent, debug)
 
             # save the aligned image in the output directory
