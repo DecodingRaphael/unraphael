@@ -1,5 +1,4 @@
-## USE
-## streamlit run preprocessing_app.py --server.enableXsrfProtection false
+## USE streamlit run preprocessing_app.py --server.enableXsrfProtection false
 
 # Import libraries
 import streamlit as st
@@ -13,32 +12,9 @@ import rembg
 
 st.set_page_config(layout="wide", page_title = "Image Background Remover")
 
-
 st.sidebar.write("## Upload and download :gear:")
 
 ## Preset: Change colors of all slider elements using CSS custom styles
-
-# Set background of min/max values transparent
-#ColorMinMax = st.markdown(''' <style> div.stSlider > div[data-baseweb = "slider"] > div[data-testid="stTickBar"] > div {
-#            background: rgb(1 1 1 / 0%); } </style>''', unsafe_allow_html = True)
-
-# Set color for cursor
-#Slider_Cursor = st.markdown(''' <style> div.stSlider > div[data-baseweb="slider"] > div > div > div[role="slider"]{
-#            background-color: rgb(40, 225, 51); box-shadow: rgb(22 130 30 / 100%) 0px 0px 0px 0.2rem;} </style>''', unsafe_allow_html = True)
-
-# Set color for slider number
-#Slider_Number = st.markdown(''' <style> div.stSlider > div[data-baseweb="slider"] > div > div > div > div
-#                                        { color: rgb(138, 148, 143); } </style>''', unsafe_allow_html = True)
-            
-# Set color shading for slider
-#col = f''' <style> div.stSlider > div[data-baseweb = "slider"] > div > div {{
-#            background: linear-gradient(to left, rgb(40, 225, 51) 0%, 
-#                                        rgb(22, 130, 30) 30%, 
-#                                        rgba(40, 225, 51, 0.25) 70%, 
-#                                        rgba(22, 130, 30, 0.25) 100%); }} </style>'''
-# Apply color shading on slider
-#ColorSlider = st.markdown(col, unsafe_allow_html = True)
-
 # Set background of min/max values transparent
 color_min_max = st.markdown('''
 <style>
@@ -83,7 +59,8 @@ color_slider = st.markdown(color_shading, unsafe_allow_html=True)
 
 
 ## 1. Function to process the uploaded image with user-defined parameters
-def process_image(input_image, bilateral_strength, clahe_clip_limit, sigma_sharpness, contrast, brightness,
+def process_image(input_image, bilateral_strength, clahe_clip_limit, clahe_tiles, 
+                  sigma_sharpness, contrast, brightness,
                   sharpening_kernel_size, saturation_factor,bg_threshold, fg_threshold,
                   erode_size, alpha_matting, mask, post_process, background_color):
     
@@ -92,11 +69,8 @@ def process_image(input_image, bilateral_strength, clahe_clip_limit, sigma_sharp
     
     # Check if the image is grayscale and convert it to 3 channels if necessary
     if len(input_image_np.shape) == 2:
-        input_image_np = cv2.cvtColor(input_image_np, cv2.COLOR_GRAY2BGR)
+        input_image_np = cv2.cvtColor(input_image_np, cv2.COLOR_GRAY2BGR)      
         
-    # Noise Reduction
-    #input_image_np = cv2.GaussianBlur(input_image_np, (5, 5), 0)
-    
     # Split PIL image into its individual color channels
     blue, green, red = cv2.split(input_image_np)
   
@@ -106,8 +80,9 @@ def process_image(input_image, bilateral_strength, clahe_clip_limit, sigma_sharp
     red_blur = cv2.bilateralFilter(red, d=bilateral_strength, sigmaColor=55, sigmaSpace=55)
 
     # Create CLAHE object with user-defined clip limit
-    clahe = cv2.createCLAHE(clipLimit=clahe_clip_limit, tileGridSize=(3, 3))
- 
+    #clahe = cv2.createCLAHE(clipLimit=clahe_clip_limit, tileGridSize=(3, 3))
+    clahe = cv2.createCLAHE(clipLimit=clahe_clip_limit, tileGridSize=(clahe_tiles, clahe_tiles))
+  
     # Adjust histogram and contrast for each color channel using CLAHE
     blue_eq = clahe.apply(blue_blur)
     green_eq = clahe.apply(green_blur)
@@ -165,9 +140,11 @@ def process_image(input_image, bilateral_strength, clahe_clip_limit, sigma_sharp
 ## 2. Main function to run the streamlit app
 def main():
     # Set title for the App
-    st.markdown("# :orange[Image preprocessing]")
-    st.markdown("## For optimal background removal from an image")
-    
+    #st.markdown("# :orange[Image preprocessing]")
+    st.markdown('<div style="text-align: center;"><h1 style="color: orange;">Image preprocessing</h1></div>', unsafe_allow_html=True)
+    #st.markdown("## For optimal background removal from an image")   
+    st.markdown('<div style="text-align: center;"><h2 style="font-size: 26px;">For optimal background removal from an image</h2></div>', unsafe_allow_html=True)
+        
     # Draw a dividing line
     #st.divider()
 
@@ -190,8 +167,9 @@ def main():
 
             # Column 1: create sliders for Bilateral Filter and Saturation
             bilateral_strength = col1.slider("###### :heavy_check_mark: :blue[Bilateral Filter Strength] (preset = 5)", min_value=0, max_value=15, value=5, key='bilateral')
-            saturation_factor = col1.slider("###### :heavy_check_mark: :blue[Color Saturation] (preset = 1.1)", min_value=0.0, max_value=2.0, step=0.05, value=1.1, key='saturation')
-            clahe_clip_limit = col1.slider("###### :heavy_check_mark: :blue[CLAHE Clip Limit - Threshold for contrast limiting] (preset = 2)", min_value=0.1, max_value=5.0, value=2.0, step=0.05, key='clahe')
+            saturation_factor =  col1.slider("###### :heavy_check_mark: :blue[Color Saturation] (preset = 1.1)", min_value=0.0, max_value=2.0, step=0.05, value=1.1, key='saturation')
+            clahe_clip_limit =   col1.slider("###### :heavy_check_mark: :blue[CLAHE Clip Limit - Threshold for contrast limiting] (preset = 2)", min_value=0.0, max_value=5.0, value=2.0, step=0.05, key='clahe')
+            clahe_tiles =        col1.slider("###### :heavy_check_mark: :blue[CLAHE Tile Grid Size - Tile size for local contrast enhancement] (preset = 8,8)", min_value=2, max_value=15, value=8, step= 1, key='tiles')            
                         
             # Column 2: create sliders for CLAHE and Sharpening            
             sigma_sharpness = col2.slider("###### :heavy_check_mark: :blue[Sharpness Sigma] (preset = 0.5)", min_value=0.0, max_value=3.0, value=0.5, step=0.1, key='sharpness')
@@ -236,7 +214,7 @@ def main():
             col1.image(image, caption="Uploaded Image", use_column_width=True)
             
             # Process image with updated parameters
-            processed_image_pil = process_image(image, bilateral_strength, clahe_clip_limit,
+            processed_image_pil = process_image(image, bilateral_strength, clahe_clip_limit,clahe_tiles,
                                                 sigma_sharpness,contrast, brightness ,sharpening_kernel_size, saturation_factor,
                                                 bg_threshold, fg_threshold, erode_size, alpha_matting, mask, post_process, background_color)
 
