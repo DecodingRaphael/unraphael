@@ -1,5 +1,6 @@
-<!-- [![Documentation Status](https://readthedocs.org/projects/Unraphael/badge/?version=latest)](https://Unraphael.readthedocs.io/en/latest/?badge=latest)
-[![Tests](https://github.com/DecodingRaphael/unraphael/actions/workflows/test.yaml/badge.svg)](https://github.com/DecodingRaphael/unraphael/actions/workflows/test.yaml)
+[![Documentation Status](https://readthedocs.org/projects/unraphael/badge/?version=latest)](https://unraphael.readthedocs.io/en/latest/?badge=latest)
+
+<!-- [![Tests](https://github.com/DecodingRaphael/unraphael/actions/workflows/test.yaml/badge.svg)](https://github.com/DecodingRaphael/unraphael/actions/workflows/test.yaml)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/unraphael)](https://pypi.org/project/unraphael/)
 [![PyPI](https://img.shields.io/pypi/v/unraphael.svg?style=flat)](https://pypi.org/project/unraphael/)
 ![Coverage](https://gist.githubusercontent.com/stefsmeets/xxx/raw/covbadge.svg)
