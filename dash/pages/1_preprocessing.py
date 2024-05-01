@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from io import BytesIO
-
+from typing import Literal
 import cv2
 import imageio
 import numpy as np
@@ -20,25 +20,17 @@ def apply_mask_and_convert_to_pil(original_image, mask):
 
 
 def process_image(
-    input_image,
+    input_image: Image,
     *,
-    bilateral_strength,
-    clahe_clip_limit,
-    clahe_tiles,
-    sigma_sharpness,
-    contrast,
-    brightness,
-    sharpening_kernel_size,
-    saturation_factor,
-    bg_threshold,
-    fg_threshold,
-    erode_size,
-    alpha_matting,
-    mask,
-    post_process,
-    background_color,
-    mask_process=False,
-):
+    bilateral_strength: int,
+    clahe_clip_limit: float,
+    clahe_tiles: int,
+    sigma_sharpness: float,
+    contrast: float,
+    brightness: int,
+    sharpening_kernel_size: int,
+    saturation_factor: float,
+) -> np.ndarray:
     """Process the uploaded image with user-defined parameters."""
     # Convert PIL Image to NumPy array
     input_image_np = np.array(input_image)
@@ -112,37 +104,41 @@ def process_image(
     # Apply Gaussian blur to the image with user-defined 'sigma_sharpness'
     processed_image = cv2.GaussianBlur(processed_image, (0, 0), sigma_sharpness)
 
-    # Finally, remove background
+    return processed_image
+
+
+def remove_background(
+    processed_image: np.ndarray,
+    *,
+    bg_threshold: int,
+    fg_threshold: int,
+    erode_size: int,
+    alpha_matting: bool,
+    only_mask: bool,
+    post_process: bool,
+    background_color: Literal['Transparent', 'White', 'Black'],
+    mask_process: bool = False,
+) -> Image:
+    bgcolor = {
+        'Transparent': (0, 0, 0, 0),
+        'White': (255, 255, 255, 255),
+        'Black': (0, 0, 0, 255),
+    }[background_color]
+
     if mask_process:
-        processed_image = rembg.remove(
-            processed_image,
-            alpha_matting=alpha_matting,
-            alpha_matting_foreground_threshold=fg_threshold,
-            alpha_matting_background_threshold=bg_threshold,
-            alpha_matting_erode_size=erode_size,
-            only_mask=True,
-            post_process_mask=True,
-            bgcolor=(0, 0, 0, 0)
-            if background_color == 'Transparent'
-            else (255, 255, 255, 255)
-            if background_color == 'White'
-            else (0, 0, 0, 255),
-        )
-    else:
-        processed_image = rembg.remove(
-            processed_image,
-            alpha_matting=alpha_matting,
-            alpha_matting_foreground_threshold=fg_threshold,
-            alpha_matting_background_threshold=bg_threshold,
-            alpha_matting_erode_size=erode_size,
-            only_mask=mask,
-            post_process_mask=post_process,
-            bgcolor=(0, 0, 0, 0)
-            if background_color == 'Transparent'
-            else (255, 255, 255, 255)
-            if background_color == 'White'
-            else (0, 0, 0, 255),
-        )
+        only_mask = True
+        post_process_mask = True
+
+    processed_image = rembg.remove(
+        processed_image,
+        alpha_matting=alpha_matting,
+        alpha_matting_foreground_threshold=fg_threshold,
+        alpha_matting_background_threshold=bg_threshold,
+        alpha_matting_erode_size=erode_size,
+        only_mask=only_mask,
+        post_process_mask=post_process_mask,
+        bgcolor=bgcolor,
+    )
 
     return Image.fromarray(processed_image)
 
@@ -167,14 +163,16 @@ def main():
 
         col1, col2 = st.columns(2)
 
-        bilateral_strength = col1.slider(
+        image_params = {}
+
+        image_params['bilateral_strength'] = col1.slider(
             'Bilateral Filter Strength (preset = 5)',
             min_value=0,
             max_value=15,
             value=5,
             key='bilateral',
         )
-        saturation_factor = col1.slider(
+        image_params['saturation_factor'] = col1.slider(
             'Color Saturation (preset = 1.1)',
             min_value=0.0,
             max_value=2.0,
@@ -182,7 +180,7 @@ def main():
             value=1.1,
             key='saturation',
         )
-        clahe_clip_limit = col1.slider(
+        image_params['clahe_clip_limit'] = col1.slider(
             'CLAHE Clip Limit - Threshold for contrast limiting (preset = 2)',
             min_value=0.0,
             max_value=5.0,
@@ -190,7 +188,7 @@ def main():
             step=0.05,
             key='clahe',
         )
-        clahe_tiles = col1.slider(
+        image_params['clahe_tiles'] = col1.slider(
             'CLAHE Tile Grid Size - Tile size for local contrast enhancement (preset = 8,8)',
             min_value=2,
             max_value=15,
@@ -199,7 +197,7 @@ def main():
             key='tiles',
         )
 
-        sigma_sharpness = col2.slider(
+        image_params['sigma_sharpness'] = col2.slider(
             'Sharpness Sigma (preset = 0.5)',
             min_value=0.0,
             max_value=3.0,
@@ -207,7 +205,7 @@ def main():
             step=0.1,
             key='sharpness',
         )
-        contrast = col2.slider(
+        image_params['contrast'] = col2.slider(
             'Contrast (preset = 1.0)',
             min_value=0.1,
             max_value=3.0,
@@ -215,7 +213,7 @@ def main():
             step=0.1,
             key='contrast',
         )
-        brightness = col2.slider(
+        image_params['brightness'] = col2.slider(
             'Brightness (preset = 10)',
             min_value=-100,
             max_value=100,
@@ -223,7 +221,7 @@ def main():
             step=1,
             key='brightness',
         )
-        sharpening_kernel_size = col2.slider(
+        image_params['sharpening_kernel_size'] = col2.slider(
             'Sharpening Kernel Size (preset = 3)',
             min_value=1,
             max_value=9,
@@ -238,30 +236,37 @@ def main():
 
         col1, col2 = st.columns(2)
 
-        alpha_matting = col1.checkbox('Use Alpha matting', value=False)
-        # Alpha matting is a post processing step that can be used to improve the quality of the output.
-        mask = col1.checkbox('Keep mask only', value=False)
-        post_process = col1.checkbox('Postprocess mask', value=False)
-        # You can use the post_process_mask argument to post process the mask to get better results.
-        background_color = col1.radio(
-            'Background Color', ['Transparent', 'White', 'Black']
-        )
+        background_params = {}
 
-        bg_threshold = col2.slider(
+        background_params['alpha_matting'] = col1.checkbox(
+            'Use Alpha matting',
+            value=False,
+            help='Alpha matting is a post processing step that can be used to improve the quality of the output.',
+        )
+        background_params['only_mask'] = col1.checkbox('Keep mask only', value=False)
+        background_params['post_process_mask'] = col1.checkbox(
+            'Postprocess mask', value=False
+        )
+        background_params['background_color'] = col1.radio(
+            'Background Color',
+            ['Transparent', 'White', 'Black'],
+            help='You can use the post_process_mask argument to post process the mask to get better results.',
+        )
+        background_params['bg_threshold'] = col2.slider(
             'Background Threshold (default = 10)',
             min_value=0,
             max_value=255,
             value=10,
             key='background',
         )
-        fg_threshold = col2.slider(
+        background_params['fg_threshold'] = col2.slider(
             'Foreground Threshold (default = 200)',
             min_value=0,
             max_value=255,
             value=200,
             key='foreground',
         )
-        erode_size = col2.slider(
+        background_params['erode_size'] = col2.slider(
             'Erode Size (default = 10)',
             min_value=0,
             max_value=25,
@@ -271,44 +276,13 @@ def main():
 
     image = Image.open(uploaded_file)
 
-    processed_image_pil = process_image(
-        image,
-        bilateral_strength=bilateral_strength,
-        clahe_clip_limit=clahe_clip_limit,
-        clahe_tiles=clahe_tiles,
-        sigma_sharpness=sigma_sharpness,
-        contrast=contrast,
-        brightness=brightness,
-        sharpening_kernel_size=sharpening_kernel_size,
-        saturation_factor=saturation_factor,
-        bg_threshold=bg_threshold,
-        fg_threshold=fg_threshold,
-        erode_size=erode_size,
-        alpha_matting=alpha_matting,
-        mask=mask,
-        post_process=post_process,
-        background_color=background_color,
-        mask_process=False,
-    )
+    processed_image = process_image(image, **image_params)
 
-    processed_mask_pil = process_image(
-        image,
-        bilateral_strength=bilateral_strength,
-        clahe_clip_limit=clahe_clip_limit,
-        clahe_tiles=clahe_tiles,
-        sigma_sharpness=sigma_sharpness,
-        contrast=contrast,
-        brightness=brightness,
-        sharpening_kernel_size=sharpening_kernel_size,
-        saturation_factor=saturation_factor,
-        bg_threshold=bg_threshold,
-        fg_threshold=fg_threshold,
-        erode_size=erode_size,
-        alpha_matting=alpha_matting,
-        mask=mask,
-        post_process=post_process,
-        background_color=background_color,
-        mask_process=True,
+    processed_image_pil = remove_background(
+        processed_image, **background_params, mask_process=False
+    )
+    processed_mask_pil = remove_background(
+        processed_image, **background_params, mask_process=True
     )
 
     col1, col2 = st.columns(2)

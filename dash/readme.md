@@ -9,5 +9,5 @@ pip install -r requirements.txt
 Run:
 
 ```console
-streamlit run start.py
+streamlit run home.py
 ```
