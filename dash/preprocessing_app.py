@@ -1,9 +1,5 @@
-## USE streamlit run preprocessing_app.py --server.enableXsrfProtection false
-
-# Import libraries
 from __future__ import annotations
 
-import os
 from io import BytesIO
 
 import cv2
@@ -16,15 +12,14 @@ from PIL import Image
 st.set_page_config(layout='wide', page_title='Image Background Remover')
 
 
-# Apply mask to original image and convert it to PIL format
 def apply_mask_and_convert_to_pil(original_image, mask):
+    """Apply mask to original image and convert it to PIL format."""
     # Apply mask to original image
     extracted_image = cv2.bitwise_and(original_image, original_image, mask=mask)
     # Convert extracted image to PIL format
     return Image.fromarray(extracted_image)
 
 
-# Process the uploaded image with user-defined parameters
 def process_image(
     input_image,
     bilateral_strength,
@@ -44,6 +39,7 @@ def process_image(
     background_color,
     mask_process=False,
 ):
+    """Process the uploaded image with user-defined parameters."""
     # Convert PIL Image to NumPy array
     input_image_np = np.array(input_image)
 
@@ -151,288 +147,228 @@ def process_image(
     return Image.fromarray(processed_image)
 
 
-# Run the streamlit app
 def main():
-    st.markdown(
-        '<div style="text-align: center;"><h1 style="color: orange;">Image preprocessing</h1></div>',
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        '<div style="text-align: center;"><h2 style="font-size: 26px;">For optimal background removal from '
-        'an image</h2></div>',
-        unsafe_allow_html=True,
-    )
-
-    # Draw a dividing line
+    st.title('Image preprocessing')
     st.markdown('---')
 
     # Step 1: upload image file as jpg/jpeg, include label
     uploaded_file = st.sidebar.file_uploader(
-        ' #### :camera: :orange[1. Upload Image] ', type=['JPG', 'JPEG']
+        '#### :camera: :orange[1. Upload Image] ', type=['JPG', 'JPEG']
     )
 
-    if uploaded_file is not None:
-        # Step 2: Slider customization with live updates
-        with st.expander('', expanded=True):
-            # Set subtitle and short explanation
-            st.write('#### :orange[2a. Apply Image Filters]')
-            st.write(
-                'The processed image is shown with a preset of parameters. Use the sliders to explore the effects of image filters, or to \
-                    refine the adjustment. - When you are happy with the result, download the processed image.'
-            )
+    if not uploaded_file:
+        st.info('Upload file to continue...')
+        st.stop()
 
-            # create 2 columns to distribute sliders
-            col1, col2 = st.columns(2)
+    # Step 2: Slider customization with live updates
+    with st.expander('', expanded=True):
+        # Set subtitle and short explanation
+        st.write('#### :orange[2a. Apply Image Filters]')
+        st.write(
+            'The processed image is shown with a preset of parameters. Use the sliders to explore the effects of image filters, or to \
+                refine the adjustment. - When you are happy with the result, download the processed image.'
+        )
 
-            # Column 1
-            bilateral_strength = col1.slider(
-                '###### :heavy_check_mark: :blue[Bilateral Filter Strength] (preset = 5)',
-                min_value=0,
-                max_value=15,
-                value=5,
-                key='bilateral',
-            )
-            saturation_factor = col1.slider(
-                '###### :heavy_check_mark: :blue[Color Saturation] (preset = 1.1)',
-                min_value=0.0,
-                max_value=2.0,
-                step=0.05,
-                value=1.1,
-                key='saturation',
-            )
-            clahe_clip_limit = col1.slider(
-                '###### :heavy_check_mark: :blue[CLAHE Clip Limit - Threshold for contrast limiting] (preset = 2)',
-                min_value=0.0,
-                max_value=5.0,
-                value=2.0,
-                step=0.05,
-                key='clahe',
-            )
-            clahe_tiles = col1.slider(
-                '###### :heavy_check_mark: :blue[CLAHE Tile Grid Size - Tile size for local contrast enhancement] (preset = 8,8)',
-                min_value=2,
-                max_value=15,
-                value=8,
-                step=1,
-                key='tiles',
-            )
+        # create 2 columns to distribute sliders
+        col1, col2 = st.columns(2)
 
-            # Column 2
-            sigma_sharpness = col2.slider(
-                '###### :heavy_check_mark: :blue[Sharpness Sigma] (preset = 0.5)',
-                min_value=0.0,
-                max_value=3.0,
-                value=0.5,
-                step=0.1,
-                key='sharpness',
-            )
-            contrast = col2.slider(
-                '###### :heavy_check_mark: :blue[Contrast] (preset = 1.0)',
-                min_value=0.1,
-                max_value=3.0,
-                value=1.0,
-                step=0.1,
-                key='contrast',
-            )
-            brightness = col2.slider(
-                '###### :heavy_check_mark: :blue[Brightness] (preset = 10)',
-                min_value=-100,
-                max_value=100,
-                value=10,
-                step=1,
-                key='brightness',
-            )
-            sharpening_kernel_size = col2.slider(
-                '###### :heavy_check_mark: :blue[Sharpening Kernel Size] (preset = 3)',
-                min_value=1,
-                max_value=9,
-                step=2,
-                value=3,
-                key='sharpen',
-            )
+        # Column 1
+        bilateral_strength = col1.slider(
+            '###### :heavy_check_mark: :blue[Bilateral Filter Strength] (preset = 5)',
+            min_value=0,
+            max_value=15,
+            value=5,
+            key='bilateral',
+        )
+        saturation_factor = col1.slider(
+            '###### :heavy_check_mark: :blue[Color Saturation] (preset = 1.1)',
+            min_value=0.0,
+            max_value=2.0,
+            step=0.05,
+            value=1.1,
+            key='saturation',
+        )
+        clahe_clip_limit = col1.slider(
+            '###### :heavy_check_mark: :blue[CLAHE Clip Limit - Threshold for contrast limiting] (preset = 2)',
+            min_value=0.0,
+            max_value=5.0,
+            value=2.0,
+            step=0.05,
+            key='clahe',
+        )
+        clahe_tiles = col1.slider(
+            '###### :heavy_check_mark: :blue[CLAHE Tile Grid Size - Tile size for local contrast enhancement] (preset = 8,8)',
+            min_value=2,
+            max_value=15,
+            value=8,
+            step=1,
+            key='tiles',
+        )
 
-        # Second block with image filters and explanation
-        with st.expander('', expanded=True):
-            # Set subtitle and short explanation
-            st.write('#### :orange[2b. Parameters for background removal]')
-            st.write('Specifics to background removal.')
+        # Column 2
+        sigma_sharpness = col2.slider(
+            '###### :heavy_check_mark: :blue[Sharpness Sigma] (preset = 0.5)',
+            min_value=0.0,
+            max_value=3.0,
+            value=0.5,
+            step=0.1,
+            key='sharpness',
+        )
+        contrast = col2.slider(
+            '###### :heavy_check_mark: :blue[Contrast] (preset = 1.0)',
+            min_value=0.1,
+            max_value=3.0,
+            value=1.0,
+            step=0.1,
+            key='contrast',
+        )
+        brightness = col2.slider(
+            '###### :heavy_check_mark: :blue[Brightness] (preset = 10)',
+            min_value=-100,
+            max_value=100,
+            value=10,
+            step=1,
+            key='brightness',
+        )
+        sharpening_kernel_size = col2.slider(
+            '###### :heavy_check_mark: :blue[Sharpening Kernel Size] (preset = 3)',
+            min_value=1,
+            max_value=9,
+            step=2,
+            value=3,
+            key='sharpen',
+        )
 
-            # create 2 columns for second block
-            col3, col4 = st.columns(2)
+    # Second block with image filters and explanation
+    with st.expander('', expanded=True):
+        # Set subtitle and short explanation
+        st.write('#### :orange[2b. Parameters for background removal]')
+        st.write('Specifics to background removal.')
 
-            # Draw a dividing line
-            st.markdown('---')
+        # create 2 columns for second block
+        col3, col4 = st.columns(2)
 
-            # mask
-            alpha_matting = col3.checkbox(
-                'Use Alpha matting', value=False
-            )  # Alpha matting is a post processing step that can be used to improve the quality of the output.
-            mask = col3.checkbox('Keep mask only', value=False)
-            post_process = col3.checkbox(
-                'Postprocess mask', value=False
-            )  # You can use the post_process_mask argument to post process the mask to get better results.
-            background_color = col3.radio(
-                'Background Color', ['Transparent', 'White', 'Black']
-            )
+        # Draw a dividing line
+        st.markdown('---')
 
-            bg_threshold = col4.slider(
-                '###### :heavy_check_mark: :blue[Background Threshold] (default = 10)',
-                min_value=0,
-                max_value=255,
-                value=10,
-                key='background',
-            )  # [default: 10]
-            fg_threshold = col4.slider(
-                '###### :heavy_check_mark: :blue[Foreground Threshold] (default = 200)',
-                min_value=0,
-                max_value=255,
-                value=200,
-                key='foreground',
-            )  # [default: 240]
-            erode_size = col4.slider(
-                '###### :heavy_check_mark: :blue[Erode Size] (default = 10)',
-                min_value=0,
-                max_value=25,
-                value=10,
-                key='erode',
-            )  # [default: 10]
+        # mask
+        alpha_matting = col3.checkbox(
+            'Use Alpha matting', value=False
+        )  # Alpha matting is a post processing step that can be used to improve the quality of the output.
+        mask = col3.checkbox('Keep mask only', value=False)
+        post_process = col3.checkbox(
+            'Postprocess mask', value=False
+        )  # You can use the post_process_mask argument to post process the mask to get better results.
+        background_color = col3.radio(
+            'Background Color', ['Transparent', 'White', 'Black']
+        )
 
-        # Step 3: Live preview of image processing
-        if uploaded_file is not None:
-            col1, col2 = st.columns(2)
+        bg_threshold = col4.slider(
+            '###### :heavy_check_mark: :blue[Background Threshold] (default = 10)',
+            min_value=0,
+            max_value=255,
+            value=10,
+            key='background',
+        )  # [default: 10]
+        fg_threshold = col4.slider(
+            '###### :heavy_check_mark: :blue[Foreground Threshold] (default = 200)',
+            min_value=0,
+            max_value=255,
+            value=200,
+            key='foreground',
+        )  # [default: 240]
+        erode_size = col4.slider(
+            '###### :heavy_check_mark: :blue[Erode Size] (default = 10)',
+            min_value=0,
+            max_value=25,
+            value=10,
+            key='erode',
+        )  # [default: 10]
 
-            image = Image.open(uploaded_file)
+    image = Image.open(uploaded_file)
 
-            # Display uploaded image with label
-            col1.image(image, caption='Uploaded Image', use_column_width=True)
+    # Process image with updated parameters
+    processed_image_pil = process_image(
+        image,
+        bilateral_strength,
+        clahe_clip_limit,
+        clahe_tiles,
+        sigma_sharpness,
+        contrast,
+        brightness,
+        sharpening_kernel_size,
+        saturation_factor,
+        bg_threshold,
+        fg_threshold,
+        erode_size,
+        alpha_matting,
+        mask,
+        post_process,
+        background_color,
+        mask_process=False,
+    )
 
-            # Process image with updated parameters
-            processed_image_pil = process_image(
-                image,
-                bilateral_strength,
-                clahe_clip_limit,
-                clahe_tiles,
-                sigma_sharpness,
-                contrast,
-                brightness,
-                sharpening_kernel_size,
-                saturation_factor,
-                bg_threshold,
-                fg_threshold,
-                erode_size,
-                alpha_matting,
-                mask,
-                post_process,
-                background_color,
-                mask_process=False,
-            )
+    # Process mask with updated parameters
+    processed_mask_pil = process_image(
+        image,
+        bilateral_strength,
+        clahe_clip_limit,
+        clahe_tiles,
+        sigma_sharpness,
+        contrast,
+        brightness,
+        sharpening_kernel_size,
+        saturation_factor,
+        bg_threshold,
+        fg_threshold,
+        erode_size,
+        alpha_matting,
+        mask,
+        post_process,
+        background_color,
+        mask_process=True,
+    )
 
-            # Process mask with updated parameters
-            processed_mask_pil = process_image(
-                image,
-                bilateral_strength,
-                clahe_clip_limit,
-                clahe_tiles,
-                sigma_sharpness,
-                contrast,
-                brightness,
-                sharpening_kernel_size,
-                saturation_factor,
-                bg_threshold,
-                fg_threshold,
-                erode_size,
-                alpha_matting,
-                mask,
-                post_process,
-                background_color,
-                mask_process=True,
-            )
+    # Display uploaded image with label
+    col1, col2 = st.columns(2)
+    col1.image(image, caption='Uploaded Image', use_column_width=True)
+    col2.image(processed_image_pil, caption='Processed Image', use_column_width=True)
 
-            # Display resulting image dynamically
-            col2.image(
-                processed_image_pil, caption='Processed Image', use_column_width=True
-            )
+    png_buffer = BytesIO()
+    imageio.imwrite(png_buffer, np.array(processed_image_pil), format='PNG')
 
-            # Get filename and extension using os.path
-            original_name, original_extension = os.path.splitext(uploaded_file.name)
+    extracted_image_pil = apply_mask_and_convert_to_pil(
+        np.array(image), np.array(processed_mask_pil)
+    )
 
-            # Construct file names for processed images
-            processed_image_name_jpeg = f'{original_name}_processed.jpg'
-            processed_image_name_png = f'{original_name}_processed.png'
-            extracted_image_name_jpeg = f'{original_name}_extracted.jpg'
-            extracted_image_name_png = f'{original_name}_extracted.png'
+    extracted_png_buffer = BytesIO()
+    imageio.imwrite(extracted_png_buffer, np.array(extracted_image_pil), format='PNG')
 
-            # Save processed image in JPEG format
-            jpeg_buffer = BytesIO()
-            processed_image_pil.convert('RGB').save(jpeg_buffer, format='JPEG')
-            jpeg_data = jpeg_buffer.getvalue()
+    st.markdown('---')
 
-            # Save processed image in PNG format
-            png_buffer = BytesIO()
-            imageio.imwrite(png_buffer, np.array(processed_image_pil), format='PNG')
-            png_data = png_buffer.getvalue()
+    # Provide download buttons for both formats
+    st.markdown('#### :floppy_disk: :orange[3. Download Processed Image]')
 
-            # Apply mask to original image
-            extracted_image_pil = apply_mask_and_convert_to_pil(
-                np.array(image), np.array(processed_mask_pil)
-            )
+    col1, col2 = st.columns(2)
 
-            # Save extracted image in JPEG format
-            extracted_jpeg_buffer = BytesIO()
-            extracted_image_pil.save(extracted_jpeg_buffer, format='JPEG')
-            extracted_jpeg_data = extracted_jpeg_buffer.getvalue()
+    stem, _ = uploaded_file.name.rsplit('.')
+    processed_image_name_png = f'{stem}_processed.png'
 
-            # Save extracted image in PNG format
-            extracted_png_buffer = BytesIO()
-            imageio.imwrite(
-                extracted_png_buffer, np.array(extracted_image_pil), format='PNG'
-            )
-            extracted_png_data = extracted_png_buffer.getvalue()
+    col1.download_button(
+        label=f':orange[PNG] ({processed_image_name_png})',
+        data=png_buffer.getvalue(),
+        file_name=processed_image_name_png,
+        key='processed_image_download_png',
+    )
 
-            st.markdown('---')
+    extracted_image_name_png = f'{stem}_extracted.png'
 
-            # Step 4: Download Buttons
-            # write subtitle and download information
-            st.sidebar.markdown('\n')
-            st.sidebar.markdown(
-                '#### :floppy_disk: :orange[3. Download Processed Image] '
-            )
-            st.sidebar.write(
-                'Download image in compressed JPG or losless PNG file format:'
-            )
-
-            # Provide download buttons for both formats
-            col1, col2 = st.columns(2)
-
-            # Place download button for jpeg file in column 1
-            with col1:
-                st.sidebar.download_button(
-                    label=f':orange[JPG] ({processed_image_name_jpeg})',
-                    data=jpeg_data,
-                    file_name=processed_image_name_jpeg,
-                    key='processed_image_download_jpeg',
-                )
-                st.sidebar.download_button(
-                    label=f':orange[JPG - Extracted] ({extracted_image_name_jpeg})',
-                    data=extracted_jpeg_data,
-                    file_name=extracted_image_name_jpeg,
-                    key='extracted_image_download_jpeg',
-                )
-
-            # Place download button for png file in column 2
-            with col2:
-                st.sidebar.download_button(
-                    label=f':orange[PNG] ({processed_image_name_png})',
-                    data=png_data,
-                    file_name=processed_image_name_png,
-                    key='processed_image_download_png',
-                )
-                st.sidebar.download_button(
-                    label=f':orange[PNG - Extracted] ({extracted_image_name_png})',
-                    data=extracted_png_data,
-                    file_name=extracted_image_name_png,
-                    key='extracted_image_download_png',
-                )
+    col2.download_button(
+        label=f':orange[PNG - Extracted] ({extracted_image_name_png})',
+        data=extracted_png_buffer.getvalue(),
+        file_name=extracted_image_name_png,
+        key='extracted_image_download_png',
+    )
 
 
 # run main function
