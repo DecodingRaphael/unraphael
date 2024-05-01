@@ -16,16 +16,17 @@ from seaborn import clustermap
 from unraphael.feature import (
     heatmap_to_condensed_distance_matrix,
 )
-from unraphael.io import load_images_from_drc
+from unraphael.io import load_images_from_drc, load_images
 
 _load_images_from_drc = st.cache_data(load_images_from_drc)
+_load_images = st.cache_data(load_images)
 
 
 if TYPE_CHECKING:
     import numpy as np
 
 
-def show_images(images: dict[str, np.ndarray], *, n_cols: int = 4):
+def show_images_widget(images: dict[str, np.ndarray], *, n_cols: int = 4):
     """Widget to show images with given number of columns."""
     col1, col2 = st.columns(2)
     n_cols = col1.number_input('Number of columns', value=8, min_value=1, step=1)
@@ -42,7 +43,7 @@ def show_images(images: dict[str, np.ndarray], *, n_cols: int = 4):
     return selected
 
 
-def load_config():
+def load_config_widget():
     """Widget to load config file."""
     config_fn = st.text_input(label='Config file', value='config.yaml')
     config = _load_config(config_fn)
@@ -58,13 +59,11 @@ def load_config():
     )
 
 
-def load_images():
+def load_images_widget():
     """Widget to load images."""
-    image_drc = st.text_input(label='Image directory', value='../data/raw/Bridgewater')
-    image_drc = Path(image_drc)
 
-    if not image_drc.exists():
-        st.error(f'Cannot find {image_drc}.')
+    load_example = st.sidebar.checkbox('Load example', value=False)
+    uploaded_files = st.file_uploader('Upload Images', accept_multiple_files=True)
 
     width = st.number_input(
         'Width',
@@ -74,10 +73,20 @@ def load_images():
         kwargs={'key': 'width'},
     )
 
-    return _load_images_from_drc(image_drc, width=width)
+    if load_example:
+        image_drc = Path('../data/raw/Bridgewater')
+        images = _load_images_from_drc(image_drc, width=width)
+    else:
+        if not uploaded_files:
+            st.info('Upload images to continue')
+            st.stop()
+
+        images = _load_images(uploaded_files, width=width)
+
+    return images
 
 
-def show_heatmaps(heatmaps: dict[str, np.ndarray], labels: list[str]):
+def show_heatmaps_widget(heatmaps: dict[str, np.ndarray], labels: list[str]):
     """Widget to show heatmaps."""
     st.title('Heatmaps')
 
