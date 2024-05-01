@@ -1,3 +1,5 @@
+# https://docs.streamlit.io/develop/concepts/configuration
+
 [browser]
 gatherUsageStats = false
 

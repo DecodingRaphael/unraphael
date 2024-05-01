@@ -8,6 +8,19 @@ import streamlit as st
 data_directory = files('unraphael.data')
 
 
+def set_custom_css(stylesheet: str = 'custom.css'):
+    """Set custom css here."""
+    fn = str(data_directory / stylesheet)
+
+    with open(fn, 'r') as f:
+        data = f.read()
+
+    st.write(
+        f'<style>\n{data}\n</style>',
+        unsafe_allow_html=True,
+    )
+
+
 @st.cache_data
 def get_base64_of_bin_file(png_file):
     with open(png_file, 'rb') as f:
@@ -42,7 +55,7 @@ def build_markup_for_logo(
 
 def add_sidebar_logo():
     """Based on: https://stackoverflow.com/a/73278825."""
-    png_file = data_directory / 'logo.png'
+    png_file = data_directory / 'logo-dark.png'
     logo_markup = build_markup_for_logo(png_file, nav=False)
     st.markdown(
         logo_markup,
