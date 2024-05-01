@@ -75,7 +75,7 @@ namespaces = true
 
 [tool.coverage.run]
 branch = true
-source = ["unraphael"]
+source = ["src/unraphael"]
 concurrency = ["multiprocessing"]
 data_file = ".coverage"
 

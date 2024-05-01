@@ -1,8 +1,10 @@
-<!-- [![Documentation Status](https://readthedocs.org/projects/Unraphael/badge/?version=latest)](https://Unraphael.readthedocs.io/en/latest/?badge=latest)
-[![Tests](https://github.com/DecodingRaphael/unraphael/actions/workflows/test.yaml/badge.svg)](https://github.com/DecodingRaphael/unraphael/actions/workflows/test.yaml)
+[![Documentation Status](https://readthedocs.org/projects/unraphael/badge/?version=latest)](https://unraphael.readthedocs.io/en/latest/?badge=latest)
+![Coverage](https://gist.githubusercontent.com/stefsmeets/808729a4ba7f123f650e32c499e143a4/raw/covbadge.svg)
+[![Tests](https://github.com/DecodingRaphael/unraphael/actions/workflows/tests.yaml/badge.svg)](https://github.com/DecodingRaphael/unraphael/actions/workflows/tests.yaml)
+
+<!--
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/unraphael)](https://pypi.org/project/unraphael/)
 [![PyPI](https://img.shields.io/pypi/v/unraphael.svg?style=flat)](https://pypi.org/project/unraphael/)
-![Coverage](https://gist.githubusercontent.com/stefsmeets/xxx/raw/covbadge.svg)
 [![DOI](https://zenodo.org/badge/DOI/xxx.svg)](https://doi.org/xxx)
  -->
 ![Unraphael banner](https://raw.githubusercontent.com/DecodingRaphael/unraphael/main/src/unraphael/data/logo.png)
