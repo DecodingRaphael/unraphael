@@ -1,26 +1,23 @@
 from __future__ import annotations
 
 from io import BytesIO
-from typing import Literal
 import cv2
-import imageio
+import imageio.v3 as imageio
 import numpy as np
 import rembg
 import streamlit as st
-from PIL import Image
 from styling import set_custom_css
 
 
-def apply_mask_and_convert_to_pil(original_image, mask):
-    """Apply mask to original image and convert it to PIL format."""
+def apply_mask(original_image: np.ndarray, mask: np.ndarray) -> np.ndarray:
+    """Apply mask to original image."""
     # Apply mask to original image
-    extracted_image = cv2.bitwise_and(original_image, original_image, mask=mask)
-    # Convert extracted image to PIL format
-    return Image.fromarray(extracted_image)
+    return cv2.bitwise_and(original_image, original_image, mask=mask)
 
 
+@st.cache_data
 def process_image(
-    input_image: Image,
+    image: np.array,
     *,
     bilateral_strength: int,
     clahe_clip_limit: float,
@@ -32,18 +29,12 @@ def process_image(
     saturation_factor: float,
 ) -> np.ndarray:
     """Process the uploaded image with user-defined parameters."""
-    # Convert PIL Image to NumPy array
-    input_image_np = np.array(input_image)
-
     # Check if the image is grayscale and convert it to 3 channels if necessary
-    if len(input_image_np.shape) == 2:
-        input_image_np = cv2.cvtColor(input_image_np, cv2.COLOR_GRAY2BGR)
-
-    # Noise Reduction
-    # input_image_np = cv2.GaussianBlur(input_image_np, (5, 5), 0)
+    if len(image.shape) == 2:
+        image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
 
     # Split PIL image into its individual color channels
-    blue, green, red = cv2.split(input_image_np)
+    blue, green, red = cv2.split(image)
 
     # Apply bilateral blur filter to each color channel with user-defined 'bilateral_strength'
     blue_blur = cv2.bilateralFilter(
@@ -57,7 +48,6 @@ def process_image(
     )
 
     # Create CLAHE object with user-defined clip limit
-    # clahe = cv2.createCLAHE(clipLimit=clahe_clip_limit, tileGridSize=(3, 3))
     clahe = cv2.createCLAHE(
         clipLimit=clahe_clip_limit, tileGridSize=(clahe_tiles, clahe_tiles)
     )
@@ -107,30 +97,26 @@ def process_image(
     return processed_image
 
 
+@st.cache_data
 def remove_background(
-    processed_image: np.ndarray,
+    image: np.ndarray,
     *,
     bg_threshold: int,
     fg_threshold: int,
     erode_size: int,
     alpha_matting: bool,
     only_mask: bool,
-    post_process: bool,
-    background_color: Literal['Transparent', 'White', 'Black'],
+    post_process_mask: bool,
+    bgcolor: tuple[int, int, int, int],
     mask_process: bool = False,
-) -> Image:
-    bgcolor = {
-        'Transparent': (0, 0, 0, 0),
-        'White': (255, 255, 255, 255),
-        'Black': (0, 0, 0, 255),
-    }[background_color]
-
+) -> np.ndarray:
+    """Remove background using rembg."""
     if mask_process:
         only_mask = True
         post_process_mask = True
 
-    processed_image = rembg.remove(
-        processed_image,
+    image = rembg.remove(
+        image,
         alpha_matting=alpha_matting,
         alpha_matting_foreground_threshold=fg_threshold,
         alpha_matting_background_threshold=bg_threshold,
@@ -140,7 +126,7 @@ def remove_background(
         bgcolor=bgcolor,
     )
 
-    return Image.fromarray(processed_image)
+    return image
 
 
 def main():
@@ -247,11 +233,20 @@ def main():
         background_params['post_process_mask'] = col1.checkbox(
             'Postprocess mask', value=False
         )
-        background_params['background_color'] = col1.radio(
+
+        bgmap = {
+            (0, 0, 0, 0): 'Transparent',
+            (255, 255, 255, 255): 'White',
+            (0, 0, 0, 255): 'Black',
+        }
+
+        background_params['bgcolor'] = col1.radio(
             'Background Color',
-            ['Transparent', 'White', 'Black'],
+            bgmap.keys(),
+            format_func=lambda x: bgmap[x],
             help='You can use the post_process_mask argument to post process the mask to get better results.',
         )
+
         background_params['bg_threshold'] = col2.slider(
             'Background Threshold (default = 10)',
             min_value=0,
@@ -274,30 +269,28 @@ def main():
             key='erode',
         )
 
-    image = Image.open(uploaded_file)
+    image = imageio.imread(uploaded_file)
 
     processed_image = process_image(image, **image_params)
 
-    processed_image_pil = remove_background(
+    processed_nobg = remove_background(
         processed_image, **background_params, mask_process=False
     )
-    processed_mask_pil = remove_background(
+    processed_mask = remove_background(
         processed_image, **background_params, mask_process=True
     )
 
     col1, col2 = st.columns(2)
     col1.image(image, caption='Uploaded Image', use_column_width=True)
-    col2.image(processed_image_pil, caption='Processed Image', use_column_width=True)
+    col2.image(processed_nobg, caption='Processed Image', use_column_width=True)
 
     png_buffer = BytesIO()
-    imageio.imwrite(png_buffer, np.array(processed_image_pil), format='PNG')
+    imageio.imwrite(png_buffer, processed_image, format='PNG')
 
-    extracted_image_pil = apply_mask_and_convert_to_pil(
-        np.array(image), np.array(processed_mask_pil)
-    )
+    extracted_image = apply_mask(image, processed_mask)
 
     extracted_png_buffer = BytesIO()
-    imageio.imwrite(extracted_png_buffer, np.array(extracted_image_pil), format='PNG')
+    imageio.imwrite(extracted_png_buffer, extracted_image, format='PNG')
 
     st.markdown('---')
 
