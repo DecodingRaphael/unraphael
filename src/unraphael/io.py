@@ -35,6 +35,10 @@ def load_images(
 
 
 def load_images_from_drc(drc: Path, **kwargs) -> dict[str, np.array]:
+    """Load all images in directory.
+
+    kwargs are passed to `load_images`.
+    """
     fns = list(drc.glob('*'))
 
     return load_images(fns, **kwargs)
