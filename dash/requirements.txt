@@ -1,4 +1,6 @@
 numpy
+opencv-python
+rembg
 scipy
 scikit-image
 seaborn
