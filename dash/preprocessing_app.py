@@ -12,51 +12,6 @@ import rembg
 
 st.set_page_config(layout="wide", page_title = "Image Background Remover")
 
-st.sidebar.write("## Upload and download :gear:")
-
-## Preset: Change colors of all slider elements using CSS custom styles
-# Set background of min/max values transparent
-color_min_max = st.markdown('''
-<style>
-div.stSlider > div[data-baseweb="slider"] > div[data-testid="stTickBar"] > div {
-    background: rgb(1 1 1 / 0%);
-}
-</style>
-''', unsafe_allow_html=True)
-
-# Set color for cursor and remove any residual green
-slider_cursor = st.markdown('''
-<style>
-div.stSlider > div[data-baseweb="slider"] > div > div > div[role="slider"] {
-    background-color: orange;
-    border: 1px solid orange; /* Remove any residual green border */
-    box-shadow: none; /* Remove shadow */
-}
-</style>
-''', unsafe_allow_html=True)
-
-# Set color for slider number
-slider_number = st.markdown('''
-<style>
-div.stSlider > div[data-baseweb="slider"] > div > div > div > div {
-    color: orange;
-}
-</style>
-''', unsafe_allow_html=True)
-
-# Set color shading for slider
-color_shading = f'''
-<style>
-div.stSlider > div[data-baseweb="slider"] > div > div {{
-    background: linear-gradient(to left, orange 0%, 
-                                rgba(255, 165, 0, 0.25) 50%, 
-                                orange 100%);
-}}
-</style>
-'''
-# Apply color shading on slider
-color_slider = st.markdown(color_shading, unsafe_allow_html=True)
-
 # Apply mask to original image and convert it to PIL format
 def apply_mask_and_convert_to_pil(original_image, mask):
     # Apply mask to original image
