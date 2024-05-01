@@ -22,6 +22,7 @@ def apply_mask_and_convert_to_pil(original_image, mask):
 
 def process_image(
     input_image,
+    *,
     bilateral_strength,
     clahe_clip_limit,
     clahe_tiles,
@@ -148,40 +149,32 @@ def process_image(
 
 
 def main():
-    st.title('Image preprocessing')
-    st.markdown('---')
+    st.sidebar.title('Image preprocessing')
 
-    # Step 1: upload image file as jpg/jpeg, include label
-    uploaded_file = st.sidebar.file_uploader(
-        '#### :camera: :orange[1. Upload Image] ', type=['JPG', 'JPEG']
-    )
+    uploaded_file = st.sidebar.file_uploader('Upload Image ', type=['JPG', 'JPEG'])
 
     if not uploaded_file:
         st.info('Upload file to continue...')
         st.stop()
 
-    # Step 2: Slider customization with live updates
-    with st.expander('', expanded=True):
-        # Set subtitle and short explanation
-        st.write('#### :orange[2a. Apply Image Filters]')
+    st.subheader('Apply Image Filters')
+    with st.expander('Click to expand...', expanded=False):
         st.write(
-            'The processed image is shown with a preset of parameters. Use the sliders to explore the effects of image filters, or to \
-                refine the adjustment. - When you are happy with the result, download the processed image.'
+            'The processed image is shown with a preset of parameters. Use the sliders to explore the effects of image filters, or to'
+            'refine the adjustment. When you are happy with the result, download the processed image.'
         )
 
-        # create 2 columns to distribute sliders
         col1, col2 = st.columns(2)
 
-        # Column 1
         bilateral_strength = col1.slider(
-            '###### :heavy_check_mark: :blue[Bilateral Filter Strength] (preset = 5)',
+            'Bilateral Filter Strength (preset = 5)',
             min_value=0,
             max_value=15,
             value=5,
             key='bilateral',
         )
         saturation_factor = col1.slider(
-            '###### :heavy_check_mark: :blue[Color Saturation] (preset = 1.1)',
+            'Color Saturation (preset = 1.1)',
             min_value=0.0,
             max_value=2.0,
             step=0.05,
@@ -189,7 +182,7 @@ def main():
             key='saturation',
         )
         clahe_clip_limit = col1.slider(
-            '###### :heavy_check_mark: :blue[CLAHE Clip Limit - Threshold for contrast limiting] (preset = 2)',
+            'CLAHE Clip Limit - Threshold for contrast limiting (preset = 2)',
             min_value=0.0,
             max_value=5.0,
             value=2.0,
@@ -197,7 +190,7 @@ def main():
             key='clahe',
         )
         clahe_tiles = col1.slider(
-            '###### :heavy_check_mark: :blue[CLAHE Tile Grid Size - Tile size for local contrast enhancement] (preset = 8,8)',
+            'CLAHE Tile Grid Size - Tile size for local contrast enhancement (preset = 8,8)',
             min_value=2,
             max_value=15,
             value=8,
@@ -205,9 +198,8 @@ def main():
             key='tiles',
         )
 
-        # Column 2
         sigma_sharpness = col2.slider(
-            '###### :heavy_check_mark: :blue[Sharpness Sigma] (preset = 0.5)',
+            'Sharpness Sigma (preset = 0.5)',
             min_value=0.0,
             max_value=3.0,
             value=0.5,
@@ -215,7 +207,7 @@ def main():
             key='sharpness',
         )
         contrast = col2.slider(
-            '###### :heavy_check_mark: :blue[Contrast] (preset = 1.0)',
+            'Contrast (preset = 1.0)',
             min_value=0.1,
             max_value=3.0,
             value=1.0,
@@ -223,7 +215,7 @@ def main():
             key='contrast',
         )
         brightness = col2.slider(
-            '###### :heavy_check_mark: :blue[Brightness] (preset = 10)',
+            'Brightness (preset = 10)',
             min_value=-100,
             max_value=100,
             value=10,
@@ -231,7 +223,7 @@ def main():
             key='brightness',
         )
         sharpening_kernel_size = col2.slider(
-            '###### :heavy_check_mark: :blue[Sharpening Kernel Size] (preset = 3)',
+            'Sharpening Kernel Size (preset = 3)',
             min_value=1,
             max_value=9,
             step=2,
@@ -239,97 +231,85 @@ def main():
             key='sharpen',
         )
 
-    # Second block with image filters and explanation
-    with st.expander('', expanded=True):
-        # Set subtitle and short explanation
-        st.write('#### :orange[2b. Parameters for background removal]')
-        st.write('Specifics to background removal.')
+    st.subheader('Parameters for background removal')
+    with st.expander('Click to expand...', expanded=False):
+        st.write('Change these parameters to tune the background removal.')
 
-        # create 2 columns for second block
-        col3, col4 = st.columns(2)
+        col1, col2 = st.columns(2)
 
-        # Draw a dividing line
-        st.markdown('---')
-
-        # mask
-        alpha_matting = col3.checkbox(
-            'Use Alpha matting', value=False
-        )  # Alpha matting is a post processing step that can be used to improve the quality of the output.
-        mask = col3.checkbox('Keep mask only', value=False)
-        post_process = col3.checkbox(
-            'Postprocess mask', value=False
-        )  # You can use the post_process_mask argument to post process the mask to get better results.
-        background_color = col3.radio(
+        alpha_matting = col1.checkbox('Use Alpha matting', value=False)
+        # Alpha matting is a post processing step that can be used to improve the quality of the output.
+        mask = col1.checkbox('Keep mask only', value=False)
+        post_process = col1.checkbox('Postprocess mask', value=False)
+        # You can use the post_process_mask argument to post process the mask to get better results.
+        background_color = col1.radio(
             'Background Color', ['Transparent', 'White', 'Black']
         )
 
-        bg_threshold = col4.slider(
-            '###### :heavy_check_mark: :blue[Background Threshold] (default = 10)',
+        bg_threshold = col2.slider(
+            'Background Threshold (default = 10)',
             min_value=0,
             max_value=255,
             value=10,
             key='background',
-        )  # [default: 10]
-        fg_threshold = col4.slider(
-            '###### :heavy_check_mark: :blue[Foreground Threshold] (default = 200)',
+        )
+        fg_threshold = col2.slider(
+            'Foreground Threshold (default = 200)',
             min_value=0,
             max_value=255,
             value=200,
             key='foreground',
-        )  # [default: 240]
-        erode_size = col4.slider(
-            '###### :heavy_check_mark: :blue[Erode Size] (default = 10)',
+        )
+        erode_size = col2.slider(
+            'Erode Size (default = 10)',
             min_value=0,
             max_value=25,
             value=10,
             key='erode',
-        )  # [default: 10]
+        )
 
     image = Image.open(uploaded_file)
 
-    # Process image with updated parameters
     processed_image_pil = process_image(
         image,
-        bilateral_strength,
-        clahe_clip_limit,
-        clahe_tiles,
-        sigma_sharpness,
-        contrast,
-        brightness,
-        sharpening_kernel_size,
-        saturation_factor,
-        bg_threshold,
-        fg_threshold,
-        erode_size,
-        alpha_matting,
-        mask,
-        post_process,
-        background_color,
+        bilateral_strength=bilateral_strength,
+        clahe_clip_limit=clahe_clip_limit,
+        clahe_tiles=clahe_tiles,
+        sigma_sharpness=sigma_sharpness,
+        contrast=contrast,
+        brightness=brightness,
+        sharpening_kernel_size=sharpening_kernel_size,
+        saturation_factor=saturation_factor,
+        bg_threshold=bg_threshold,
+        fg_threshold=fg_threshold,
+        erode_size=erode_size,
+        alpha_matting=alpha_matting,
+        mask=mask,
+        post_process=post_process,
+        background_color=background_color,
         mask_process=False,
     )
 
-    # Process mask with updated parameters
     processed_mask_pil = process_image(
         image,
-        bilateral_strength,
-        clahe_clip_limit,
-        clahe_tiles,
-        sigma_sharpness,
-        contrast,
-        brightness,
-        sharpening_kernel_size,
-        saturation_factor,
-        bg_threshold,
-        fg_threshold,
-        erode_size,
-        alpha_matting,
-        mask,
-        post_process,
-        background_color,
+        bilateral_strength=bilateral_strength,
+        clahe_clip_limit=clahe_clip_limit,
+        clahe_tiles=clahe_tiles,
+        sigma_sharpness=sigma_sharpness,
+        contrast=contrast,
+        brightness=brightness,
+        sharpening_kernel_size=sharpening_kernel_size,
+        saturation_factor=saturation_factor,
+        bg_threshold=bg_threshold,
+        fg_threshold=fg_threshold,
+        erode_size=erode_size,
+        alpha_matting=alpha_matting,
+        mask=mask,
+        post_process=post_process,
+        background_color=background_color,
         mask_process=True,
     )
 
-    # Display uploaded image with label
     col1, col2 = st.columns(2)
     col1.image(image, caption='Uploaded Image', use_column_width=True)
     col2.image(processed_image_pil, caption='Processed Image', use_column_width=True)
@@ -346,8 +326,7 @@ def main():
 
     st.markdown('---')
 
-    # Provide download buttons for both formats
-    st.markdown('#### :floppy_disk: :orange[3. Download Processed Image]')
+    st.subheader('Download Processed Image')
 
     col1, col2 = st.columns(2)
 
@@ -355,7 +334,7 @@ def main():
     processed_image_name_png = f'{stem}_processed.png'
 
     col1.download_button(
-        label=f':orange[PNG] ({processed_image_name_png})',
+        label=f'PNG ({processed_image_name_png})',
         data=png_buffer.getvalue(),
         file_name=processed_image_name_png,
         key='processed_image_download_png',
@@ -364,7 +343,7 @@ def main():
     extracted_image_name_png = f'{stem}_extracted.png'
 
     col2.download_button(
-        label=f':orange[PNG - Extracted] ({extracted_image_name_png})',
+        label=f'PNG - Extracted ({extracted_image_name_png})',
         data=extracted_png_buffer.getvalue(),
         file_name=extracted_image_name_png,
         key='extracted_image_download_png',
