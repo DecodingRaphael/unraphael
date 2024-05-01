@@ -3,16 +3,12 @@ from __future__ import annotations
 import streamlit as st
 from config import to_session_state
 from image_sim import image_similarity_feat_ransac
-from styling import add_sidebar_logo, set_custom_css
+from styling import set_custom_css
 from widgets import load_config, load_images, show_heatmaps, show_images
 
 
 def main():
-    st.set_page_config(
-        page_title='Unraphael dashboard', page_icon=':framed-picture:', layout='wide'
-    )
     set_custom_css()
-    add_sidebar_logo()
 
     with st.sidebar:
         load_config()

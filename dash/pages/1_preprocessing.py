@@ -8,8 +8,7 @@ import numpy as np
 import rembg
 import streamlit as st
 from PIL import Image
-
-st.set_page_config(layout='wide', page_title='Image Background Remover')
+from styling import set_custom_css
 
 
 def apply_mask_and_convert_to_pil(original_image, mask):
@@ -149,6 +148,8 @@ def process_image(
 
 
 def main():
+    set_custom_css()
+
     st.sidebar.title('Image preprocessing')
 
     uploaded_file = st.sidebar.file_uploader('Upload Image ', type=['JPG', 'JPEG'])

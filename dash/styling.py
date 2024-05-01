@@ -10,6 +10,8 @@ data_directory = files('unraphael.data')
 
 def set_custom_css(stylesheet: str = 'custom.css'):
     """Set custom css here."""
+    add_sidebar_logo()
+
     fn = str(data_directory / stylesheet)
 
     with open(fn, 'r') as f:
@@ -56,7 +58,7 @@ def build_markup_for_logo(
 def add_sidebar_logo():
     """Based on: https://stackoverflow.com/a/73278825."""
     png_file = data_directory / 'logo-dark.png'
-    logo_markup = build_markup_for_logo(png_file, nav=False)
+    logo_markup = build_markup_for_logo(png_file, nav=True)
     st.markdown(
         logo_markup,
         unsafe_allow_html=True,
