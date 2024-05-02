@@ -47,7 +47,7 @@ def show_images_widget(images: dict[str, np.ndarray], *, n_cols: int = 4):
 
 def load_image() -> tuple[str, np.ndarray]:
     """Widget to load a single image with default."""
-    load_example = st.sidebar.checkbox('Load example', value=False)
+    load_example = st.sidebar.checkbox('Load example', value=False, key='load_example')
     uploaded_file = st.sidebar.file_uploader('Upload Image ', type=['JPG', 'JPEG'])
 
     if load_example:
@@ -88,7 +88,7 @@ def load_config_widget():
 def load_images_widget():
     """Widget to load images."""
 
-    load_example = st.sidebar.checkbox('Load example', value=False)
+    load_example = st.sidebar.checkbox('Load example', value=False, key='load_example')
     uploaded_files = st.file_uploader('Upload Images', accept_multiple_files=True)
 
     width = st.number_input(
@@ -100,7 +100,7 @@ def load_images_widget():
     )
 
     if load_example:
-        image_drc = Path('../data/raw/Bridgewater')
+        image_drc = Path(__file__).parents[1] / 'data' / 'raw' / 'Bridgewater'
         images = _load_images_from_drc(image_drc, width=width)
     else:
         if not uploaded_files:
@@ -108,6 +108,9 @@ def load_images_widget():
             st.stop()
 
         images = _load_images(uploaded_files, width=width)
+
+    if not images:
+        raise ValueError('No images were loaded')
 
     return images
 

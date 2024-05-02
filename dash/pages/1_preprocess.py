@@ -15,11 +15,11 @@ _remove_background = st.cache_data(remove_background)
 
 def load_image() -> tuple[str, np.ndarray]:
     """Widget to load a single image with default."""
-    load_example = st.sidebar.checkbox('Load example', value=False)
+    load_example = st.sidebar.checkbox('Load example', value=False, key='load_example')
     uploaded_file = st.sidebar.file_uploader('Upload Image ', type=['JPG', 'JPEG'])
 
     if load_example:
-        image_drc = Path('../data/raw/Bridgewater')
+        image_drc = Path(__file__).parents[2] / 'data' / 'raw' / 'Bridgewater'
         image_file = image_drc / '0_Edinburgh_Nat_Gallery.jpg'
     else:
         if not uploaded_file:

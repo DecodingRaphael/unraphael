@@ -47,7 +47,7 @@ def image_similarity_feat_ransac(images, *, method: str):
         kwargs={'key': 'col2', 'section': 'ransac'},
     )
 
-    if not st.checkbox('Continue...'):
+    if not st.checkbox('Continue...', key='continue_ransac'):
         st.stop()
 
     features = _detect_and_extract(
