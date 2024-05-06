@@ -5,9 +5,14 @@ example_code/
 reports/
 images/
 
+# virtual environment
+raphael/
+
 Raphael.code-workspace
 
 src/models/
+src/__init__.py
+
 src/1_image_preprocessing
 src/2_outline_extraction/yolo
 src/2_outline_extraction/runs
