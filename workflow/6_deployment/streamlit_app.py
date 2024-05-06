@@ -27,13 +27,21 @@ fs = scol2.button("find similar")
 
 if ch:
     random_name = names[np.random.randint(len(names))]
+    print("RANDOM NAME ")
+    print(random_name)
     fcol2.image(Image.open( random_name))
     st.session_state["disp_img"] = random_name
     st.write(st.session_state["disp_img"])
+    print("------------------------------------")
+    print(st.session_state["disp_img"])
 
 if fs:
     c1 , c2 , c3 , c4 , c5 = st.columns(5)
     idx = int(np.argwhere(names == st.session_state["disp_img"]))
+    
+    print("----------idx------------------------------------")
+    print(idx)
+    
     target_vec = vecs[idx]
     fcol2.image(Image.open(st.session_state["disp_img"]))
     top5 = cdist(target_vec[None , ...] , vecs).squeeze().argsort()[1:6]

@@ -236,12 +236,12 @@ def compare_images(image_path1, image_path2, result_path = "filled_after.jpg"):
 print("[INFO] loading images...")
 
 # template to align to
-template = cv2.imread("../../data/interim/no_bg/0_Edinburgh_Nat_Gallery.jpg")
+template = cv2.imread("../../data/interim/no_background/output_0_Edinburgh_Nat_Gallery.jpg")
 #template = cv2.imread("../../data/interim/segments/output_2_Naples_Museo Capodimonte_segment0_person-0.jpg")
 #template = cv2.imread("../../data/interim/outlines/outer_contour_aligned_0_combined_mask.jpg")
     
 # image to align
-image    = cv2.imread("../../data/interim/no_bg/1_London_Nat_Gallery.jpg")
+image    = cv2.imread("../../data/interim/no_background/output_1_London_Nat_Gallery.jpg")
 #image    = cv2.imread("../../data/interim/segments/output_1_London_Nat_Gallery_segment0_person-0.jpg")  
 #image    = cv2.imread("../../data/interim/outlines/outer_contour_aligned_1_combined_mask.jpg")  
 
