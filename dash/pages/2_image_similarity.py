@@ -13,28 +13,16 @@ from widgets import (
 
 
 def main():
-    print(0)
-
     set_custom_css()
-
-    print(1)
 
     with st.sidebar:
         load_config_widget()
-        print(12)
         st.write('---')
-        print(13)
         images = load_images_widget()
-
-    print(2)
 
     st.title('Input images')
 
-    print(3)
-
     _ = show_images_widget(images)
-
-    print(9)
 
     st.title('Image similarity')
 
@@ -48,8 +36,6 @@ def main():
         on_change=to_session_state,
         kwargs={'key': 'method'},
     )
-
-    print(10)
 
     if method in ('sift', 'orb'):
         heatmaps, features = image_similarity_feat_ransac_widget(images, method=method)
