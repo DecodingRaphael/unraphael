@@ -44,7 +44,11 @@ jobs:
 
       - name: Test with pytest
         run: |
-          coverage run -p -m pytest
+          pytest -vs
+
+      # - name: Test with pytest + cov
+      #   run: |
+      #     coverage run -p -m pytest
 
       - name: Combine
         run: |
