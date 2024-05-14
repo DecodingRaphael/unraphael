@@ -5,8 +5,10 @@ import numpy as np
 import streamlit as st
 from styling import set_custom_css
 from unraphael.preprocess import apply_mask, process_image, remove_background
-from pathlib import Path
+from importlib.resources import files
 
+data_directory = files('unraphael.data')
+image_directory = data_directory / 'images'
 
 _process_image = st.cache_data(process_image)
 _apply_mask = st.cache_data(process_image)
@@ -19,8 +21,7 @@ def load_image() -> tuple[str, np.ndarray]:
     uploaded_file = st.sidebar.file_uploader('Upload Image ', type=['JPG', 'JPEG'])
 
     if load_example:
-        image_drc = Path(__file__).parents[2] / 'data' / 'raw' / 'Bridgewater'
-        image_file = image_drc / '0_Edinburgh_Nat_Gallery.jpg'
+        image_file = image_directory / '0_edinburgh_nat_gallery.jpg'
     else:
         if not uploaded_file:
             st.info('Upload image to continue')

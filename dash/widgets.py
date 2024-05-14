@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import TYPE_CHECKING
 import imageio.v3 as imageio
 import streamlit as st
@@ -23,6 +22,7 @@ if TYPE_CHECKING:
     import numpy as np
 
 data_directory = files('unraphael.data')
+image_directory = data_directory / 'images'
 
 _load_images = st.cache_data(load_images)
 _load_images_from_drc = st.cache_data(load_images_from_drc)
@@ -51,8 +51,7 @@ def load_image() -> tuple[str, np.ndarray]:
     uploaded_file = st.sidebar.file_uploader('Upload Image ', type=['JPG', 'JPEG'])
 
     if load_example:
-        image_drc = Path('../data/raw/Bridgewater')
-        image_file = image_drc / '0_Edinburgh_Nat_Gallery.jpg'
+        image_file = image_directory / '0_edinburgh_nat_gallery.jpg'
     else:
         if not uploaded_file:
             st.info('Upload image to continue')
@@ -100,8 +99,7 @@ def load_images_widget():
     )
 
     if load_example:
-        image_drc = Path(__file__).parents[1] / 'data' / 'raw' / 'Bridgewater'
-        images = _load_images_from_drc(image_drc, width=width)
+        images = _load_images_from_drc(image_directory, width=width)
     else:
         if not uploaded_files:
             st.info('Upload images to continue')
