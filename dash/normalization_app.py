@@ -20,7 +20,7 @@ st.set_page_config(layout="wide", page_title = "Image Background Remover")
 #align_all_images_in_folder_to_template, normalize_brightness, normalize_contrast, 
 #normalize_sharpness, normalize_colors)
 
-def align_images(image, template, maxFeatures=5000, keepPercent=0.2):
+def align_images(image, template, maxFeatures=5000, keepPercent=0.1):
     """
     Aligns an input image with a template image using feature matching and homography transformation.
 
@@ -75,7 +75,6 @@ def align_images(image, template, maxFeatures=5000, keepPercent=0.2):
     #print(theta) 
     
     # apply the homography matrix to align the images, including the rotation
-    #(h, w) = template.shape[:2]
     h, w, c = template.shape
     aligned = cv2.warpPerspective(image, H, (w, h),borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0, 0))    
     
@@ -187,11 +186,8 @@ def main():
             fs = scol2.button("Align images to baseline image")            
             
             if ch:
-                filename = uploaded_files[np.random.randint(len(uploaded_files))].name.split('/')[-1]
-                               
-                # Display the base image
-                fcol1.image(Image.open(filename),use_column_width=True)
-                
+                filename = uploaded_files[np.random.randint(len(uploaded_files))].name.split('/')[-1]                              
+                fcol1.image(Image.open(filename),use_column_width=True)                
                 #Set the selected image as the base image
                 st.session_state["disp_img"] = filename                
                 st.write(f"Base Image: {filename}")
@@ -204,48 +200,46 @@ def main():
                 base_image = uploaded_files.pop(idx).name.split('/')[-1]
                                 
                 # Extract the filenames from the list of selected images which will be aligned
-                file_names = [file.name.split('/')[-1] for file in uploaded_files]                
+                file_names = [file.name.split('/')[-1] for file in uploaded_files]
                                
                 processed_images = align_all_images_in_folder_to_template2(
                              base_image_path  = base_image,
                              input_files = file_names)
                 
-                # Create a list to store the file paths
-                jpeg_file_paths = []
-
-                for filename, aligned_image in processed_images:
-                    # Create a temporary file for the JPEG image
-                    with tempfile.NamedTemporaryFile(prefix=filename, delete=False) as aligned_image_jpeg_file:
-                        # Get the full path of the temporary file
-                        aligned_image_jpeg_file_path = aligned_image_jpeg_file.name
-                    
-                        # Save aligned_image as JPEG to the temporary file
-                        Image.fromarray(aligned_image).convert("RGB").save(aligned_image_jpeg_file_path, format="JPEG")
-                    
-                        # Append the file path to the list
-                        jpeg_file_paths.append(aligned_image_jpeg_file_path)
-                
                 if processed_images:
-                                                                                  
-                    # Display the base image
+                    # store the file paths of the stacked images
+                    stacked_image_paths = []
+                    stacked_image_names = []
+
                     fcol1.write("")
-                    fcol1.write("")
-                    fcol1.write("")
-                    fcol1.write("")
-                    fcol1.write("")
-                    fcol1.write("")                    
-                    #fcol1.subheader(f"Base Image: {base_image}")
                     fcol1.write(f"Base Image: {base_image}")
-                    fcol1.image(Image.open(st.session_state["disp_img"]), use_column_width=True)
-                    
-                    
-                    with fcol2:                        
-                        image_viewer(jpeg_file_paths, ncol=1, nrow=1, image_name_visible=True)
-                        #st.image(use_column_width=True)  # Display images with column width
-                       
-                # Saving section ---------------------------------------------------------------------------
-                # Create a directory to save the aligned images
-                output_directory = "images_aligned_to_" + base_image.split('.')[0]
+                    fcol2.write("")
+                    fcol2.write("Aligned Image:")
+                    # Load the base image
+                    base_image = Image.open(st.session_state["disp_img"])
+
+                    for filename, aligned_image in processed_images:
+                        # Convert aligned_image to RGB color mode
+                        aligned_image_rgb = cv2.cvtColor(aligned_image, cv2.COLOR_BGR2RGB)                        
+                        pil_image = Image.fromarray(aligned_image_rgb)                        
+                        stacked_image = np.hstack([base_image, pil_image])                       
+                        stacked_image_pil = Image.fromarray(stacked_image)
+                        
+
+                        # Create a temporary file for the stacked image
+                        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as temp_file:                            
+                            stacked_image_pil.save(temp_file.name, format="JPEG")                            
+                            stacked_image_paths.append(temp_file.name)
+                            stacked_image_names.append(filename)
+                            
+                            print(stacked_image_names)                           
+                                            
+                    image_viewer(stacked_image_paths, stacked_image_names, ncol=1, nrow=1, image_name_visible=True)
+                                                    
+                # Create a directory to save the aligned images                
+                base_image_filename = os.path.splitext(os.path.basename(st.session_state["disp_img"]))[0]
+                output_directory = "images_aligned_to_" + base_image_filename
+                
                 os.makedirs(output_directory, exist_ok=True)
                                         
                 # Save aligned images to output directory
