@@ -22,13 +22,13 @@ def test_pages(page):
     assert not at.exception
 
 
-def test_page1(page):
+def test_page1():
     at = AppTest.from_file(str(dashdir / 'pages' / '1_preprocess.py'))
     at.run()
     assert not at.exception
 
 
-def test_page2(page):
+def test_page2():
     at = AppTest.from_file(str(dashdir / 'pages' / '2_image_similarity.py'))
     at.run()
     assert not at.exception
