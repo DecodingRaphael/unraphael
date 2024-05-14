@@ -10,13 +10,15 @@ pages = list((dashdir / 'pages').glob('*.py'))
 
 
 def test_home():
-    at = AppTest.from_file(str(dashdir / 'home.py')).run()
+    at = AppTest.from_file(str(dashdir / 'home.py'))
+    at.run(timeout=10)
     assert not at.exception
 
 
 @pytest.mark.parametrize('page', pages)
 def test_pages(page):
-    at = AppTest.from_file(str(page)).run()
+    at = AppTest.from_file(str(page))
+    at.run(timeout=10)
     assert not at.exception
 
 
