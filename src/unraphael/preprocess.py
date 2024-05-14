@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-# import rembg
+import rembg
 
 
 def apply_mask(original_image: np.ndarray, mask: np.ndarray) -> np.ndarray:
@@ -138,6 +138,6 @@ def remove_background(
         kwargs['only_mask'] = True
         kwargs['post_process_mask'] = True
 
-    # image = rembg.remove(image, **kwargs)
+    image = rembg.remove(image, **kwargs)
 
     return image

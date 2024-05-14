@@ -1,6 +1,7 @@
 from streamlit.testing.v1 import AppTest
 from pathlib import Path
 import sys
+import pytest
 
 dashdir = Path(__file__).parents[1] / 'dash'
 sys.path.append(str(dashdir))
@@ -12,6 +13,11 @@ def test_home():
     assert not at.exception
 
 
+@pytest.xfail(
+    reason="Fails with Thread 'MainThread': missing ScriptRunContext"
+    'on the CI because of rembg dependency. Only the first time the page is'
+    'loaded does the test fail.'
+)
 def test_preprocess_load():
     at = AppTest.from_file(str(dashdir / 'pages' / '1_preprocess.py'))
     at.run()
