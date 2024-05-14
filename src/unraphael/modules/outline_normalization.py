@@ -5,21 +5,38 @@ to a selected baseline image.
 # IMPORTS ----
 import math
 import numpy as np
-#import imutils
 import cv2
-import os
 from IPython.display import display, HTML
 #from __future__ import print_function
 #from __future__ import division
 import matplotlib.pyplot as plt
-from skimage.metrics import structural_similarity as compare_ssim
-from PIL import Image
 from skimage.exposure import match_histograms
 from matplotlib import animation
 from IPython.display import display, HTML
+from numpy.fft import fft2, ifft2, fftshift
+import diplib as dip
 
+def rotationAlign(im1, im2):
 
-def align_images(image, template, maxFeatures=500, keepPercent=0.2):
+    # Convert images to grayscale
+    im1_gray = cv2.cvtColor(im1,cv2.COLOR_BGR2GRAY)
+    im2_gray = cv2.cvtColor(im2,cv2.COLOR_BGR2GRAY)
+    height, width = im1_gray.shape[0:2]
+    
+    values = np.ones(360)
+    
+    for i in range(0,360):
+      rotationMatrix = cv2.getRotationMatrix2D((width/2, height/2), i, 1)
+      rot = cv2.warpAffine(im2_red, rotationMatrix, (width, height))
+      values[i] = np.mean(im1_gray - rot)
+    
+    rotationMatrix = cv2.getRotationMatrix2D((width/2, height/2), np.argmin(values), 1)
+    rotated = cv2.warpAffine(im2, rotationMatrix, (width, height))
+    
+    return rotated
+
+#(ORB) feature based alignment
+def featureAlign(image, template, maxFeatures = 50000, keepPercent = 0.15):
     """
     Aligns an input image with a template image using feature matching and homography transformation.
 
@@ -81,26 +98,125 @@ def align_images(image, template, maxFeatures=500, keepPercent=0.2):
     ## derive rotation angle between figures from the homography matrix
     theta = - math.atan2(H[0,1], H[0,0]) * 180 / math.pi
     print(f'Rotational degree: {theta:.2f}') # rotation angle, in degrees
-    #print(theta) 
-    
+        
     # apply the homography matrix to align the images, including the rotation
     (h, w) = template.shape[:2]
     aligned = cv2.warpPerspective(image, H, (w, h))
     
     # apply the homography matrix to align the images, without modifying the rotation
-    #aligned = cv2.warpPerspective(image, H_no_rotation, (w, h))
-
-    # check sizes
-    print(aligned.shape, template.shape)
+    #aligned = cv2.warpPerspective(image, H_no_rotation, (w, h)) 
     
-    visualize_alignment(template, aligned)     
     return aligned
+    
+# Enhanced Correlation Coefficient (ECC) Maximization
+def eccAlign(im1,im2):
+
+    # Convert images to grayscale
+    im1_gray = cv2.cvtColor(im1,cv2.COLOR_BGR2GRAY) # template image
+    im2_gray = cv2.cvtColor(im2,cv2.COLOR_BGR2GRAY) # im2 is image to be warped to match im1
+
+    # Find size of image1
+    sz = im1.shape
+
+    # Define the motion model
+    warp_mode = cv2.MOTION_EUCLIDEAN
+
+    # Define 2x3 or 3x3 matrices and initialize the matrix to identity
+    if warp_mode == cv2.MOTION_HOMOGRAPHY :
+        warp_matrix = np.eye(3, 3, dtype=np.float32)
+    else :
+        warp_matrix = np.eye(2, 3, dtype=np.float32)
+
+    # Specify the ECC number of iterations
+    number_of_iterations = 5000
+    
+    # Specify the ECC threshold of the increment in the correlation coefficient between two iterations
+    termination_eps = 1e-3
+    
+    # Define termination criteria
+    criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, number_of_iterations, termination_eps)
+
+    # Run the ECC algorithm. The results are stored in warp_matrix.
+    (cc, warp_matrix) = cv2.findTransformECC (im1_gray, im2_gray, warp_matrix, warp_mode, criteria)
+
+    if warp_mode == cv2.MOTION_HOMOGRAPHY :
+        # Use warpPerspective for Homography 
+        # Warp im2 using affine
+        im2_aligned = cv2.warpPerspective (im2, warp_matrix, (sz[1],sz[0]), flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP)
+    else :
+        # Use warpAffine for Translation, Euclidean and Affine:
+        # Warp im2 using affine 
+        im2_aligned = cv2.warpAffine(im2, warp_matrix, (sz[1],sz[0]), flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP);
+
+    # Print rotation angle
+    row1_col0 = warp_matrix[0,1]
+    angle = math.degrees(math.asin(row1_col0))
+    print(angle)
+    
+    # Side-by-side stacked visualization of the aligned output
+    stacked = np.hstack([im1,im2_aligned])
+    cv2.imshow("Image Alignment Stacked", stacked)
+    cv2.waitKey(0)
+
+    return im2_aligned
+
+# FFT phase correlation
+def translation(im0, im1):
+    
+    # Convert images to grayscale
+    im0 = cv2.cvtColor(im0,cv2.COLOR_BGR2GRAY)
+    im1 = cv2.cvtColor(im1,cv2.COLOR_BGR2GRAY)
+    
+    shape = im0.shape
+    f0 = fft2(im0)
+    f1 = fft2(im1)
+    ir = abs(ifft2((f0 * f1.conjugate()) / (abs(f0) * abs(f1))))
+    t0, t1 = np.unravel_index(np.argmax(ir), shape)
+    if t0 > shape[0] // 2:
+        t0 -= shape[0]
+    if t1 > shape[1] // 2:
+        t1 -= shape[1]
+    return [t0, t1]
+
+def fourier_mellin_transform_match(image1_path, image2_path):
+    """
+    Apply Fourier-Mellin transform to match one image to another.
+
+    Args:
+    - image1_path (str): File path to the first input image.
+    - image2_path (str): File path to the second input image.
+
+    Returns:
+    - out_matrix (numpy.ndarray): Output matrix after applying Fourier-Mellin transform.
+    """
+    # Load the two images
+    img1 = dip.ImageRead(image1_path)
+    img2 = dip.ImageRead(image2_path)
+
+    # They're gray-scale images, even if the JPEG file has RGB values
+    img1 = img1(1)  # just keep the green channel
+    img2 = img2(1)
+
+    # They need to be the same size
+    out_size = np.minimum(img1.Sizes(), img2.Sizes())
+    img1.Crop(out_size)
+    img2.Crop(out_size)
+
+    # Apply Fourier-Mellin to transform one image to match the other
+    out = dip.Image()
+    matrix = dip.FourierMellinMatch2D(img1, img2, out=out, correlationMethod="don't normalize")
+    
+    #stacked = np.hstack([img1,out])
+    #cv2.imshow("Image Alignment Stacked", stacked)
+    #cv2.waitKey(0)
+    
+    aligned_image = out
+
+    return aligned_image
 
 def visualize_alignment(template, aligned):
     
     # side-by-side comparison of the template (left) and the aligned image (right)
-    
-    # Create a figure with two subplots
     fig, axes = plt.subplots(1, 2, figsize=(12, 6))
         
     axes[0].imshow(cv2.cvtColor(template, cv2.COLOR_BGR2RGB))
@@ -112,41 +228,40 @@ def visualize_alignment(template, aligned):
     axes[1].axis('off')        
     plt.show()
 
-def align_all_images_in_folder_to_template(template_path, input_directory, output_directory, maxFeatures=500, keepPercent=0.2):
-    """
-    Aligns images in a directory to a template image.
+def align_all_images_in_folder_to_template(base_image_path, input_files):
+   
+    # load the base image to which we want to align all the other images
+    template = cv2.imread(base_image_path)
 
-    Parameters:
-    - template_path (str): The file path of the template image.
-    - input_directory (str): The directory containing the input images to be aligned.
-    - output_directory (str): The directory where the aligned images will be saved.
-    - maxFeatures (int): The maximum number of features to detect in the images (default: 500).
-    - keepPercent (float): The percentage of features to keep during feature matching (default: 0.2).    
-
-    Returns:
-    None
-    """
-    # load the template image/ painting to which we want to align all the other paintings
-    template = cv2.imread(template_path)
-
-    # create output directory if it does not exist yet
-    os.makedirs(output_directory, exist_ok=True)
+    # list to store aligned images
+    aligned_images = []
 
     # loop over all images in the input directory
-    for filename in os.listdir(input_directory):
+    for filename in input_files:
         if filename.endswith(('.jpg', '.jpeg', '.png')):
             
-            # load the input image: this painting we want to align to the template
-            image_path = os.path.join(input_directory, filename)
-            image = cv2.imread(image_path)
+            # image to be aligned            
+            image = cv2.imread(filename)
+            
+            # Switch between alignment modes
+            if   mode == "feature":                   
+                aligned = featureAlign(image, template)
+      
+            elif mode == "fourier":
+                aligned = fourier_mellin_transform_match(image, template)
+                
+            elif mode == "ecc":
+                aligned = eccAlign(image, template)
 
-            # align the image by applying the alignment function
-            aligned = align_images(image, template, maxFeatures, keepPercent)
-
-            # save the aligned image in the output directory
-            output_path = os.path.join(output_directory, f"aligned_{filename}")
-            cv2.imwrite(output_path, aligned)
-            print(f"[INFO] Image {filename} aligned and saved to {output_path}")
+            elif mode == "rotation":
+                aligned = rotationAlign(image, template)
+                      
+            else:
+                warp_matrix = translation(image, template)
+            
+            # append filename and aligned image to list
+            aligned_images.append((filename, aligned))
+    return aligned_images
 
 
 def normalize_brightness(template, target):
@@ -438,10 +553,4 @@ def main(image_path1, image_path2):
     painting1_resized, painting2_resized = resize_images(painting1, painting2)
     points1, points2 = detect_and_match_features(painting1_resized, painting2_resized)
     H = estimate_homography(points1, points2)
-    animate_images(painting1_resized, painting2_resized, H)        
-
-
-if __name__ == "__main__":
-    image    = cv2.imread("../../data/raw/Bridgewater/0_Edinburgh_Nat_Gallery.jpg")
-    template = cv2.imread("../../data/raw/Bridgewater/3_Milan_private.jpg")
-    main(image, template)
+    animate_images(painting1_resized, painting2_resized, H)

@@ -244,13 +244,13 @@ def compare_images(image_path1, image_path2, result_path = "filled_after.jpg"):
 print("[INFO] loading images...")
 
 # template to align to
-template = cv2.imread("../../data/interim/no_background/output_6_Oxford_Christ_Church.jpg")
+template = cv2.imread("../../data/interim/no_background/output_7_UK_Warrington Museum.jpg")
 #template = cv2.imread("../../data/interim/no_background/output_0_Edinburgh_Nat_Gallery.jpg")
 #template = cv2.imread("../../data/interim/segments/output_2_Naples_Museo Capodimonte_segment0_person-0.jpg")
 #template = cv2.imread("../../data/interim/outlines/outer_contour_aligned_0_combined_mask.jpg")
     
 # image to align
-image    = cv2.imread("../../data/interim/no_background/output_7_UK_Warrington Museum.jpg")
+image    = cv2.imread("../../data/interim/no_background/output_8_London_OrderStJohn.jpg")
 #image    = cv2.imread("../../data/interim/no_background/output_1_London_Nat_Gallery.jpg")
 #image    = cv2.imread("../../data/interim/segments/output_1_London_Nat_Gallery_segment0_person-0.jpg")  
 #image    = cv2.imread("../../data/interim/outlines/outer_contour_aligned_1_combined_mask.jpg")  
@@ -454,5 +454,38 @@ print(angle)
 
 # Side-by-side stacked visualization of the aligned output
 stacked = np.hstack([im1,im2_aligned])
+cv2.imshow("Image Alignment Stacked", stacked)
+cv2.waitKey(0)
+
+
+#################
+
+import diplib as dip
+import numpy as np
+
+# Load the two images  
+
+# template
+img2 = dip.ImageRead("../../data/interim/no_background/output_6_Oxford_Christ_Church.jpg")
+
+# image to align
+img1 = dip.ImageRead("../../data/interim/no_background/output_1_London_Nat_Gallery.jpg")
+
+# They're gray-scale images, even if the JPEG file has RGB values
+img1 = img1(1)  # just keep the green channel
+img2 = img2(1)
+
+# They need to be the same size
+out_size = np.minimum(img1.Sizes(), img2.Sizes())
+img1.Crop(out_size)
+img2.Crop(out_size)
+
+# Apply Fourier-Mellin to transform one image to match the other
+out = dip.Image()
+matrix = dip.FourierMellinMatch2D(img1, img2, out=out, correlationMethod="don't normalize")
+
+#dip.JoinChannels((img1, out)).Show()
+
+stacked = np.hstack([img1,out])
 cv2.imshow("Image Alignment Stacked", stacked)
 cv2.waitKey(0)

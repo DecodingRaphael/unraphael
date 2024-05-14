@@ -1,4 +1,5 @@
 # run with: streamlit run normalization_app.py --server.enableXsrfProtection false
+
 # Import libraries
 import math
 import os
@@ -16,7 +17,7 @@ sys.path.append('../')
 st.set_page_config(layout="wide", page_title = "Image Background Remover")
 
 # import the function to align images in the directory
-#from src.unraphael.modules.comparison_preparation import (align_images, 
+#from unraphael.modules.outline_normalization import (align_images, 
 #align_all_images_in_folder_to_template, normalize_brightness, normalize_contrast, 
 #normalize_sharpness, normalize_colors)
 
@@ -71,16 +72,59 @@ def align_images(image, template, maxFeatures=5000, keepPercent=0.1):
         
     ## derive rotation angle between figures from the homography matrix
     theta = - math.atan2(H[0,1], H[0,0]) * 180 / math.pi
-    print(f'Rotational degree: {theta:.2f}') # rotation angle, in degrees
-    #print(theta) 
-    
+    print(f'Rotational degree ORB feature: {theta:.2f}') # rotation angle, in degrees
+        
     # apply the homography matrix to align the images, including the rotation
     h, w, c = template.shape
     aligned = cv2.warpPerspective(image, H, (w, h),borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0, 0))    
     
     return aligned
 
-def align_all_images_in_folder_to_template2(base_image_path, input_files):
+def eccAlign(im1, im2):
+    
+    im1_gray = cv2.cvtColor(im1,cv2.COLOR_BGR2GRAY) # template image
+    im2_gray = cv2.cvtColor(im2,cv2.COLOR_BGR2GRAY) # im2 is image to be warped to match im1
+    
+    sz = im1.shape
+
+    # Define the motion model
+    warp_mode = cv2.MOTION_EUCLIDEAN
+    #warp_mode = cv2.MOTION_HOMOGRAPHY
+
+    # Define 2x3 or 3x3 matrices and initialize the matrix to identity
+    if warp_mode == cv2.MOTION_HOMOGRAPHY :
+        warp_matrix = np.eye(3, 3, dtype=np.float32)
+    else:
+        warp_matrix = np.eye(2, 3, dtype=np.float32)
+
+    # Specify the ECC number of iterations
+    number_of_iterations = 50000
+    
+    # Specify the ECC threshold of the increment in the correlation coefficient between two iterations
+    termination_eps = 1e-5
+    
+    # Define termination criteria
+    criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, number_of_iterations, termination_eps)
+
+    # Run the ECC algorithm. The results are stored in warp_matrix.
+    (cc, warp_matrix) = cv2.findTransformECC (im1_gray, im2_gray, warp_matrix, warp_mode, criteria, None, 1)
+
+    # Warp im2, based on im1
+    if warp_mode == cv2.MOTION_HOMOGRAPHY :
+        # Use warpPerspective for Homography        
+        im2_aligned = cv2.warpPerspective(im2, warp_matrix, (sz[1],sz[0]), flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP)
+    else :
+        # Use warpAffine for Translation, Euclidean and Affine        
+        im2_aligned = cv2.warpAffine(im2, warp_matrix, (sz[1],sz[0]), flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP);
+
+    # Print rotation angle
+    row1_col0 = warp_matrix[0,1]
+    angle = math.degrees(math.asin(row1_col0))
+    print(f'Rotational degree ECC: {angle:.2f}')
+    
+    return im2_aligned
+
+def align_all_images_in_folder_to_template2(base_image_path, input_files, selected_option):
    
     # load the base image to which we want to align all the other images
     template = cv2.imread(base_image_path)
@@ -95,7 +139,13 @@ def align_all_images_in_folder_to_template2(base_image_path, input_files):
             # image to be aligned            
             image = cv2.imread(filename)
             
-            aligned = align_images(image, template)
+            if selected_option == 'ORB feature based alignment':
+                aligned = align_images(image, template)
+            
+            elif selected_option == "Enhanced Correlation Coefficient Maximization":
+                aligned = eccAlign(template, image)
+            #else:
+            #    warp_matrix = translation(image, template)
 
             # append filename and aligned image to list
             aligned_images.append((filename, aligned))
@@ -129,7 +179,7 @@ def main():
                 f.write(uploaded_file.getvalue())               
                                 
     # Initialize processed_images
-    processed_images = []    
+    processed_images = []
     
     if uploaded_files and len(names) > 0:
                         
@@ -161,7 +211,7 @@ def main():
         
             # Set subtitle and short explanation
             st.write("#### :orange[2b. Parameters for image alignnment]")
-            st.write("Specifics to procedures TODO.")
+            st.write("Select the alignment procedure to align the images to the base image.")
         
             # create 2 columns within the second block
             col3, col4 = st.columns(2)
@@ -169,12 +219,17 @@ def main():
             st.markdown("---")
                         
             # Col3
-            #bilateral_strength = col3.slider("###### :heavy_check_mark: :blue[Bilateral Filter Strength] (preset = 5)", min_value=0, max_value=15, value=5, key='bilateral')
-            #saturation_factor =  col3.slider("###### :heavy_check_mark: :blue[Color Saturation] (preset = 1.1)", min_value=0.0, max_value=2.0, step=0.05, value=1.1, key='saturation')
+            # Define options for the dropdown menu
+            options = ['ORB feature based alignment', 'Enhanced Correlation Coefficient Maximization', 'FFT phase correlation','Fourier Mellin Transform']
+
+            # Display the dropdown menu
+            selected_option = col3.selectbox('Select an option:', options)
+            #bilateral_strength = col3.slider("######  :blue[Bilateral Filter Strength] (preset = 5)", min_value=0, max_value=15, value=5, key='bilateral')
+            #saturation_factor =  col3.slider("######  :blue[Color Saturation] (preset = 1.1)", min_value=0.0, max_value=2.0, step=0.05, value=1.1, key='saturation')
                         
             # Col4
-            #sigma_sharpness = col4.slider("###### :heavy_check_mark: :blue[Sharpness Sigma] (preset = 0.5)", min_value=0.0, max_value=3.0, value=0.5, step=0.1, key='sharpness')
-            #contrast = col4.slider("###### :heavy_check_mark: :blue[Contrast] (preset = 1.0)", min_value=0.1, max_value=3.0, value=1.0, step=0.1, key='contrast')
+            #sigma_sharpness = col4.slider("######  :blue[Sharpness Sigma] (preset = 0.5)", min_value=0.0, max_value=3.0, value=0.5, step=0.1, key='sharpness')
+            #contrast = col4.slider("###### :blue[Contrast] (preset = 1.0)", min_value=0.1, max_value=3.0, value=1.0, step=0.1, key='contrast')
               
         # Alignment procedure
         if uploaded_files and len(names) > 0:
@@ -204,7 +259,8 @@ def main():
                                
                 processed_images = align_all_images_in_folder_to_template2(
                              base_image_path  = base_image,
-                             input_files = file_names)
+                             input_files = file_names,
+                             selected_option=selected_option)
                 
                 if processed_images:
                     # store the file paths of the stacked images
