@@ -12,7 +12,7 @@ _detect_and_extract = st.cache_data(detect_and_extract)
 _get_heatmaps = st.cache_data(get_heatmaps)
 
 
-def image_similarity_feat_ransac(images, *, method: str):
+def image_similarity_feat_ransac_widget(images, *, method: str):
     """Image similarity for ORB/SIFT."""
     col1, col2 = st.columns(2)
 
