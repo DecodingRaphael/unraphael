@@ -1,6 +1,6 @@
 git+https://github.com/DecodingRaphael/unraphael.git
 numpy
-opencv-python
+opencv-python-headless
 rembg
 scipy
 scikit-image
