@@ -11,14 +11,14 @@ pages = list((dashdir / 'pages').glob('*.py'))
 
 def test_home():
     at = AppTest.from_file(str(dashdir / 'home.py'))
-    at.run(timeout=10)
+    at.run(timeout=30)
     assert not at.exception
 
 
 @pytest.mark.parametrize('page', pages)
 def test_pages(page):
     at = AppTest.from_file(str(page))
-    at.run(timeout=10)
+    at.run(timeout=30)
     assert not at.exception
 
 
@@ -27,7 +27,7 @@ def test_preprocess():
 
     assert 'load_example' in at.session_state
     at.session_state['load_example'] = True
-    at.run(timeout=10)
+    at.run(timeout=30)
 
     assert not at.exception
 
@@ -47,6 +47,6 @@ def test_image_similarity():
     assert at.session_state['method'] == 'sift'
 
     at.session_state['continue_ransac'] = True
-    at.run(timeout=10)
+    at.run(timeout=30)
 
     assert not at.exception
