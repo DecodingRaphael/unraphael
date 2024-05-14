@@ -4,13 +4,13 @@ import imageio.v3 as imageio
 import numpy as np
 import streamlit as st
 from styling import set_custom_css
-# from unraphael.preprocess import apply_mask, process_image, remove_background
+from unraphael.preprocess import apply_mask, process_image, remove_background
 from pathlib import Path
 
 
-# _process_image = st.cache_data(process_image)
-# _apply_mask = st.cache_data(process_image)
-# _remove_background = st.cache_data(remove_background)
+_process_image = st.cache_data(process_image)
+_apply_mask = st.cache_data(process_image)
+_remove_background = st.cache_data(remove_background)
 
 
 def load_image() -> tuple[str, np.ndarray]:
