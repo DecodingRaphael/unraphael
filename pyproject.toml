@@ -85,7 +85,7 @@ namespaces = true
 [tool.coverage.run]
 branch = true
 source = ["src/unraphael"]
-concurrency = ["multiprocessing"]
+# concurrency = ["multiprocessing"]
 data_file = ".coverage"
 
 [tool.pytest.ini_options]
