@@ -15,11 +15,11 @@ _remove_background = st.cache_data(remove_background)
 
 def load_image() -> tuple[str, np.ndarray]:
     """Widget to load a single image with default."""
-    load_example = st.sidebar.checkbox('Load example', value=False)
+    load_example = st.sidebar.checkbox('Load example', value=False, key='load_example')
     uploaded_file = st.sidebar.file_uploader('Upload Image ', type=['JPG', 'JPEG'])
 
     if load_example:
-        image_drc = Path('../data/raw/Bridgewater')
+        image_drc = Path(__file__).parents[2] / 'data' / 'raw' / 'Bridgewater'
         image_file = image_drc / '0_Edinburgh_Nat_Gallery.jpg'
     else:
         if not uploaded_file:
@@ -35,7 +35,7 @@ def load_image() -> tuple[str, np.ndarray]:
 
 
 def preprocess_image_widget(image: np.ndarray):
-    """Widget to preprocess image."""
+    """Widget to preprocess image with user input options."""
     st.title('Preprocessing')
     st.write(
         'The processed image is shown with a preset of parameters. Use the sliders to explore the effects of image filters, or to'
@@ -125,6 +125,8 @@ def preprocess_image_widget(image: np.ndarray):
 
 
 def remove_background_widget(image: np.ndarray) -> np.ndarray:
+    """This widget takes an image and provides the user with some choices to
+    remove the background."""
     st.title('Background removal')
     st.write('Change these parameters to tune the background removal.')
 
@@ -190,7 +192,9 @@ def remove_background_widget(image: np.ndarray) -> np.ndarray:
     return nobg, mask
 
 
-def image_downloads(*, basename: str, images: dict[str, np.ndarray]):
+def image_downloads_widget(*, basename: str, images: dict[str, np.ndarray]):
+    """This widget takes a dict of images and shows them with download
+    buttons."""
     st.title('Download Images')
 
     cols = st.columns(len(images))
@@ -224,7 +228,7 @@ def main():
         'extracted': apply_mask(image, processed_mask),
     }
 
-    image_downloads(basename=name, images=images)
+    image_downloads_widget(basename=name, images=images)
 
 
 if __name__ == '__main__':

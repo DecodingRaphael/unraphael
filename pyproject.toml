@@ -31,6 +31,11 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Image Processing",
 ]
 dependencies = [
+    "numpy",
+    "opencv-python",
+    "rembg",
+    "scikit-image",
+    "scipy",
     'PyYAML',
 ]
 
@@ -48,6 +53,10 @@ develop = [
     "coverage[toml]",
     "pytest",
     "pycodestyle",
+]
+dash = [
+    "seaborn",
+    "streamlit",
 ]
 docs = [
     "markdown-include",
@@ -76,7 +85,7 @@ namespaces = true
 [tool.coverage.run]
 branch = true
 source = ["src/unraphael"]
-concurrency = ["multiprocessing"]
+# concurrency = ["multiprocessing"]
 data_file = ".coverage"
 
 [tool.pytest.ini_options]

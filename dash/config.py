@@ -7,7 +7,7 @@ import streamlit as st
 import yaml
 
 if TYPE_CHECKING:
-    pass
+    from io import IOBase
 
 
 def to_session_state(key: str, section: str | None = None):
@@ -42,14 +42,13 @@ def _update_session_state(config: dict):
 
 
 @st.cache_data
-def _load_config(fn: Path | str):
-    fn = Path(fn)
-
-    if not fn.exists():
-        st.error(f'Cannot find {fn}.')
-
-    with open(fn) as f:
-        config = yaml.safe_load(f)
+def _load_config(fn: Path | str | IOBase) -> dict:
+    """Load config into session state and return copy."""
+    if isinstance(fn, (Path, str)):
+        with open(fn) as f:
+            config = yaml.safe_load(f)
+    else:
+        config = yaml.safe_load(fn)
 
     _update_session_state(config)
 

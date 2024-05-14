@@ -1,25 +1,28 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Sequence
 
-from skimage.io import imread
+import imageio.v3 as imageio
 from skimage.transform import resize
+from skimage.color import rgb2gray
 
 if TYPE_CHECKING:
     import numpy as np
 
 
-def load_images_from_drc(
-    drc: Path, *, width: int, as_gray: bool = True
-) -> dict[str, np.array]:
-    fns = list(drc.glob('*'))
-
+def load_images(
+    image_files: Sequence[Any], *, width: int, as_gray: bool = True
+) -> dict[str, np.ndarray]:
+    """Load images through `imageio.imread` and do some preprocessing."""
     images = {}
 
-    for fn in fns:
-        im = imread(fn, as_gray=as_gray)
-        name = fn.stem
+    for image_file in image_files:
+        im = imageio.imread(image_file)
+        name, _ = image_file.name.rsplit('.')
+
+        if as_gray and im.ndim > 2:
+            im = rgb2gray(im)
 
         x, y = im.shape
         k = y / width
@@ -29,3 +32,13 @@ def load_images_from_drc(
         images[name] = im
 
     return images
+
+
+def load_images_from_drc(drc: Path, **kwargs) -> dict[str, np.array]:
+    """Load all images in directory.
+
+    kwargs are passed to `load_images`.
+    """
+    fns = list(drc.glob('*'))
+
+    return load_images(fns, **kwargs)
