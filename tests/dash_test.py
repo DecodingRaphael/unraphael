@@ -12,18 +12,6 @@ def test_home():
     assert not at.exception
 
 
-def test_preprocess():
-    at = AppTest.from_file(str(dashdir / 'pages' / '1_preprocess.py'))
-    at.run()
-    assert not at.exception
-
-    assert 'load_example' in at.session_state
-    at.session_state['load_example'] = True
-    at.run(timeout=10)
-
-    assert not at.exception
-
-
 def test_image_sim_load1():
     at = AppTest.from_file(str(dashdir / 'pages' / '2_image_similarity.py'))
     at.run()
@@ -33,6 +21,18 @@ def test_image_sim_load1():
 def test_image_sim_load2():
     at = AppTest.from_file(str(dashdir / 'pages' / '2_image_similarity.py'))
     at.run()
+    assert not at.exception
+
+
+def test_preprocess():
+    at = AppTest.from_file(str(dashdir / 'pages' / '1_preprocess.py'))
+    at.run()
+    assert not at.exception
+
+    assert 'load_example' in at.session_state
+    at.session_state['load_example'] = True
+    at.run(timeout=10)
+
     assert not at.exception
 
 
