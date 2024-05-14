@@ -25,6 +25,14 @@ pip install unraphael
 
 Unraphael is supported on Python versions 3.10 or newer.
 
+## Try Unraphael in your browser!
+
+You can try unraphael in your browser [here](https://unraphael.streamlit.app/).
+
+| <a href="https://unraphael.streamlit.app/image_similarity"><img src="docs/_static/dash_image_sim.png" alt="Image similarity" width="85%"/></a> | <a href="https://unraphael.streamlit.app/preprocess"><img src="docs/_static/dash_preprocessing.png" alt="Image preprocessing" width="85%"/></a> |
+| - | - |
+| [Image similarity](https://unraphael.streamlit.app/image_similarity) | [Image preprocessing](https://unraphael.streamlit.app/preprocess) |
+
 ## Development
 
 Check out our [Contributing Guidelines](CONTRIBUTING.md#Getting-started-with-development) to get started with development.
