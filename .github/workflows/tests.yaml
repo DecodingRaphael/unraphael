@@ -46,10 +46,6 @@ jobs:
         run: |
           coverage run -m pytest
 
-      - name: Combine
-        run: |
-          coverage combine
-
       - name: Report coverage
         run: |
           coverage json
