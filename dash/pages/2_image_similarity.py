@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import streamlit as st
 from config import to_session_state
-from image_sim import image_similarity_feat_ransac
+from image_sim import image_similarity_feat_ransac_widget
 from styling import set_custom_css
 from widgets import (
     load_config_widget,
@@ -38,7 +38,7 @@ def main():
     )
 
     if method in ('sift', 'orb'):
-        heatmaps, features = image_similarity_feat_ransac(images, method=method)
+        heatmaps, features = image_similarity_feat_ransac_widget(images, method=method)
     else:
         raise NotImplementedError(method)
         st.stop()
