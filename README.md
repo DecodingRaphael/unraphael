@@ -7,7 +7,9 @@
 [![PyPI](https://img.shields.io/pypi/v/unraphael.svg?style=flat)](https://pypi.org/project/unraphael/)
 [![DOI](https://zenodo.org/badge/DOI/xxx.svg)](https://doi.org/xxx)
  -->
-![Unraphael banner](https://raw.githubusercontent.com/DecodingRaphael/unraphael/main/src/unraphael/data/logo.png)
+
+![Unraphael banner](https://raw.githubusercontent.com/DecodingRaphael/unraphael/main/src/unraphael/data/logo.png#gh-light-mode-only)
+![Unraphael banner](https://raw.githubusercontent.com/DecodingRaphael/unraphael/main/src/unraphael/data/logo-dark.png#gh-dark-mode-only)
 
 # Unraphael
 

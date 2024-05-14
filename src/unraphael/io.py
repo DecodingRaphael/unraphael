@@ -10,7 +10,9 @@ if TYPE_CHECKING:
     import numpy as np
 
 
-def load_images_from_drc(drc: Path, *, width: int, as_gray: bool = True) -> dict[str, np.array]:
+def load_images_from_drc(
+    drc: Path, *, width: int, as_gray: bool = True
+) -> dict[str, np.array]:
     fns = list(drc.glob('*'))
 
     images = {}

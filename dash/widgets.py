@@ -4,7 +4,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import streamlit as st
-from config import _load_config, _update_session_state, dump_session_state, to_session_state
+from config import (
+    _load_config,
+    _update_session_state,
+    dump_session_state,
+    to_session_state,
+)
 from scipy.cluster.hierarchy import linkage
 from seaborn import clustermap
 
@@ -62,7 +67,11 @@ def load_images():
         st.error(f'Cannot find {image_drc}.')
 
     width = st.number_input(
-        'Width', step=10, key='width', on_change=to_session_state, kwargs={'key': 'width'}
+        'Width',
+        step=10,
+        key='width',
+        on_change=to_session_state,
+        kwargs={'key': 'width'},
     )
 
     return _load_images_from_drc(image_drc, width=width)

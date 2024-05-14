@@ -9,5 +9,5 @@ pip install -r requirements.txt
 Run:
 
 ```console
-streamlit run dashboard.py
+streamlit run home.py
 ```

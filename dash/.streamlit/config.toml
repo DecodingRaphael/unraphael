@@ -1,0 +1,12 @@
+# https://docs.streamlit.io/develop/concepts/configuration
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+base="dark"
+primaryColor="orange"                   # highlight color
+# backgroundColor="black"               # background color
+# secondaryBackgroundColor="dark-gray"  # sidebar color
+# textColor="white"                     # text color
+# font="sans serif"

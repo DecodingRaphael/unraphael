@@ -91,7 +91,7 @@ allow_redefinition = true
 module = ["yaml.*"]
 ignore_missing_imports = true
 
-[tool.ruff]
+[tool.lint]
 select = [
     "F",  # Pyflakes
     "E",  # pycodestyle (error)
@@ -136,11 +136,9 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 target-version = "py310"
 line-length = 96
 
-[tool.ruff.isort]
+[tool.lint.isort]
 known-first-party = ["unraphael"]
 required-imports = ["from __future__ import annotations"]
-
-[tool.isort]
 profile = "black"
 
 [tool.ruff.format]

@@ -1,0 +1,11 @@
+/* https://discuss.streamlit.io/t/faq-how-to-customize-the-style-or-appearance-of-your-streamlit-app/63878#h-3-css-styling-5*/
+
+h1, h2, h3, h4, h5 {
+    color: orange;
+}
+
+/* Set monospace font for text input areas */
+textarea[class^="st-"] {
+    font-family: monospace;
+    font-size: 14px;
+}
