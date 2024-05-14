@@ -24,6 +24,18 @@ def test_image_sim_load2():
     assert not at.exception
 
 
+def test_preprocess_load1():
+    at = AppTest.from_file(str(dashdir / 'pages' / '1_preprocess.py'))
+    at.run()
+    assert not at.exception
+
+
+def test_preprocess_load2():
+    at = AppTest.from_file(str(dashdir / 'pages' / '1_preprocess.py'))
+    at.run()
+    assert not at.exception
+
+
 def test_preprocess():
     at = AppTest.from_file(str(dashdir / 'pages' / '1_preprocess.py'))
     at.run()

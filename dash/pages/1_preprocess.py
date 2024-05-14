@@ -215,12 +215,17 @@ def image_downloads_widget(*, basename: str, images: dict[str, np.ndarray]):
 
 
 def main():
+    print(1)
     set_custom_css()
+    print(2)
 
     name, image = load_image()
+    print(3)
 
     processed = preprocess_image_widget(image)
+    print(4)
     processed_nobg, processed_mask = remove_background_widget(processed)
+    print(5)
 
     images = {
         'original': image,
@@ -229,6 +234,7 @@ def main():
     }
 
     image_downloads_widget(basename=name, images=images)
+    print(6)
 
 
 if __name__ == '__main__':
