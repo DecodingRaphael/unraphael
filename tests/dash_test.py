@@ -13,8 +13,8 @@ def test_home():
     assert not at.exception
 
 
-@pytest.xfail(
-    reason="Fails with Thread 'MainThread': missing ScriptRunContext"
+@pytest.mark.xfail(
+    reason='Fails with Thread "MainThread": missing ScriptRunContext'
     'on the CI because of rembg dependency. Only the first time the page is'
     'loaded does the test fail.'
 )
