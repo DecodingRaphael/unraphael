@@ -12,31 +12,19 @@ def test_home():
     assert not at.exception
 
 
-def test_image_sim_load1():
-    at = AppTest.from_file(str(dashdir / 'pages' / '2_image_similarity.py'))
-    at.run()
-    assert not at.exception
-
-
-def test_image_sim_load2():
-    at = AppTest.from_file(str(dashdir / 'pages' / '2_image_similarity.py'))
-    at.run()
-    assert not at.exception
-
-
-def test_preprocess_load1():
+def test_preprocess_load():
     at = AppTest.from_file(str(dashdir / 'pages' / '1_preprocess.py'))
     at.run()
     assert not at.exception
 
 
-def test_preprocess_load2():
-    at = AppTest.from_file(str(dashdir / 'pages' / '1_preprocess.py'))
+def test_image_sim_load():
+    at = AppTest.from_file(str(dashdir / 'pages' / '2_image_similarity.py'))
     at.run()
     assert not at.exception
 
 
-def test_preprocess():
+def test_preprocess_workflow():
     at = AppTest.from_file(str(dashdir / 'pages' / '1_preprocess.py'))
     at.run()
     assert not at.exception
@@ -48,13 +36,7 @@ def test_preprocess():
     assert not at.exception
 
 
-def test_image_sim_load3():
-    at = AppTest.from_file(str(dashdir / 'pages' / '2_image_similarity.py'))
-    at.run()
-    assert not at.exception
-
-
-def test_image_similarity():
+def test_image_similarity_workflow():
     at = AppTest.from_file(str(dashdir / 'pages' / '2_image_similarity.py'))
     at.run()
     assert not at.exception
