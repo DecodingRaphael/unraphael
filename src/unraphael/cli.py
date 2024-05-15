@@ -1,4 +1,4 @@
-from importlib.resources import files
+from .locations import dash_directory
 import toml
 import logging
 import sys
@@ -13,9 +13,9 @@ def dash_entry(**kwargs):
 
     argv = sys.argv[1:]
 
-    dashboard_path = files('unraphael.dash') / 'home.py'
+    dashboard_path = dash_directory / 'home.py'
 
-    config_file = files('unraphael.dash') / '.streamlit' / 'config.toml'
+    config_file = dash_directory / '.streamlit' / 'config.toml'
     config = toml.load(config_file)
 
     opts = []

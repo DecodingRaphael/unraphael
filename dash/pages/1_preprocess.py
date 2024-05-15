@@ -5,11 +5,7 @@ import numpy as np
 import streamlit as st
 from styling import set_custom_css
 from unraphael.preprocess import apply_mask, process_image, remove_background
-from importlib.resources import files
 from widgets import load_image_widget
-
-data_directory = files('unraphael.data')
-image_directory = data_directory / 'images'
 
 _process_image = st.cache_data(process_image)
 _apply_mask = st.cache_data(process_image)

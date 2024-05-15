@@ -16,13 +16,11 @@ from unraphael.feature import (
     heatmap_to_condensed_distance_matrix,
 )
 from unraphael.io import load_images_from_drc, load_images
-from importlib.resources import files
+from unraphael.locations import data_directory, image_directory
 
 if TYPE_CHECKING:
     import numpy as np
 
-data_directory = files('unraphael.data')
-image_directory = data_directory / 'images'
 
 _load_images = st.cache_data(load_images)
 _load_images_from_drc = st.cache_data(load_images_from_drc)
