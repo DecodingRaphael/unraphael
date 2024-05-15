@@ -16,13 +16,11 @@ from unraphael.feature import (
     heatmap_to_condensed_distance_matrix,
 )
 from unraphael.io import load_images_from_drc, load_images
-from importlib.resources import files
+from unraphael.locations import data_directory, image_directory
 
 if TYPE_CHECKING:
     import numpy as np
 
-data_directory = files('unraphael.data')
-image_directory = data_directory / 'images'
 
 _load_images = st.cache_data(load_images)
 _load_images_from_drc = st.cache_data(load_images_from_drc)
@@ -45,7 +43,7 @@ def show_images_widget(images: dict[str, np.ndarray], *, n_cols: int = 4):
     return selected
 
 
-def load_image() -> tuple[str, np.ndarray]:
+def load_image_widget() -> tuple[str, np.ndarray]:
     """Widget to load a single image with default."""
     load_example = st.sidebar.checkbox('Load example', value=False, key='load_example')
     uploaded_file = st.sidebar.file_uploader('Upload Image ', type=['JPG', 'JPEG'])

@@ -1,14 +1,13 @@
 from streamlit.testing.v1 import AppTest
-from pathlib import Path
 import sys
 import pytest
+from unraphael.locations import dash_directory
 
-dashdir = Path(__file__).parents[1] / 'dash'
-sys.path.append(str(dashdir))
+sys.path.append(str(dash_directory))
 
 
 def test_home():
-    at = AppTest.from_file(str(dashdir / 'home.py'))
+    at = AppTest.from_file(str(dash_directory / 'home.py'))
     at.run(timeout=5)
     assert not at.exception
 
@@ -19,19 +18,19 @@ def test_home():
     'loaded does the test fail.'
 )
 def test_preprocess_load():
-    at = AppTest.from_file(str(dashdir / 'pages' / '1_preprocess.py'))
+    at = AppTest.from_file(str(dash_directory / 'pages' / '1_preprocess.py'))
     at.run(timeout=5)
     assert not at.exception
 
 
 def test_image_sim_load():
-    at = AppTest.from_file(str(dashdir / 'pages' / '2_image_similarity.py'))
+    at = AppTest.from_file(str(dash_directory / 'pages' / '2_image_similarity.py'))
     at.run(timeout=5)
     assert not at.exception
 
 
 def test_preprocess_workflow():
-    at = AppTest.from_file(str(dashdir / 'pages' / '1_preprocess.py'))
+    at = AppTest.from_file(str(dash_directory / 'pages' / '1_preprocess.py'))
     at.run(timeout=5)
     assert not at.exception
 
@@ -43,7 +42,7 @@ def test_preprocess_workflow():
 
 
 def test_image_similarity_workflow():
-    at = AppTest.from_file(str(dashdir / 'pages' / '2_image_similarity.py'))
+    at = AppTest.from_file(str(dash_directory / 'pages' / '2_image_similarity.py'))
     at.run(timeout=5)
     assert not at.exception
 

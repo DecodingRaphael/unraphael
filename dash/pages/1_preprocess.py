@@ -5,34 +5,11 @@ import numpy as np
 import streamlit as st
 from styling import set_custom_css
 from unraphael.preprocess import apply_mask, process_image, remove_background
-from importlib.resources import files
-
-data_directory = files('unraphael.data')
-image_directory = data_directory / 'images'
+from widgets import load_image_widget
 
 _process_image = st.cache_data(process_image)
 _apply_mask = st.cache_data(process_image)
 _remove_background = st.cache_data(remove_background)
-
-
-def load_image() -> tuple[str, np.ndarray]:
-    """Widget to load a single image with default."""
-    load_example = st.sidebar.checkbox('Load example', value=False, key='load_example')
-    uploaded_file = st.sidebar.file_uploader('Upload Image ', type=['JPG', 'JPEG'])
-
-    if load_example:
-        image_file = image_directory / '0_edinburgh_nat_gallery.jpg'
-    else:
-        if not uploaded_file:
-            st.info('Upload image to continue')
-            st.stop()
-
-        image_file = uploaded_file
-
-    name, _ = image_file.name.rsplit('.')
-    image = imageio.imread(image_file)
-
-    return name, image
 
 
 def preprocess_image_widget(image: np.ndarray):
@@ -218,7 +195,7 @@ def image_downloads_widget(*, basename: str, images: dict[str, np.ndarray]):
 def main():
     set_custom_css()
 
-    name, image = load_image()
+    name, image = load_image_widget()
 
     processed = preprocess_image_widget(image)
     processed_nobg, processed_mask = remove_background_widget(processed)
