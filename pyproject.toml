@@ -72,6 +72,7 @@ publishing = [
 ]
 
 [project.scripts]
+unraphael-dash = "unraphael.cli:dash_entry"
 
 [tool.setuptools]
 zip-safe = false
@@ -96,7 +97,7 @@ files = ["src/unraphael", "tests"]
 allow_redefinition = true
 
 [[tool.mypy.overrides]]
-module = ["yaml.*"]
+module = ["yaml.*", "toml.*"]
 ignore_missing_imports = true
 
 [tool.lint]
