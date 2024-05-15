@@ -45,7 +45,7 @@ def show_images_widget(images: dict[str, np.ndarray], *, n_cols: int = 4):
     return selected
 
 
-def load_image() -> tuple[str, np.ndarray]:
+def load_image_widget() -> tuple[str, np.ndarray]:
     """Widget to load a single image with default."""
     load_example = st.sidebar.checkbox('Load example', value=False, key='load_example')
     uploaded_file = st.sidebar.file_uploader('Upload Image ', type=['JPG', 'JPEG'])
