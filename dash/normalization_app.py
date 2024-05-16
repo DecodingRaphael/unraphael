@@ -138,12 +138,24 @@ def eccAlign(im1, im2):
     
     return im2_aligned
 
-def align_all_images_in_folder_to_template(base_image_path, input_files, selected_option):
+def align_all_images_in_folder_to_template(base_image_path, input_files, selected_option, preprocess_options):
    
+    """
+    Aligns all images in a folder to a template image using the selected alignment method and preprocess options.
+
+    Parameters:
+    - base_image_path (str): The file path of the template image.
+    - input_files (list): List of file paths of images to be aligned.
+    - selected_option (str): The selected alignment method.
+    - preprocess_options (dict): Dictionary containing preprocessing options.
+
+    Returns:
+    - aligned_images (list): List of tuples containing filename and aligned image.
+    """
+    
     # load the base image to which we want to align all the other images
     template = cv2.imread(base_image_path)
 
-    # list to store aligned images
     aligned_images = []
 
     # loop over all images in the input directory
@@ -157,10 +169,10 @@ def align_all_images_in_folder_to_template(base_image_path, input_files, selecte
             preprocessed_image = preprocess_image(template, image, **preprocess_options)
             
             if selected_option == 'ORB feature based alignment':
-                aligned = align_images(image, template)
+                aligned = align_images(preprocessed_image, template)
             
             elif selected_option == "Enhanced Correlation Coefficient Maximization":
-                aligned = eccAlign(template, image)
+                aligned = eccAlign(preprocessed_image, image)
             #else:
             #    warp_matrix = translation(image, template)
 
@@ -292,7 +304,10 @@ def main():
                         
             # Col3
             # Define options for the dropdown menu
-            options = ['ORB feature based alignment', 'Enhanced Correlation Coefficient Maximization', 'FFT phase correlation','Fourier Mellin Transform']
+            options = ['ORB feature based alignment', 
+                       'Enhanced Correlation Coefficient Maximization', 
+                       'FFT phase correlation',
+                       'Fourier Mellin Transform']
 
             # Display the dropdown menu
             selected_option = col3.selectbox('Select an option:', options)
@@ -307,6 +322,13 @@ def main():
             # Col4
             #sigma_sharpness = col4.slider("######  :blue[Sharpness Sigma] (preset = 0.5)", min_value=0.0, max_value=3.0, value=0.5, step=0.1, key='sharpness')
             #contrast = col4.slider("###### :blue[Contrast] (preset = 1.0)", min_value=0.1, max_value=3.0, value=1.0, step=0.1, key='contrast')
+        
+        preprocess_options = {
+            'brightness': brightness,
+            'contrast': contrast,
+            'sharpness': sharpness,
+            'color': color
+        }
               
         # Alignment procedure
         if uploaded_files and len(names) > 0:
@@ -337,7 +359,8 @@ def main():
                 processed_images = align_all_images_in_folder_to_template(
                              base_image_path  = base_image,
                              input_files = file_names,
-                             selected_option = selected_option)
+                             selected_option = selected_option,
+                             preprocess_options = preprocess_options)
                 
                 if processed_images:
                     # store the file paths of the stacked images
@@ -348,6 +371,7 @@ def main():
                     fcol1.write(f"Base Image: {base_image}")
                     fcol2.write("")
                     fcol2.write("Aligned Image:")
+                    
                     # Load the base image
                     base_image = Image.open(st.session_state["disp_img"])
 
@@ -355,21 +379,19 @@ def main():
                         # Convert aligned_image to RGB color mode
                         aligned_image_rgb = cv2.cvtColor(aligned_image, cv2.COLOR_BGR2RGB)                        
                         pil_image = Image.fromarray(aligned_image_rgb)                        
-                        stacked_image = np.hstack([base_image, pil_image])                       
-                        stacked_image_pil = Image.fromarray(stacked_image)
                         
+                        stacked_image = np.hstack([base_image, pil_image])
+                        stacked_image_pil = Image.fromarray(stacked_image)                        
 
                         # Create a temporary file for the stacked image
                         with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as temp_file:                            
                             stacked_image_pil.save(temp_file.name, format="JPEG")                            
                             stacked_image_paths.append(temp_file.name)
-                            stacked_image_names.append(filename)
-                            
-                            print(stacked_image_names)                           
-                                            
+                            stacked_image_names.append(filename)                           
+                                                                        
                     image_viewer(stacked_image_paths, stacked_image_names, ncol=1, nrow=1, image_name_visible=True)
                                                     
-                # Create a directory to save the aligned images                
+                # Create a directory to save the aligned images
                 base_image_filename = os.path.splitext(os.path.basename(st.session_state["disp_img"]))[0]
                 output_directory = "images_aligned_to_" + base_image_filename
                 
