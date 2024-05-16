@@ -3,25 +3,27 @@
 # Import libraries
 import math
 import os
+import datetime as dt
+import sys
+import tempfile
 import streamlit as st
 from streamlit_image_viewer import image_viewer
 from PIL import Image
 import numpy as np
 import imageio
 import cv2
-import datetime as dt
-import sys
-import tempfile
+
 sys.path.append('../')
 
 st.set_page_config(layout="wide", page_title = "Image Background Remover")
 
 # import the function to align images in the directory
-#from unraphael.modules.outline_normalization import (align_images, 
+#from unraphael.modules.outline_normalization import (
+# align_images, 
 #align_all_images_in_folder_to_template, normalize_brightness, normalize_contrast, 
 #normalize_sharpness, normalize_colors)
 
-def align_images(image, template, maxFeatures=5000, keepPercent=0.1):
+def align_images(image, template, maxFeatures = 5000, keepPercent = 0.1):
     """
     Aligns an input image with a template image using feature matching and homography transformation.
 
@@ -76,11 +78,23 @@ def align_images(image, template, maxFeatures=5000, keepPercent=0.1):
         
     # apply the homography matrix to align the images, including the rotation
     h, w, c = template.shape
-    aligned = cv2.warpPerspective(image, H, (w, h),borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0, 0))    
+    aligned = cv2.warpPerspective(image, H, (w, h), borderMode = cv2.BORDER_CONSTANT, borderValue=(0, 0, 0, 0))    
     
     return aligned
 
+
 def eccAlign(im1, im2):
+    """
+    Aligns two images using the ECC (Enhanced Correlation Coefficient) algorithm.
+
+    Parameters:
+    - im1: The template image.
+    - im2: The image to be warped to match im1.
+
+    Returns:
+    - im2_aligned: The aligned image.
+
+    """
     
     im1_gray = cv2.cvtColor(im1,cv2.COLOR_BGR2GRAY) # template image
     im2_gray = cv2.cvtColor(im2,cv2.COLOR_BGR2GRAY) # im2 is image to be warped to match im1
@@ -124,7 +138,7 @@ def eccAlign(im1, im2):
     
     return im2_aligned
 
-def align_all_images_in_folder_to_template2(base_image_path, input_files, selected_option):
+def align_all_images_in_folder_to_template(base_image_path, input_files, selected_option):
    
     # load the base image to which we want to align all the other images
     template = cv2.imread(base_image_path)
@@ -139,6 +153,9 @@ def align_all_images_in_folder_to_template2(base_image_path, input_files, select
             # image to be aligned            
             image = cv2.imread(filename)
             
+            # preprocess the image
+            preprocessed_image = preprocess_image(template, image, **preprocess_options)
+            
             if selected_option == 'ORB feature based alignment':
                 aligned = align_images(image, template)
             
@@ -147,9 +164,66 @@ def align_all_images_in_folder_to_template2(base_image_path, input_files, select
             #else:
             #    warp_matrix = translation(image, template)
 
+            # TODO: Add other alignment methods here
+            
             # append filename and aligned image to list
             aligned_images.append((filename, aligned))
     return aligned_images
+
+from skimage.exposure import match_histograms
+
+def preprocess_image(template, image, brightness=False, contrast=False, sharpness=False, color=False):
+    """
+    Preprocesses the input image based on the selected enhancement options.
+
+    Parameters:
+    - image: The input image in BGR format.
+    - brightness: Whether to equalize brightness.
+    - contrast: Whether to equalize contrast.
+    - sharpness: Whether to equalize sharpness.
+    - color: Whether to equalize colors.
+
+    Returns:
+    - preprocessed_image: The preprocessed image.
+    """
+
+    if brightness:
+        # perform brightness equalization
+        # implement brightness equalization here
+        pass
+
+    if contrast:
+        # perform contrast equalization
+        # implement contrast equalization here
+        pass
+
+    if sharpness:
+        # perform sharpness equalization
+        # implement sharpness equalization here
+        pass
+
+    if color:
+        # perform color equalization
+        # implement color equalization here
+        image = normalize_colors(template, image)
+
+    return image
+
+def normalize_colors(template, target):
+    """
+    Normalize the colors of the target image to match the color distribution of the template image.
+
+    Parameters:
+    - template: Reference image (template) in BGR color format.
+    - target: Target image to be adjusted in BGR color format.
+
+    Returns:
+    - normalized_img: Target image with colors normalized to match the template image.
+    """        
+    matched = match_histograms(target, template, channel_axis = -1)
+    
+    return matched
+
 
 def main():
     st.markdown('<div style="text-align: center;"><h1 style="color: orange;">Image normalization</h1></div>',
@@ -196,12 +270,10 @@ def main():
             
             # Draw a dividing line
             st.markdown("---")
-
-            # Col1
+            
             brightness = col1.checkbox("Equalize brightness", value = False)
             contrast   = col1.checkbox("Equalize contrast", value = False)
-            
-            # Col2
+                        
             sharpness  = col2.checkbox("Equalize sharpness", value = False)
             color      = col2.checkbox("Equalize colors", value = False)
                  
@@ -224,6 +296,11 @@ def main():
 
             # Display the dropdown menu
             selected_option = col3.selectbox('Select an option:', options)
+            
+            if selected_option:
+                motion_model = col4.selectbox("Select motion model:", ['euclidian', 'homography'])
+            
+            #TODO: selection of motion model for ecc (e.g., euclidian, homography) 
             #bilateral_strength = col3.slider("######  :blue[Bilateral Filter Strength] (preset = 5)", min_value=0, max_value=15, value=5, key='bilateral')
             #saturation_factor =  col3.slider("######  :blue[Color Saturation] (preset = 1.1)", min_value=0.0, max_value=2.0, step=0.05, value=1.1, key='saturation')
                         
@@ -257,10 +334,10 @@ def main():
                 # Extract the filenames from the list of selected images which will be aligned
                 file_names = [file.name.split('/')[-1] for file in uploaded_files]
                                
-                processed_images = align_all_images_in_folder_to_template2(
+                processed_images = align_all_images_in_folder_to_template(
                              base_image_path  = base_image,
                              input_files = file_names,
-                             selected_option=selected_option)
+                             selected_option = selected_option)
                 
                 if processed_images:
                     # store the file paths of the stacked images
