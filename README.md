@@ -3,7 +3,7 @@
 [![Tests](https://github.com/DecodingRaphael/unraphael/actions/workflows/tests.yaml/badge.svg)](https://github.com/DecodingRaphael/unraphael/actions/workflows/tests.yaml)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/unraphael)](https://pypi.org/project/unraphael/)
 [![PyPI](https://img.shields.io/pypi/v/unraphael.svg?style=flat)](https://pypi.org/project/unraphael/)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.11192045.svg)](https://doi.org/10.5281/zenodo.11192045)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.11192044.svg)](https://doi.org/10.5281/zenodo.11192044)
 
 ![Unraphael banner](https://raw.githubusercontent.com/DecodingRaphael/unraphael/main/src/unraphael/data/logo.png#gh-light-mode-only)
 ![Unraphael banner](https://raw.githubusercontent.com/DecodingRaphael/unraphael/main/src/unraphael/data/logo-dark.png#gh-dark-mode-only)
