@@ -12,17 +12,11 @@ from PIL import Image
 import numpy as np
 import imageio
 import cv2
-from skimage.exposure import match_histograms
+from outline_normalization import align_all_selected_images_to_template
 
 sys.path.append('../')
 
 st.set_page_config(layout="wide", page_title = "")
-
-# import the function to align images in the directory
-#from unraphael.modules.outline_normalization import (
-# align_images, 
-#align_all_selected_images_to_template, normalize_brightness, normalize_contrast, 
-#normalize_sharpness, normalize_colors)
 
 def image_downloads_widget(*, images: dict[str, np.ndarray]):
     """This widget takes a dict of images and shows them with download buttons."""
@@ -48,215 +42,215 @@ def image_downloads_widget(*, images: dict[str, np.ndarray]):
             key=filename,
         )
         
-def align_images(image, template, maxFeatures = 5000, keepPercent = 0.1):
-    """
-    Aligns an input image with a template image using feature matching and homography transformation.
+# def align_images(image, template, maxFeatures = 5000, keepPercent = 0.1):
+#     """
+#     Aligns an input image with a template image using feature matching and homography transformation.
 
-    Parameters:
-        image (numpy.ndarray): The input image to be aligned.
-        template (numpy.ndarray): The template image to align the input image with.
-        maxFeatures (int, optional): The maximum number of features to detect and extract using ORB. Default is 500.
-        keepPercent (float, optional): The percentage of top matches to keep. Default is 0.2.        
+#     Parameters:
+#         image (numpy.ndarray): The input image to be aligned.
+#         template (numpy.ndarray): The template image to align the input image with.
+#         maxFeatures (int, optional): The maximum number of features to detect and extract using ORB. Default is 500.
+#         keepPercent (float, optional): The percentage of top matches to keep. Default is 0.2.        
 
-    Returns:
-        numpy.ndarray: The aligned image.
+#     Returns:
+#         numpy.ndarray: The aligned image.
 
-    """
-    # convert input image and template to grayscale
-    imageGray    = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    templateGray = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
+#     """
+#     # convert input image and template to grayscale
+#     imageGray    = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+#     templateGray = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
 
-    orb = cv2.ORB_create(maxFeatures)
+#     orb = cv2.ORB_create(maxFeatures)
     
-    (kpsA, descsA) = orb.detectAndCompute(imageGray, None)
-    (kpsB, descsB) = orb.detectAndCompute(templateGray, None)
+#     (kpsA, descsA) = orb.detectAndCompute(imageGray, None)
+#     (kpsB, descsB) = orb.detectAndCompute(templateGray, None)
 
-    # match the features
-    method = cv2.DESCRIPTOR_MATCHER_BRUTEFORCE_HAMMING
-    matcher = cv2.DescriptorMatcher_create(method)
-    matches = matcher.match(descsA, descsB, None)
+#     # match the features
+#     method = cv2.DESCRIPTOR_MATCHER_BRUTEFORCE_HAMMING
+#     matcher = cv2.DescriptorMatcher_create(method)
+#     matches = matcher.match(descsA, descsB, None)
 
-    # sort the matches by their distance (the smaller the distance, the "more similar" the features are)
-    matches = sorted(matches, key=lambda x: x.distance)
+#     # sort the matches by their distance (the smaller the distance, the "more similar" the features are)
+#     matches = sorted(matches, key=lambda x: x.distance)
 
-    # keep only the top matches
-    keep = int(len(matches) * keepPercent)
-    matches = matches[:keep]
+#     # keep only the top matches
+#     keep = int(len(matches) * keepPercent)
+#     matches = matches[:keep]
 
-    # allocate memory for the keypoints (x, y)-coordinates from the top matches
-    # we'll use these coordinates to compute our homography matrix
-    ptsA = np.zeros((len(matches), 2), dtype="float")
-    ptsB = np.zeros((len(matches), 2), dtype="float")
+#     # allocate memory for the keypoints (x, y)-coordinates from the top matches
+#     # we'll use these coordinates to compute our homography matrix
+#     ptsA = np.zeros((len(matches), 2), dtype="float")
+#     ptsB = np.zeros((len(matches), 2), dtype="float")
 
-    # loop over the top matches
-    for (i, m) in enumerate(matches):
-        # indicate that the two keypoints in the respective images map to each other
-        ptsA[i] = kpsA[m.queryIdx].pt
-        ptsB[i] = kpsB[m.trainIdx].pt
+#     # loop over the top matches
+#     for (i, m) in enumerate(matches):
+#         # indicate that the two keypoints in the respective images map to each other
+#         ptsA[i] = kpsA[m.queryIdx].pt
+#         ptsB[i] = kpsB[m.trainIdx].pt
 
-    # compute the homography matrix between the two sets of matched points.
-    (H, mask) = cv2.findHomography(ptsA, ptsB, method = cv2.RANSAC)
+#     # compute the homography matrix between the two sets of matched points.
+#     (H, mask) = cv2.findHomography(ptsA, ptsB, method = cv2.RANSAC)
         
-    # derive rotation angle between figures from the homography matrix
-    theta = - math.atan2(H[0,1], H[0,0]) * 180 / math.pi
-    print(f'Rotational degree ORB feature: {theta:.2f}') # rotation angle, in degrees
+#     # derive rotation angle between figures from the homography matrix
+#     theta = - math.atan2(H[0,1], H[0,0]) * 180 / math.pi
+#     print(f'Rotational degree ORB feature: {theta:.2f}') # rotation angle, in degrees
         
-    # apply the homography matrix to align the images, including the rotation
-    h, w, c = template.shape
-    aligned = cv2.warpPerspective(image, H, (w, h), borderMode = cv2.BORDER_CONSTANT, borderValue=(0, 0, 0, 0))    
+#     # apply the homography matrix to align the images, including the rotation
+#     h, w, c = template.shape
+#     aligned = cv2.warpPerspective(image, H, (w, h), borderMode = cv2.BORDER_CONSTANT, borderValue=(0, 0, 0, 0))    
     
-    return aligned
+#     return aligned
 
-def eccAlign(im1, im2):
-    """
-    Aligns two images using the ECC (Enhanced Correlation Coefficient) algorithm.
+# def eccAlign(im1, im2):
+#     """
+#     Aligns two images using the ECC (Enhanced Correlation Coefficient) algorithm.
 
-    Parameters:
-    - im1: The template image.
-    - im2: The image to be warped to match im1.
+#     Parameters:
+#     - im1: The template image.
+#     - im2: The image to be warped to match im1.
 
-    Returns:
-    - im2_aligned: The aligned image.
+#     Returns:
+#     - im2_aligned: The aligned image.
 
-    """
+#     """
     
-    im1_gray = cv2.cvtColor(im1,cv2.COLOR_BGR2GRAY) # template image
-    im2_gray = cv2.cvtColor(im2,cv2.COLOR_BGR2GRAY) # im2 is image to be warped to match im1
+#     im1_gray = cv2.cvtColor(im1,cv2.COLOR_BGR2GRAY) # template image
+#     im2_gray = cv2.cvtColor(im2,cv2.COLOR_BGR2GRAY) # im2 is image to be warped to match im1
     
-    sz = im1.shape
+#     sz = im1.shape
 
-    # Define the motion model
-    warp_mode = cv2.MOTION_EUCLIDEAN
-    #warp_mode = cv2.MOTION_HOMOGRAPHY
+#     # Define the motion model
+#     warp_mode = cv2.MOTION_EUCLIDEAN
+#     #warp_mode = cv2.MOTION_HOMOGRAPHY
 
-    # Define 2x3 or 3x3 matrices and initialize the matrix to identity
-    if warp_mode == cv2.MOTION_HOMOGRAPHY :
-        warp_matrix = np.eye(3, 3, dtype=np.float32)
-    else:
-        warp_matrix = np.eye(2, 3, dtype=np.float32)
+#     # Define 2x3 or 3x3 matrices and initialize the matrix to identity
+#     if warp_mode == cv2.MOTION_HOMOGRAPHY :
+#         warp_matrix = np.eye(3, 3, dtype=np.float32)
+#     else:
+#         warp_matrix = np.eye(2, 3, dtype=np.float32)
 
-    # Specify the ECC number of iterations
-    number_of_iterations = 50000
+#     # Specify the ECC number of iterations
+#     number_of_iterations = 50000
     
-    # Specify the ECC threshold of the increment in the correlation coefficient between two iterations
-    termination_eps = 1e-5
+#     # Specify the ECC threshold of the increment in the correlation coefficient between two iterations
+#     termination_eps = 1e-5
     
-    # Define termination criteria
-    criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, number_of_iterations, termination_eps)
+#     # Define termination criteria
+#     criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, number_of_iterations, termination_eps)
 
-    # Run the ECC algorithm. The results are stored in warp_matrix.
-    (cc, warp_matrix) = cv2.findTransformECC (im1_gray, im2_gray, warp_matrix, warp_mode, criteria, None, 1)
+#     # Run the ECC algorithm. The results are stored in warp_matrix.
+#     (cc, warp_matrix) = cv2.findTransformECC (im1_gray, im2_gray, warp_matrix, warp_mode, criteria, None, 1)
 
-    # Warp im2, based on im1
-    if warp_mode == cv2.MOTION_HOMOGRAPHY :
-        # Use warpPerspective for Homography        
-        im2_aligned = cv2.warpPerspective(im2, warp_matrix, (sz[1],sz[0]), flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP)
-    else :
-        # Use warpAffine for Translation, Euclidean and Affine
-        im2_aligned = cv2.warpAffine(im2, warp_matrix, (sz[1],sz[0]), flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP);
+#     # Warp im2, based on im1
+#     if warp_mode == cv2.MOTION_HOMOGRAPHY :
+#         # Use warpPerspective for Homography        
+#         im2_aligned = cv2.warpPerspective(im2, warp_matrix, (sz[1],sz[0]), flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP)
+#     else :
+#         # Use warpAffine for Translation, Euclidean and Affine
+#         im2_aligned = cv2.warpAffine(im2, warp_matrix, (sz[1],sz[0]), flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP);
 
-    # Rotation angle
-    row1_col0 = warp_matrix[0,1]
-    angle = math.degrees(math.asin(row1_col0))
-    print(f'Rotational degree ECC: {angle:.2f}')
+#     # Rotation angle
+#     row1_col0 = warp_matrix[0,1]
+#     angle = math.degrees(math.asin(row1_col0))
+#     print(f'Rotational degree ECC: {angle:.2f}')
     
-    return im2_aligned
+#     return im2_aligned
 
-def align_all_selected_images_to_template(base_image_path, input_files, selected_option, preprocess_options):
+# def align_all_selected_images_to_template(base_image_path, input_files, selected_option, preprocess_options):
    
-    """
-    Aligns all images in a folder to a template image using the selected alignment method and preprocess options.
+#     """
+#     Aligns all images in a folder to a template image using the selected alignment method and preprocess options.
 
-    Parameters:
-    - base_image_path (str): The file path of the template image.
-    - input_files (list): List of file paths of images to be aligned.
-    - selected_option (str): The selected alignment method.
-    - preprocess_options (dict): Dictionary containing preprocessing options.
+#     Parameters:
+#     - base_image_path (str): The file path of the template image.
+#     - input_files (list): List of file paths of images to be aligned.
+#     - selected_option (str): The selected alignment method.
+#     - preprocess_options (dict): Dictionary containing preprocessing options.
 
-    Returns:
-    - aligned_images (list): List of tuples containing filename and aligned image.
-    """
+#     Returns:
+#     - aligned_images (list): List of tuples containing filename and aligned image.
+#     """
     
-    # load the base image to which we want to align all the other images
-    template = cv2.imread(base_image_path)
+#     # load the base image to which we want to align all the other images
+#     template = cv2.imread(base_image_path)
 
-    aligned_images = []
+#     aligned_images = []
     
-    for filename in input_files:
-        if filename.endswith(('.jpg', '.jpeg', '.png')):
+#     for filename in input_files:
+#         if filename.endswith(('.jpg', '.jpeg', '.png')):
             
-            # image to be aligned            
-            image = cv2.imread(filename)
+#             # image to be aligned            
+#             image = cv2.imread(filename)
             
-            # preprocess the image
-            preprocessed_image = preprocess_image(template, image, **preprocess_options)
+#             # preprocess the image
+#             preprocessed_image = preprocess_image(template, image, **preprocess_options)
             
-            if selected_option == 'ORB feature based alignment':
-                aligned = align_images(preprocessed_image, template)
+#             if selected_option == 'ORB feature based alignment':
+#                 aligned = align_images(preprocessed_image, template)
             
-            elif selected_option == "Enhanced Correlation Coefficient Maximization":
-                aligned = eccAlign(preprocessed_image, image)
-            #else:
-            #    warp_matrix = translation(image, template)
+#             elif selected_option == "Enhanced Correlation Coefficient Maximization":
+#                 aligned = eccAlign(preprocessed_image, image)
+#             #else:
+#             #    warp_matrix = translation(image, template)
 
-            # TODO: Add other alignment methods here
+#             # TODO: Add other alignment methods here
             
-            # append filename and aligned image to list
-            aligned_images.append((filename, aligned))
-    return aligned_images
+#             # append filename and aligned image to list
+#             aligned_images.append((filename, aligned))
+#     return aligned_images
 
-def normalize_colors(template, target):
-    """
-    Normalize the colors of the target image to match the color distribution of the template image.
+# def normalize_colors(template, target):
+#     """
+#     Normalize the colors of the target image to match the color distribution of the template image.
 
-    Parameters:
-    - template: Reference image (template) in BGR color format.
-    - target: Target image to be adjusted in BGR color format.
+#     Parameters:
+#     - template: Reference image (template) in BGR color format.
+#     - target: Target image to be adjusted in BGR color format.
 
-    Returns:
-    - normalized_img: Target image with colors normalized to match the template image.
-    """        
-    matched = match_histograms(target, template, channel_axis = -1)
+#     Returns:
+#     - normalized_img: Target image with colors normalized to match the template image.
+#     """        
+#     matched = match_histograms(target, template, channel_axis = -1)
     
-    return matched
+#     return matched
 
 
-def preprocess_image(template, image, brightness=False, contrast=False, sharpness=False, color=False):
-    """
-    Preprocesses the input image based on the selected enhancement options.
+# def preprocess_image(template, image, brightness=False, contrast=False, sharpness=False, color=False):
+#     """
+#     Preprocesses the input image based on the selected enhancement options.
 
-    Parameters:
-    - image: The input image in BGR format.
-    - brightness: Whether to equalize brightness.
-    - contrast: Whether to equalize contrast.
-    - sharpness: Whether to equalize sharpness.
-    - color: Whether to equalize colors.
+#     Parameters:
+#     - image: The input image in BGR format.
+#     - brightness: Whether to equalize brightness.
+#     - contrast: Whether to equalize contrast.
+#     - sharpness: Whether to equalize sharpness.
+#     - color: Whether to equalize colors.
 
-    Returns:
-    - preprocessed_image: The preprocessed image.
-    """
+#     Returns:
+#     - preprocessed_image: The preprocessed image.
+#     """
 
-    if brightness:
-        # perform brightness equalization
-        # implement brightness equalization here
-        pass
+#     if brightness:
+#         # perform brightness equalization
+#         # implement brightness equalization here
+#         pass
 
-    if contrast:
-        # perform contrast equalization
-        # implement contrast equalization here
-        pass
+#     if contrast:
+#         # perform contrast equalization
+#         # implement contrast equalization here
+#         pass
 
-    if sharpness:
-        # perform sharpness equalization
-        # implement sharpness equalization here
-        pass
+#     if sharpness:
+#         # perform sharpness equalization
+#         # implement sharpness equalization here
+#         pass
 
-    if color:
-        # perform color equalization
-        # implement color equalization here
-        image = normalize_colors(template, image)
+#     if color:
+#         # perform color equalization
+#         # implement color equalization here
+#         image = normalize_colors(template, image)
 
-    return image
+#     return image
 
 def main():
     st.markdown('<div style="text-align: center;"><h1 style="color: orange;">Image normalization</h1></div>',
