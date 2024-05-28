@@ -139,3 +139,29 @@ def show_heatmaps_widget(heatmaps: dict[str, np.ndarray], labels: list[str]):
         )
 
         col.pyplot(fig)
+
+
+def image_downloads_widget(
+    *, images: dict[str, np.ndarray], basename: str | None = None
+):
+    """This widget takes a dict of images and shows them with download
+    buttons."""
+    st.title('Download Images')
+
+    prefix = f'{basename}_' if basename else ''
+
+    cols = st.columns(len(images))
+
+    for col, key in zip(cols, images):
+        image = images[key]
+
+        col.image(image, caption=key.upper(), use_column_width=True)
+
+        filename = f'{prefix}{key}.png'
+
+        col.download_button(
+            label=f'Download ({filename})',
+            data=imageio.imwrite('<bytes>', image, extension='.png'),
+            file_name=filename,
+            key=filename,
+        )

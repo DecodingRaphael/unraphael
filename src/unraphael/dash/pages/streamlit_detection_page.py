@@ -1,42 +1,13 @@
-# Libraries
 from pathlib import Path
 import PIL
 from ultralytics import YOLO
 import streamlit as st
 import numpy as np
 import cv2
-import imageio
-import io
 import settings
+from widgets import image_downloads_widget
 
 
-def image_downloads_widget(*, images: dict[str, np.ndarray]):
-    """This widget takes a dict of images and shows them with download
-    buttons."""
-    st.title('Individual segment extraction')
-
-    cols = st.columns(len(images))
-
-    for col, key in zip(cols, images):
-        image = images[key]
-
-        col.image(image, caption=key.upper(), use_column_width=True)
-        filename = f'{key}.png'
-
-        img_bytes = io.BytesIO()
-        imageio.imwrite(img_bytes, image, format='png')
-        img_bytes.seek(0)
-
-        col.download_button(
-            label=f'Download ({filename})',
-            data=img_bytes,
-            file_name=filename,
-            mime='image/png',
-            key=filename,
-        )
-
-
-# Setting page layout
 st.set_page_config(
     page_title='Segmentation of figures in a painting',
     layout='wide',
@@ -45,7 +16,6 @@ st.set_page_config(
 
 st.title('Segmentation of figures in a painting')
 
-# Options
 model_type = st.sidebar.radio('Select Task', ['Detection', 'Segmentation', 'Pose'])
 add_box = st.sidebar.radio('Add bounding box', ['Yes', 'No'])
 confidence = float(st.sidebar.slider('Select Model Confidence', 10, 100, 25)) / 100
@@ -328,5 +298,4 @@ if source_img is not None or default_image is not None:
                         output_filename = f'{img_name}_pose_{idx}_{ci}.png'
                         detected_objects[f'pose_{idx}_{ci}'] = black_image
 
-            # Display and save all detected objects
             image_downloads_widget(images=detected_objects)
