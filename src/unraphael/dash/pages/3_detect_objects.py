@@ -47,15 +47,15 @@ def load_model(model_path):
         st.error(ex)
 
 
-def detection_task(*, res):
+def detection_task(*, results):
     objects = {}
 
-    for idx, r in enumerate(res):
-        img = np.copy(r.orig_img)
+    for result in results:
+        img = result.orig_img
 
-        for ci, c in enumerate(r):
+        for ci, c in enumerate(result):
             label = c.names[c.boxes.cls.tolist().pop()]
-            x1, y1, x2, y2 = c.boxes.xyxy.cpu().numpy().squeeze().astype(np.int32)
+            x1, y1, x2, y2 = c.boxes.xyxy.cpu().numpy().squeeze().astype(int)
             # Crop the object from the image
             isolated = img[y1:y2, x1:x2]
 
@@ -64,42 +64,34 @@ def detection_task(*, res):
     return objects
 
 
-def segmentation_task(*, res):
+def segmentation_task(*, results):
     objects = {}
 
-    for idx, r in enumerate(res):
-        img = np.copy(r.orig_img)
+    for result in results:
+        img = result.orig_img
 
-        for ci, c in enumerate(r):
+        for ci, c in enumerate(result):
             label = c.names[c.boxes.cls.tolist().pop()]
             b_mask = np.zeros(img.shape[:2], np.uint8)
-            contour = c.masks.xy.pop().astype(np.int32).reshape(-1, 1, 2)
-            _ = cv2.drawContours(b_mask, [contour], -1, (255, 255, 255), cv2.FILLED)
+            contour = c.masks.xy.pop().astype(int).reshape(-1, 1, 2)
+            cv2.drawContours(b_mask, [contour], -1, (255, 255, 255), cv2.FILLED)
             isolated = np.dstack([img, b_mask])
-            x1, y1, x2, y2 = c.boxes.xyxy.cpu().numpy().squeeze().astype(np.int32)
-
-            x1 = max(0, x1)
-            y1 = max(0, y1)
-            x2 = min(img.shape[1], x2)
-            y2 = min(img.shape[0], y2)
 
             objects[f'{label}_{ci}'] = isolated
 
     return objects
 
 
-def pose_task(*, res):
+def pose_task(*, results):
     objects = {}
 
-    for idx, r in enumerate(res):
-        img = np.copy(r.orig_img)
+    for idx, result in enumerate(results):
+        img = result.orig_img
         frame_height, frame_width = img.shape[:2]
 
-        # Get keypoints
-        kptss = r.keypoints.data
-        for ci, kpts in enumerate(kptss):
+        for ci, keypoints in enumerate(result.keypoints.data):
             black_image = np.zeros((frame_height, frame_width, 3), dtype=np.uint8)
-            keypoints = kpts.cpu().numpy()
+            keypoints = keypoints.cpu().numpy()
 
             # Draw keypoints for legs (orange)
             for j in range(len(keypoints)):
@@ -141,14 +133,7 @@ def pose_task(*, res):
             # Shoulder to Shoulder, Shoulder to Elbow, Elbow to Wrist
             skeleton_body = [(5, 6), (5, 7), (7, 9), (6, 8), (8, 10)]
             # Nose to Eyes, Eyes to Ears
-            skeleton_head = [
-                (0, 1),
-                (1, 2),
-                (0, 3),
-                (3, 4),
-                (0, 2),
-                (2, 4),
-            ]
+            skeleton_head = [(0, 1), (1, 2), (0, 3), (3, 4), (0, 2), (2, 4)]
 
             # Define additional skeleton connections
             additional_connections = [
@@ -162,9 +147,8 @@ def pose_task(*, res):
 
             # Draw skeleton for legs (orange)
             for j1, j2 in skeleton_legs:
-                if (
-                    keypoints[j1][2] > 0.5 and keypoints[j2][2] > 0.5
-                ):  # check confidence of both keypoints
+                # check confidence of both keypoints
+                if keypoints[j1][2] > 0.5 and keypoints[j2][2] > 0.5:
                     p1 = (int(keypoints[j1][0]), int(keypoints[j1][1]))
                     p2 = (int(keypoints[j2][0]), int(keypoints[j2][1]))
                     # orange
@@ -172,9 +156,8 @@ def pose_task(*, res):
 
             # Draw skeleton for body
             for j1, j2 in skeleton_body:
-                if (
-                    keypoints[j1][2] > 0.5 and keypoints[j2][2] > 0.5
-                ):  # check confidence of both keypoints
+                # check confidence of both keypoints
+                if keypoints[j1][2] > 0.5 and keypoints[j2][2] > 0.5:
                     p1 = (int(keypoints[j1][0]), int(keypoints[j1][1]))
                     p2 = (int(keypoints[j2][0]), int(keypoints[j2][1]))
                     # blue
@@ -182,8 +165,8 @@ def pose_task(*, res):
 
             # Draw skeleton for head (green)
             for j1, j2 in skeleton_head:
+                # check confidence of both keypoints
                 if keypoints[j1][2] > 0.5 and keypoints[j2][2] > 0.5:
-                    # check confidence of both keypoints
                     p1 = (int(keypoints[j1][0]), int(keypoints[j1][1]))
                     p2 = (int(keypoints[j2][0]), int(keypoints[j2][1]))
                     # green
@@ -191,8 +174,8 @@ def pose_task(*, res):
 
             # Draw additional skeleton connections
             for j1, j2 in additional_connections:
+                # check confidence of both keypoints
                 if keypoints[j1][2] > 0.5 and keypoints[j2][2] > 0.5:
-                    # check confidence of both keypoints
                     p1 = (int(keypoints[j1][0]), int(keypoints[j1][1]))
                     p2 = (int(keypoints[j2][0]), int(keypoints[j2][1]))
 
@@ -245,7 +228,7 @@ def main():
     if not st.sidebar.button('Detect Objects', key='detect_button'):
         st.stop()
 
-    res = model.predict(
+    results = model.predict(
         source_image,
         conf=confidence,
         show_boxes=True,
@@ -253,19 +236,19 @@ def main():
         save_txt=True,
     )
 
-    if len(res[0].boxes) == 0:
+    if len(results[0].boxes) == 0:
         st.error('No objects detected in the image.')
 
-    result_image = res[0].plot(boxes=add_box)
+    result_image = results[0].plot(boxes=add_box)
     with col2:
         st.image(result_image, caption='Detected Image', use_column_width=True)
 
     if model_type == 'Detection':
-        images = detection_task(res=res)
+        images = detection_task(results=results)
     elif model_type == 'Segmentation':
-        images = segmentation_task(res=res)
+        images = segmentation_task(results=results)
     elif model_type == 'Pose':
-        images = pose_task(res=res)
+        images = pose_task(results=results)
 
     image_downloads_widget(images=images)
 
