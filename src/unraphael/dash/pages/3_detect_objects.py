@@ -3,48 +3,28 @@ from ultralytics import YOLO
 import streamlit as st
 import numpy as np
 import cv2
-import settings
 from widgets import image_downloads_widget, load_image_widget
 from styling import set_custom_css
+import platformdirs
 
+CACHEDIR = Path(platformdirs.user_cache_dir('unraphael'))
 
-root_path = Path(__file__).resolve().parent
-
-# Get the relative path of the root directory with respect to the main folder (basically IMAGES_DIR = ../yolov8-streamlit/'images')
-ROOT = root_path.relative_to(Path.cwd())
-
-IMAGES_DIR = ROOT / '../../data/images'
-DEFAULT_IMAGE = IMAGES_DIR / '1_london_nat_gallery.jpg'
-
-MODEL_DIR = ROOT / 'weights'
-DETECTION_MODEL = MODEL_DIR / 'yolov8n.pt'
-SEGMENTATION_MODEL = MODEL_DIR / 'yolov8x-seg.pt'
-POSE_MODEL = MODEL_DIR / 'YOLOv8x-pose.pt'
+MODELS = {
+    'Detection': CACHEDIR / 'yolov8n.pt',
+    'Segmentation': CACHEDIR / 'yolov8x-seg.pt',
+    'Pose': CACHEDIR / 'yolov8x-pose.pt',
+}
 
 
 @st.cache_resource
-def get_model_path(model_type):
-    if model_type == 'Detection':
-        return Path(settings.DETECTION_MODEL)
-    elif model_type == 'Segmentation':
-        return Path(settings.SEGMENTATION_MODEL)
-    elif model_type == 'Pose':
-        return Path(settings.POSE_MODEL)
-
-
-@st.cache_resource
-def load_yolo_model(model_path):
-    model = YOLO(model_path)
-    return model
-
-
-def load_model(model_path):
+def load_model(model_type: str):
+    model_path = MODELS[model_type]
     try:
-        model = load_yolo_model(model_path)
-        return model
+        model = YOLO(model_path)
     except Exception as ex:
         st.error(f'Unable to load model. Check the specified path: {model_path}')
         st.error(ex)
+    return model
 
 
 def detection_task(*, results):
@@ -212,11 +192,10 @@ def main():
     st.title('Segmentation of figures in a painting')
 
     model_type = st.sidebar.radio('Select Task', ['Detection', 'Segmentation', 'Pose'])
-    add_box = st.sidebar.checkbox('Add bounding box')
+    add_box = st.sidebar.checkbox('Add bounding box', value=True)
     confidence = float(st.sidebar.slider('Select Model Confidence', 10, 100, 25)) / 100
 
-    model_path = get_model_path(model_type)
-    model = load_model(model_path)
+    model = load_model(model_type)
 
     name, source_image = load_image_widget()
 
