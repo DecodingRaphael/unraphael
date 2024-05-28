@@ -1,11 +1,10 @@
 from pathlib import Path
-import PIL
 from ultralytics import YOLO
 import streamlit as st
 import numpy as np
 import cv2
 import settings
-from widgets import image_downloads_widget
+from widgets import image_downloads_widget, load_image_widget
 from styling import set_custom_css
 
 
@@ -236,52 +235,30 @@ def main():
     model_path = get_model_path(model_type)
     model = load_model(model_path)
 
-    source_img = st.sidebar.file_uploader(
-        'Choose an image...', type=('jpg', 'jpeg', 'png')
-    )
+    name, source_image = load_image_widget()
 
     col1, col2 = st.columns(2)
 
     with col1:
-        try:
-            if source_img is None:
-                default_image_path = str(settings.DEFAULT_IMAGE)
-                default_image = PIL.Image.open(default_image_path)
-                st.image(
-                    default_image_path, caption='Default Image', use_column_width=True
-                )
-            else:
-                uploaded_image = PIL.Image.open(source_img)
-                st.image(source_img, caption='Uploaded Image', use_column_width=True)
-        except Exception as ex:
-            st.error('Error occurred while opening the image.')
-            st.error(ex)
-
-    if default_image is None:
-        return
-
-    if source_img is None:
-        uploaded_image = default_image
+        st.image(source_image, caption='Uploaded Image', use_column_width=True)
 
     if not st.sidebar.button('Detect Objects', key='detect_button'):
-        return
+        st.stop()
 
     res = model.predict(
-        uploaded_image,
+        source_image,
         conf=confidence,
         show_boxes=True,
         save=True,
         save_txt=True,
     )
-    boxes = res[0].boxes
 
-    if len(boxes) == 0:
+    if len(res[0].boxes) == 0:
         st.error('No objects detected in the image.')
 
-    res_plotted = res[0].plot(boxes=add_box)[:, :, ::-1]
-
+    result_image = res[0].plot(boxes=add_box)
     with col2:
-        st.image(res_plotted, caption='Detected Image', use_column_width=True)
+        st.image(result_image, caption='Detected Image', use_column_width=True)
 
     if model_type == 'Detection':
         images = detection_task(res=res)
