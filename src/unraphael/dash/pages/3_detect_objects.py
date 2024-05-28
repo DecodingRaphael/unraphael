@@ -230,7 +230,7 @@ def main():
     st.title('Segmentation of figures in a painting')
 
     model_type = st.sidebar.radio('Select Task', ['Detection', 'Segmentation', 'Pose'])
-    add_box = st.sidebar.radio('Add bounding box', ['Yes', 'No'])
+    add_box = st.sidebar.checkbox('Add bounding box')
     confidence = float(st.sidebar.slider('Select Model Confidence', 10, 100, 25)) / 100
 
     model_path = get_model_path(model_type)
@@ -278,10 +278,7 @@ def main():
     if len(boxes) == 0:
         st.error('No objects detected in the image.')
 
-    if add_box == 'Yes':
-        res_plotted = res[0].plot(boxes=True)[:, :, ::-1]
-    else:
-        res_plotted = res[0].plot(boxes=False)[:, :, ::-1]
+    res_plotted = res[0].plot(boxes=add_box)[:, :, ::-1]
 
     with col2:
         st.image(res_plotted, caption='Detected Image', use_column_width=True)
