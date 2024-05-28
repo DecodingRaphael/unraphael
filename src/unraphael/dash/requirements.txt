@@ -1,8 +1,10 @@
 git+https://github.com/DecodingRaphael/unraphael.git
 numpy
 opencv-python-headless
+platformdirs
 rembg
 scipy
 scikit-image
 seaborn
 streamlit
+ultralytics
