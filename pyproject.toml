@@ -100,55 +100,22 @@ allow_redefinition = true
 module = ["yaml.*", "toml.*"]
 ignore_missing_imports = true
 
-[tool.lint]
+[tool.ruff]
+line-length = 96
+target-version = "py310"
+extend-include = ["*.ipynb"]
+
+[tool.ruff.lint]
 select = [
     "F",  # Pyflakes
     "E",  # pycodestyle (error)
     "W",  # pycodestyle (warning)
     "I",  # isort
 ]
-ignore = []
-extend-include = ["*.ipynb"]
 
-# Allow autofix for all enabled rules (when `--fix`) is provided.
-fixable = ["A", "B", "C", "D", "E", "F", "I"]
-unfixable = []
-
-exclude = [
-    ".bzr",
-    ".direnv",
-    ".eggs",
-    ".git",
-    ".hg",
-    ".mypy_cache",
-    ".nox",
-    ".pants.d",
-    ".ruff_cache",
-    ".svn",
-    ".tox",
-    ".venv",
-    "__pypackages__",
-    "_build",
-    "buck-out",
-    "build",
-    "dist",
-    "node_modules",
-    "venv",
-    ".venv",
-    "scripts",
-]
-per-file-ignores = {}
-
-# Allow unused variables when underscore-prefixed.
-dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
-
-target-version = "py310"
-line-length = 96
-
-[tool.lint.isort]
+[tool.ruff.lint.isort]
 known-first-party = ["unraphael"]
 required-imports = ["from __future__ import annotations"]
-profile = "black"
 
 [tool.ruff.format]
 quote-style = "single"

@@ -1,8 +1,11 @@
-from .locations import dash_directory
-import toml
+from __future__ import annotations
+
 import logging
 import sys
 
+import toml
+
+from .locations import dash_directory
 
 logger = logging.getLogger(__name__)
 
