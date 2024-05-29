@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import base64
-from unraphael.locations import data_directory
 
 import streamlit as st
+
+from unraphael.locations import data_directory
 
 
 def set_custom_css(stylesheet: str = 'custom.css'):

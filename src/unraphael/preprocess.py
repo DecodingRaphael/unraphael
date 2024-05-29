@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import cv2
 import numpy as np
 import rembg
@@ -55,20 +57,12 @@ def process_image(
     blue, green, red = cv2.split(image)
 
     # Apply bilateral blur filter to each color channel with user-defined 'bilateral_strength'
-    blue_blur = cv2.bilateralFilter(
-        blue, d=bilateral_strength, sigmaColor=55, sigmaSpace=55
-    )
-    green_blur = cv2.bilateralFilter(
-        green, d=bilateral_strength, sigmaColor=55, sigmaSpace=55
-    )
-    red_blur = cv2.bilateralFilter(
-        red, d=bilateral_strength, sigmaColor=55, sigmaSpace=55
-    )
+    blue_blur = cv2.bilateralFilter(blue, d=bilateral_strength, sigmaColor=55, sigmaSpace=55)
+    green_blur = cv2.bilateralFilter(green, d=bilateral_strength, sigmaColor=55, sigmaSpace=55)
+    red_blur = cv2.bilateralFilter(red, d=bilateral_strength, sigmaColor=55, sigmaSpace=55)
 
     # Create CLAHE object with user-defined clip limit
-    clahe = cv2.createCLAHE(
-        clipLimit=clahe_clip_limit, tileGridSize=(clahe_tiles, clahe_tiles)
-    )
+    clahe = cv2.createCLAHE(clipLimit=clahe_clip_limit, tileGridSize=(clahe_tiles, clahe_tiles))
 
     # Adjust histogram and contrast for each color channel using CLAHE
     blue_eq = clahe.apply(blue_blur)
@@ -78,7 +72,8 @@ def process_image(
     # Merge the color channels back into a single RGB image
     output_img = cv2.merge((blue_eq, green_eq, red_eq))
 
-    # Color saturation: convert image from BGR color space to HSV (Hue, Saturation, Value) color space
+    # Color saturation: convert image from BGR color space to HSV (Hue, Saturation, Value)
+    # color space
     hsv_image = cv2.cvtColor(output_img, cv2.COLOR_BGR2HSV)
 
     # Multiply the saturation channel by user-defined 'saturation_factor'
@@ -91,17 +86,13 @@ def process_image(
 
     # Create user-defined 'sharpening_kernel_size'
     kernel = np.ones((sharpening_kernel_size, sharpening_kernel_size), np.float32) * -1
-    kernel[sharpening_kernel_size // 2, sharpening_kernel_size // 2] = (
-        sharpening_kernel_size**2
-    )
+    kernel[sharpening_kernel_size // 2, sharpening_kernel_size // 2] = sharpening_kernel_size**2
 
     # Apply sharpening kernel to image using filter2D
     processed_image = cv2.filter2D(result_image, -1, kernel)
 
     # Alpha controls contrast and beta controls brightness
-    processed_image = cv2.convertScaleAbs(
-        processed_image, alpha=contrast, beta=brightness
-    )
+    processed_image = cv2.convertScaleAbs(processed_image, alpha=contrast, beta=brightness)
 
     # Additional sharpening: Create the sharpening kernel and apply it to the image
     custom_kernel = np.array([[-1, -1, -1], [-1, 9, -1], [-1, -1, -1]])
@@ -115,9 +106,7 @@ def process_image(
     return processed_image
 
 
-def remove_background(
-    image: np.ndarray, mask_process: bool = False, **kwargs
-) -> np.ndarray:
+def remove_background(image: np.ndarray, mask_process: bool = False, **kwargs) -> np.ndarray:
     """Remove background using rembg.
 
     Parameters

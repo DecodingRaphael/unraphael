@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+
 import imageio.v3 as imageio
 import streamlit as st
 from config import (
@@ -15,7 +16,7 @@ from seaborn import clustermap
 from unraphael.feature import (
     heatmap_to_condensed_distance_matrix,
 )
-from unraphael.io import load_images_from_drc, load_images
+from unraphael.io import load_images, load_images_from_drc
 from unraphael.locations import data_directory, image_directory
 
 if TYPE_CHECKING:

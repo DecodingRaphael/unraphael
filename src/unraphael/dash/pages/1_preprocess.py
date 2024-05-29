@@ -4,8 +4,9 @@ import imageio.v3 as imageio
 import numpy as np
 import streamlit as st
 from styling import set_custom_css
-from unraphael.preprocess import apply_mask, process_image, remove_background
 from widgets import load_image_widget
+
+from unraphael.preprocess import apply_mask, process_image, remove_background
 
 _process_image = st.cache_data(process_image)
 _apply_mask = st.cache_data(process_image)
@@ -16,8 +17,10 @@ def preprocess_image_widget(image: np.ndarray):
     """Widget to preprocess image with user input options."""
     st.title('Preprocessing')
     st.write(
-        'The processed image is shown with a preset of parameters. Use the sliders to explore the effects of image filters, or to'
-        'refine the adjustment. When you are happy with the result, download the processed image.'
+        'The processed image is shown with a preset of parameters. '
+        'Use the sliders to explore the effects of image filters, or to'
+        'refine the adjustment. When you are happy with the result, '
+        'download the processed image.'
     )
 
     col1, col2, col3, col4 = st.columns(4)
@@ -115,12 +118,13 @@ def remove_background_widget(image: np.ndarray) -> np.ndarray:
     background_params['alpha_matting'] = col1.checkbox(
         'Use Alpha matting',
         value=False,
-        help='Alpha matting is a post processing step that can be used to improve the quality of the output.',
+        help=(
+            'Alpha matting is a post processing step that can be used to '
+            'improve the quality of the output.'
+        ),
     )
     background_params['only_mask'] = col1.checkbox('Keep mask only', value=False)
-    background_params['post_process_mask'] = col1.checkbox(
-        'Postprocess mask', value=False
-    )
+    background_params['post_process_mask'] = col1.checkbox('Postprocess mask', value=False)
 
     bgmap = {
         (0, 0, 0, 0): 'Transparent',
@@ -132,7 +136,10 @@ def remove_background_widget(image: np.ndarray) -> np.ndarray:
         'Background color',
         bgmap.keys(),
         format_func=lambda x: bgmap[x],
-        help='You can use the post_process_mask argument to post process the mask to get better results.',
+        help=(
+            'You can use the post_process_mask argument to post process the '
+            'mask to get better results.'
+        ),
     )
 
     background_params['bg_threshold'] = col2.slider(

@@ -1,6 +1,10 @@
-from streamlit.testing.v1 import AppTest
+from __future__ import annotations
+
 import sys
+
 import pytest
+from streamlit.testing.v1 import AppTest
+
 from unraphael.locations import dash_directory
 
 sys.path.append(str(dash_directory))

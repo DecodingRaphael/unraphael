@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import streamlit as st
 from styling import data_directory, set_custom_css
+
 from unraphael import __version__
 
 st.set_page_config(
@@ -12,7 +15,8 @@ st.set_page_config(
         'Report a bug': 'https://github.com/DedodingRaphael/unraphael/issues',
         'About': (
             f'**unraphael**: a dashboard for unraphael ({__version__}). '
-            '\n\nPython toolkit for *unraveling* image similarity with a focus on artistic practice. '
+            '\n\nPython toolkit for *unraveling* image similarity with a focus '
+            'on artistic practice. '
             '\n\nFor more information, see: https://github.com/DedodingRaphael/unraphael'
         ),
     },
