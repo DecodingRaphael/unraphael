@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+
 import imageio.v3 as imageio
 import streamlit as st
 from config import (
@@ -15,7 +16,7 @@ from seaborn import clustermap
 from unraphael.feature import (
     heatmap_to_condensed_distance_matrix,
 )
-from unraphael.io import load_images_from_drc, load_images
+from unraphael.io import load_images, load_images_from_drc
 from unraphael.locations import data_directory, image_directory
 
 if TYPE_CHECKING:
@@ -141,9 +142,7 @@ def show_heatmaps_widget(heatmaps: dict[str, np.ndarray], labels: list[str]):
         col.pyplot(fig)
 
 
-def image_downloads_widget(
-    *, images: dict[str, np.ndarray], basename: str | None = None
-):
+def image_downloads_widget(*, images: dict[str, np.ndarray], basename: str | None = None):
     """This widget takes a dict of images and shows them with download
     buttons."""
     st.title('Download Images')
