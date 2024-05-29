@@ -13,7 +13,7 @@ def set_custom_css(stylesheet: str = 'custom.css'):
 
     fn = str(data_directory / stylesheet)
 
-    with open(fn, 'r') as f:
+    with open(fn) as f:
         data = f.read()
 
     st.write(
