@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from pathlib import Path
-from ultralytics import YOLO
-import streamlit as st
-import numpy as np
-import cv2
-from widgets import image_downloads_widget, load_image_widget
-from styling import set_custom_css
-import platformdirs
 from dataclasses import dataclass
+from pathlib import Path
 
+import cv2
+import numpy as np
+import platformdirs
+import streamlit as st
+from styling import set_custom_css
+from ultralytics import YOLO
+from widgets import image_downloads_widget, load_image_widget
 
 CACHEDIR = Path(platformdirs.user_cache_dir('unraphael'))
 
