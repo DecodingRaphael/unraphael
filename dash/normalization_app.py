@@ -100,20 +100,30 @@ def main():
             col3, col4 = st.columns(2)
             st.markdown("---")
             
-            options = ['ORB feature based alignment',
+            options = ['Feature based alignment',
                        'Enhanced Correlation Coefficient Maximization', 
                        'Fourier Mellin Transform',
                        'FFT phase correlation',
                        'Rotational Alignment',
                        'User-provided keypoints (from pose estimation)']
+            
+            #TODO: add more options for alignment procedures
+            # https://pypi.org/project/pystackreg/
+            # https://github.com/bnsreenu/python_for_microscopists/blob/master/119_sub_pixel_image_registration.py
+            # https://github.com/bnsreenu/python_for_microscopists/blob/master/120_img_registration_methods_in_python.py
+            # https://github.com/bnsreenu/python_for_microscopists/blob/master/121_image_registration_using_pystackreg.py
+            
 
             # Display the dropdown menu
             selected_option = col3.selectbox('Select an option:', options)
             # Initialize motion_model
             motion_model = None
             
+            if selected_option == 'Feature based alignment':                
+                motion_model = col4.selectbox("Select algorithm for feature detection and description:", ['SIFT','SURF','ORB','BRIEF'])
+                
             if selected_option == 'Enhanced Correlation Coefficient Maximization':                
-                motion_model = col4.selectbox("Select motion model:", ['translation','euclidian','affine','homography'])                
+                motion_model = col4.selectbox("Select motion model:", ['translation','euclidian','affine','homography'])
                                               
         # Alignment procedure
         if uploaded_files and len(names) > 0:
@@ -124,14 +134,14 @@ def main():
             ch = scol1.button("Select baseline image to align to")
             fs = scol2.button("Align images to baseline image")
             
-            #Set selected image as base image
+            #Set base image
             if ch:
                 filename = uploaded_files[np.random.randint(len(uploaded_files))].name.split('/')[-1]
                 fcol1.image(Image.open(filename),use_column_width = True)                
                 st.session_state["disp_img"] = filename
                 st.write(f"Base Image: {filename}")
             
-            # Align images to selected base image
+            # Align images to base image
             if fs:
                 idx = names.index(st.session_state["disp_img"])
                                 

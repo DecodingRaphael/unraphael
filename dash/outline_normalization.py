@@ -15,14 +15,15 @@ from numpy.fft import fft2, ifft2
 import diplib as dip
 
 # ORB feature based alignment
-def featureAlign(template, image, maxFeatures = 50000, keepPercent = 0.15):
+def featureAlign(image, template, method='ORB', maxFeatures = 50000, keepPercent = 0.15):
     """
     Aligns an input image with a template image using feature matching and homography transformation,
     rather than a correlation based method on the whole image to search for these values
 
     Parameters:
+        image (numpy.ndarray): The input image to be aligned.
         template (numpy.ndarray): The template image to align the input image with.
-        image (numpy.ndarray): The input image to be aligned.        
+        method (str, optional): The feature detection method to use ('SIFT', 'ORB', 'SURF'). Default is 'ORB'.
         maxFeatures (int, optional): The maximum number of features to detect and extract using ORB. Default is 500.
         keepPercent (float, optional): The percentage of top matches to keep. Default is 0.2.        
 
@@ -33,14 +34,24 @@ def featureAlign(template, image, maxFeatures = 50000, keepPercent = 0.15):
     templateGray = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
     imageGray    = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     
-    orb = cv2.ORB_create(maxFeatures)
-    
-    (kpsA, descsA) = orb.detectAndCompute(templateGray, None)
-    (kpsB, descsB) = orb.detectAndCompute(imageGray, None)
+    if method == 'SIFT':
+        feature_detector = cv2.SIFT_create()
+    elif method == 'SURF':
+        feature_detector = cv2.xfeatures2d.SURF_create()
+    elif method == 'ORB':
+        feature_detector = cv2.ORB_create(maxFeatures)
+    else:
+        raise ValueError("Method must be 'SIFT', 'ORB', or 'SURF'")
+        
+    (kpsA, descsA) = feature_detector.detectAndCompute(imageGray, None)
+    (kpsB, descsB) = feature_detector.detectAndCompute(templateGray, None)
 
     # match features
-    method = cv2.DESCRIPTOR_MATCHER_BRUTEFORCE_HAMMING
-    matcher = cv2.DescriptorMatcher_create(method)
+    if method == 'ORB':
+        matcher = cv2.DescriptorMatcher_create(cv2.DESCRIPTOR_MATCHER_BRUTEFORCE_HAMMING)
+    else:
+        matcher = cv2.DescriptorMatcher_create(cv2.DESCRIPTOR_MATCHER_BRUTEFORCE)
+        
     matches = matcher.match(descsA, descsB, None)
 
     # sort the matches by their distance: the smaller the distance, the "more similar" the features are
@@ -50,7 +61,7 @@ def featureAlign(template, image, maxFeatures = 50000, keepPercent = 0.15):
     keep = int(len(matches) * keepPercent)
     matches = matches[:keep]
     
-    # we'll use these coordinates to compute our homography matrix
+    # coordinates to compute homography matrix
     ptsA = np.zeros((len(matches), 2), dtype="float")
     ptsB = np.zeros((len(matches), 2), dtype="float")
     
@@ -79,8 +90,7 @@ def featureAlign(template, image, maxFeatures = 50000, keepPercent = 0.15):
     
     # apply the homography matrix to align the images, without modifying the rotation
     #aligned = cv2.warpPerspective(image, H_no_rotation, (w, h))
-    return aligned
-    
+    return aligned    
 
 def eccAlign(im1, im2, warp_mode):
     """
@@ -289,16 +299,17 @@ def rotationAlign(im1, im2):
 
 
 
-def align_all_selected_images_to_template(base_image_path, input_files, selected_option, motion_model, preprocess_options):
+def align_all_selected_images_to_template(base_image_path, input_files, selected_option, motion_model, preprocess_options,feature_method='ORB'):
  
     """
-    Aligns all images in a folder to a template image using the selected alignment method and preprocess options.
+    Aligns all images in a folder to a template image using the selected alignment method and preprocess options
     Parameters:
-     - base_image_path (str): The file path of the template image.
-     - input_files (list): List of file paths of images to be aligned.
-     - selected_option (str): The selected alignment method.
+     - base_image_path (str): The file path of the template image
+     - input_files (list): List of file paths of images to be aligned
+     - selected_option (str): The selected alignment method
      - motion_model (str): The selected motion model for ECC alignment
-     - preprocess_options (dict): Dictionary containing preprocessing options.
+     - preprocess_options (dict): Dictionary containing preprocessing options
+     - feature_method (str, optional): The feature detection method to use ('SIFT', 'ORB', 'SURF'). Default is 'ORB'
 
      Returns:
      - aligned_images (list): List of tuples containing filename and aligned image.
@@ -322,9 +333,9 @@ def align_all_selected_images_to_template(base_image_path, input_files, selected
             target_size = (template.shape[1], template.shape[0])
             resized_image = cv2.resize(preprocessed_image, target_size)
             
-            if selected_option == 'ORB feature based alignment':
+            if selected_option == 'Feature based alignment':
                 # feature alignment does not require resizing
-                aligned = featureAlign(template, preprocessed_image)
+                aligned = featureAlign(preprocessed_image,template, method=feature_method)
           
             elif selected_option == "Enhanced Correlation Coefficient Maximization":
                 if motion_model == 'translation':
@@ -356,8 +367,8 @@ def align_all_selected_images_to_template(base_image_path, input_files, selected
             #elif selected_option == "User-provided keypoints (from pose estimation)":
                  #aligned, angle = rotationAlign(template, resized_image)
                                               
-            else: # default to feature based alignment
-                aligned = featureAlign(template, preprocessed_image)
+            #else: # default to feature based alignment
+            #    aligned = featureAlign(template, preprocessed_image)
             
             # append filename and aligned image to list
             aligned_images.append((filename, aligned, angle))
@@ -544,6 +555,8 @@ def normalize_colors(template, target):
     Returns:
     - normalized_img: Target image with colors normalized to match the template image.
     """
+    
+    # TODO: Reinhard color transfer?
     matched = match_histograms(target, template, channel_axis=-1)
     return matched
 
