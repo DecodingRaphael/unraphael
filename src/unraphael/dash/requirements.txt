@@ -8,3 +8,7 @@ scikit-image
 seaborn
 streamlit
 ultralytics
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+torchvision
+torchaudio
