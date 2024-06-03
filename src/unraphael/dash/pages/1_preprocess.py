@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import imageio.v3 as imageio
 import numpy as np
 import streamlit as st
 from styling import set_custom_css
-from widgets import load_image_widget
+from widgets import image_downloads_widget, load_image_widget
 
 from unraphael.preprocess import apply_mask, process_image, remove_background
 
@@ -175,28 +174,6 @@ def remove_background_widget(image: np.ndarray) -> np.ndarray:
     col4.image(nobg, 'background removed')
 
     return nobg, mask
-
-
-def image_downloads_widget(*, basename: str, images: dict[str, np.ndarray]):
-    """This widget takes a dict of images and shows them with download
-    buttons."""
-    st.title('Download Images')
-
-    cols = st.columns(len(images))
-
-    for col, key in zip(cols, images):
-        image = images[key]
-
-        col.image(image, caption=key.upper(), use_column_width=True)
-
-        filename = f'{basename}_{key}.png'
-
-        col.download_button(
-            label=f'Download ({filename})',
-            data=imageio.imwrite('<bytes>', image, extension='.png'),
-            file_name=filename,
-            key=filename,
-        )
 
 
 def main():
