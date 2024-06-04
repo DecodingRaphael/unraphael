@@ -12,6 +12,7 @@ import numpy as np
 import imageio
 import cv2
 from outline_normalization import align_all_selected_images_to_template
+from streamlit_image_comparison import image_comparison
 
 sys.path.append('../')
 
@@ -203,21 +204,19 @@ def main():
                     for filename, aligned_image, angle in processed_images:
                         # Convert aligned_image to RGB color mode for optimal display
                         fcol2.write(f'Difference in rotational degree for {filename}: {angle:.2f}')
-                        aligned_image_rgb = cv2.cvtColor(aligned_image, cv2.COLOR_BGR2RGB)
-                        pil_image = Image.fromarray(aligned_image_rgb)
-                        
-                        stacked_image = np.hstack([base_image, pil_image])
-                        stacked_image_pil = Image.fromarray(stacked_image)
-                        
-                        # Save all figures to dictionary
-                        save_aligned_images[f'aligned_{filename}'] = aligned_image_rgb
-                                                                                            
+                        aligned_image_rgb = cv2.cvtColor(aligned_image, cv2.COLOR_BGR2RGB)                      
+                        stacked_image = np.hstack([base_image, aligned_image_rgb])
+                        stacked_image_pil = Image.fromarray(stacked_image)                       
+                                                                                                                    
                         # Create a temporary file for the stacked image (neccesary for image_viewer widget)
                         with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as temp_file:
                             stacked_image_pil.save(temp_file.name, format="JPEG")
                             stacked_image_paths.append(temp_file.name)
-                            stacked_image_names.append(filename)                        
-                                        
+                            stacked_image_names.append(filename)
+                        
+                        # Save all figures to dictionary
+                        save_aligned_images[f'aligned_{filename}'] = aligned_image_rgb                       
+                                                                
                     image_viewer(stacked_image_paths, stacked_image_names, ncol=1, nrow=1, image_name_visible=True)                    
                     
                     # Remove temporary stacked images (for display only)
@@ -226,6 +225,11 @@ def main():
                         
                     #TODO: add heatmap with rotation angles
 
+                    for filename, aligned_image, angle in processed_images:
+                        aligned_image_rgb = cv2.cvtColor(aligned_image, cv2.COLOR_BGR2RGB)
+                        image_comparison(img1=base_image,img2=aligned_image_rgb)             
+                    
+                    
                     image_downloads_widget(images = save_aligned_images)
                     
                     
