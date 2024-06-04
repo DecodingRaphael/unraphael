@@ -14,7 +14,7 @@ from IPython.display import display, HTML
 from numpy.fft import fft2, ifft2
 import diplib as dip
 
-# ORB feature based alignment
+# Feature-based alignment
 def featureAlign(image, template, method='ORB', maxFeatures = 50000, keepPercent = 0.15):
     """
     Aligns an input image with a template image using feature matching and homography transformation,
@@ -81,16 +81,17 @@ def featureAlign(image, template, method='ORB', maxFeatures = 50000, keepPercent
                               [0, 0, 1]])
     
     ## derive rotation angle between figures from the homography matrix
-    theta = - math.atan2(H[0,1], H[0,0]) * 180 / math.pi
-    print(f'Rotational degree ORB feature: {theta:.2f}') # rotation angle, in degrees
-        
+    angle = - math.atan2(H[0,1], H[0,0]) * 180 / math.pi
+    print(f'Rotational degree ORB feature: {angle:.2f}') # rotation angle, in degrees
+            
     # apply the homography matrix to align the images, including the rotation
     h, w, c = template.shape
     aligned = cv2.warpPerspective(image, H, (w, h), borderMode = cv2.BORDER_CONSTANT, borderValue=(0, 0, 0, 0))
     
     # apply the homography matrix to align the images, without modifying the rotation
     #aligned = cv2.warpPerspective(image, H_no_rotation, (w, h))
-    return aligned    
+    return aligned, angle
+
 
 def eccAlign(im1, im2, warp_mode):
     """
@@ -151,7 +152,7 @@ def eccAlign(im1, im2, warp_mode):
         
     return im2_aligned, angle
 
-def fourier_mellin_transform_match(image1_path, image2_path):
+def fourier_mellin_transform_match(image1_path, image2_path, corrMethod = "don't normalize"):
     """
     Apply Fourier-Mellin transform to match one image to another.
 
@@ -187,7 +188,33 @@ def fourier_mellin_transform_match(image1_path, image2_path):
     
     # obtain transformation matrix
     out = dip.Image()
-    matrix = dip.FourierMellinMatch2D(img1, img2, out=out, correlationMethod="don't normalize")
+    matrix = dip.FourierMellinMatch2D(img1, img2, out=out, correlationMethod = corrMethod)
+        
+    
+    print("########################")
+    print(matrix)
+    
+    # Extract elements from the matrix
+    m11 = matrix[0]
+    m12 = matrix[1]
+    
+    # Extract scaling factors
+    s_x = matrix[0]  # Scaling factor for x-axis
+    s_y = matrix[3]  # Scaling factor for y-axis
+
+    # Extract translation values
+    t_x = matrix[4]  # Translation along x-axis
+    t_y = matrix[5]  # Translation along y-axis
+    
+    # Calculate average scaling factor
+    scaling_factor = (s_x + s_y) / 2
+
+    # Print the result
+    print("Average scaling factor:", scaling_factor)
+
+    # Calculate the rotational angle
+    angle = -math.atan2(m12, m11) * 180 / math.pi
+    print(f'Rotational degree fourier_mellin_transform: {angle:.2f}') # rotation angle, in degrees
     
     # Apply the affine transformation using the transformation matrix to align img2 to img1 (template)
     moved_img = dip.Image()
@@ -195,7 +222,7 @@ def fourier_mellin_transform_match(image1_path, image2_path):
         
     aligned_image = np.asarray(moved_img)
     
-    return aligned_image
+    return aligned_image, angle
  
 def align_images_with_translation(im0, im1):
     """
@@ -291,11 +318,11 @@ def rotationAlign(im1, im2):
       rot = cv2.warpAffine(im2_gray, rotationMatrix, (width, height))
       values[i] = np.mean(im1_gray - rot)
     
-    best_angle = np.argmin(values)
-    rotationMatrix = cv2.getRotationMatrix2D((width/2, height/2), best_angle, 1)
+    angle = np.argmin(values)
+    rotationMatrix = cv2.getRotationMatrix2D((width/2, height/2), angle, 1)
     rotated = cv2.warpAffine(im2, rotationMatrix, (width, height))
     
-    return rotated, best_angle
+    return rotated, angle
 
 
 
@@ -319,7 +346,7 @@ def align_all_selected_images_to_template(base_image_path, input_files, selected
     template = cv2.imread(base_image_path)
 
     aligned_images = []
-    angle = None 
+    angle = None
     
     for filename in input_files:
         if filename.endswith(('.jpg', '.jpeg', '.png')):
@@ -335,7 +362,7 @@ def align_all_selected_images_to_template(base_image_path, input_files, selected
             
             if selected_option == 'Feature based alignment':
                 # feature alignment does not require resizing
-                aligned = featureAlign(preprocessed_image,template, method=feature_method)
+                aligned, angle = featureAlign(preprocessed_image,template, method = feature_method)
           
             elif selected_option == "Enhanced Correlation Coefficient Maximization":
                 if motion_model == 'translation':
@@ -356,7 +383,14 @@ def align_all_selected_images_to_template(base_image_path, input_files, selected
                     continue
                             
             elif selected_option == "Fourier Mellin Transform":
-                aligned = fourier_mellin_transform_match(template, resized_image)
+                if motion_model == "don't normalize":
+                    corrMethod = "don't normalize"
+                elif motion_model == "normalize":
+                    corrMethod = "normalize"
+                elif motion_model == "phase":
+                    corrMethod = "phase"
+                    
+                aligned, angle = fourier_mellin_transform_match(template, resized_image, corrMethod)
 
             elif selected_option == "FFT phase correlation":
                 aligned = align_images_with_translation(template, resized_image)
@@ -555,12 +589,55 @@ def normalize_colors(template, target):
     Returns:
     - normalized_img: Target image with colors normalized to match the template image.
     """
-    
-    # TODO: Reinhard color transfer?
+        
     matched = match_histograms(target, template, channel_axis=-1)
     return matched
 
-def preprocess_image(template, image, brightness=False, contrast=False, sharpness=False, color=False):
+def get_mean_and_std(x):
+    """
+    Calculate the mean and standard deviation of each channel in an image.
+
+    Parameters:
+    - x: Input image in BGR color format.
+
+    Returns:
+    - mean: Mean values of each channel.
+    - std: Standard deviation of each channel.
+    """
+    mean, std = cv2.meanStdDev(x)
+    mean = np.around(mean.flatten(), 2)
+    std = np.around(std.flatten(), 2)
+    return mean, std
+
+def reinhard_color_transfer(template, target):
+    """
+    Perform Reinhard color transfer from the template image to the target image.
+
+    Parameters:
+    - template: Reference image (template) in BGR color format.
+    - target: Target image to be adjusted in BGR color format.
+
+    Returns:
+    - adjusted_img: Target image with colors adjusted using Reinhard color transfer.
+    """
+    # Convert images to LAB color space
+    template_lab = cv2.cvtColor(template, cv2.COLOR_BGR2LAB)
+    target_lab = cv2.cvtColor(target, cv2.COLOR_BGR2LAB)
+    
+    # Compute mean and standard deviation of each channel in LAB color space
+    template_mean, template_std = get_mean_and_std(template_lab)
+    target_mean, target_std = get_mean_and_std(target_lab)
+    
+    # Apply color transfer
+    target_lab = ((target_lab - target_mean) * (template_std / target_std)) + template_mean
+    target_lab = np.clip(target_lab, 0, 255)
+    
+    # Convert back to BGR color space
+    adjusted_img = cv2.cvtColor(target_lab.astype(np.uint8), cv2.COLOR_LAB2BGR)
+    
+    return adjusted_img
+
+def preprocess_image(template, image, brightness=False, contrast=False, sharpness=False, color=False, reinhard=False):
     """
     Preprocesses the input image based on the selected enhancement options.
 
@@ -588,6 +665,11 @@ def preprocess_image(template, image, brightness=False, contrast=False, sharpnes
 
     if color:        
         image = normalize_colors(template, image)
+        
+    if reinhard:        
+        image = reinhard_color_transfer(template, image)
+        
+        
     return image
          
 # ------------------------------------------------------------------------------
@@ -667,3 +749,4 @@ def main(image_path1, image_path2):
     points1, points2 = detect_and_match_features(painting1_resized, painting2_resized)
     H = estimate_homography(points1, points2)
     animate_images(painting1_resized, painting2_resized, H)
+   
