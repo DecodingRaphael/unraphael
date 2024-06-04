@@ -6,7 +6,7 @@ rembg
 scipy
 scikit-image
 seaborn
-streamlit
+streamlit==1.35
 ultralytics
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch

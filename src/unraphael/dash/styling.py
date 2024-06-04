@@ -39,7 +39,7 @@ def build_markup_for_logo(
 ):
     binary_string = get_base64_of_bin_file(png_file)
 
-    loc = 'stSidebarNav' if nav else 'stSidebarUserContent'
+    loc = 'stSidebarHeader' if nav else 'stSidebarUserContent'
 
     return f"""
             <style>
