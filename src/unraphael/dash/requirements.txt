@@ -1,3 +1,7 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.3
+torchvision
+torchaudio
 git+https://github.com/DecodingRaphael/unraphael.git
 numpy
 opencv-python-headless
@@ -7,8 +11,4 @@ scipy
 scikit-image
 seaborn
 streamlit==1.35
-ultralytics
---extra-index-url https://download.pytorch.org/whl/cpu
-torch
-torchvision
-torchaudio
+ultralytics>=8.2
