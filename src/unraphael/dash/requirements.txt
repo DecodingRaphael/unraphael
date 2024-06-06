@@ -1,10 +1,10 @@
+opencv-python-headless
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch==2.3.1+cpu
 torchvision
 torchaudio
 git+https://github.com/DecodingRaphael/unraphael.git
 numpy
-opencv-python-headless
 platformdirs
 rembg
 scipy
