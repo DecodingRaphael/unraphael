@@ -1,5 +1,5 @@
---index-url https://download.pytorch.org/whl/cpu
-torch==2.2.0
+https://download.pytorch.org/whl/cpu-cxx11-abi/torch-2.3.1%2Bcpu.cxx11.abi-cp311-cp311-linux_x86_64.whl#sha256=7b0591d0823f3c40e9db70c443a9fc3b181a99559cf8ef64316755619a797061
+--extra-index-url https://download.pytorch.org/whl/cpu
 torchvision
 torchaudio
 git+https://github.com/DecodingRaphael/unraphael.git
