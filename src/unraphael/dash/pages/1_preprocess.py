@@ -8,7 +8,7 @@ from widgets import image_downloads_widget, load_image_widget
 from unraphael.preprocess import apply_mask, process_image, remove_background
 
 _process_image = st.cache_data(process_image)
-_apply_mask = st.cache_data(process_image)
+_apply_mask = st.cache_data(apply_mask)
 _remove_background = st.cache_data(remove_background)
 
 
@@ -30,9 +30,9 @@ def preprocess_image_widget(image: np.ndarray):
         'Bilateral Filter Strength',
         min_value=0,
         max_value=15,
-        value=5,
+        value=2,
         key='bilateral',
-        help='(default = 5)',
+        help='(default = 2)',
     )
     image_params['saturation_factor'] = col1.slider(
         'Color Saturation',
@@ -98,7 +98,7 @@ def preprocess_image_widget(image: np.ndarray):
         key='sharpen',
         help='(default = 3)',
     )
-    out = process_image(image, **image_params)
+    out = _process_image(image, **image_params)
     col3.image(image, 'before')
     col4.image(out, 'after')
     return out
@@ -166,9 +166,9 @@ def remove_background_widget(image: np.ndarray) -> np.ndarray:
         help='(default = 10)',
     )
 
-    nobg = remove_background(image, **background_params, mask_process=False)
+    nobg = _remove_background(image, **background_params, mask_process=False)
 
-    mask = remove_background(image, **background_params, mask_process=True)
+    mask = _remove_background(image, **background_params, mask_process=True)
 
     col3.image(mask, 'mask')
     col4.image(nobg, 'background removed')
@@ -187,7 +187,7 @@ def main():
     images = {
         'original': image,
         'processed': processed_nobg,
-        'extracted': apply_mask(image, processed_mask),
+        'extracted': _apply_mask(image, processed_mask),
     }
 
     image_downloads_widget(basename=name, images=images)

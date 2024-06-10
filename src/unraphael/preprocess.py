@@ -3,11 +3,14 @@ from __future__ import annotations
 import cv2
 import numpy as np
 import rembg
+from skimage import color
+from skimage.filters import rank
+from skimage.morphology import disk
 
 
-def apply_mask(original_image: np.ndarray, mask: np.ndarray) -> np.ndarray:
+def apply_mask(image: np.ndarray, mask: np.ndarray) -> np.ndarray:
     """Apply mask to original image."""
-    return cv2.bitwise_and(original_image, original_image, mask=mask)
+    return np.dstack([image, mask])
 
 
 def process_image(
@@ -51,15 +54,18 @@ def process_image(
     """
     # Check if the image is grayscale and convert it to 3 channels if necessary
     if len(image.shape) == 2:
-        image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+        image = color.gray2rgb(image)
 
-    # Split PIL image into its individual color channels
-    blue, green, red = cv2.split(image)
+    # Split image into its individual color channels
+    red, green, blue = image.T
+    red = red.T
+    green = green.T
+    blue = blue.T
 
     # Apply bilateral blur filter to each color channel with user-defined 'bilateral_strength'
-    blue_blur = cv2.bilateralFilter(blue, d=bilateral_strength, sigmaColor=55, sigmaSpace=55)
-    green_blur = cv2.bilateralFilter(green, d=bilateral_strength, sigmaColor=55, sigmaSpace=55)
-    red_blur = cv2.bilateralFilter(red, d=bilateral_strength, sigmaColor=55, sigmaSpace=55)
+    blue_blur = rank.mean_bilateral(blue, footprint=disk(bilateral_strength), s0=55, s1=55)
+    green_blur = rank.mean_bilateral(green, footprint=disk(bilateral_strength), s0=55, s1=55)
+    red_blur = rank.mean_bilateral(red, footprint=disk(bilateral_strength), s0=55, s1=55)
 
     # Create CLAHE object with user-defined clip limit
     clahe = cv2.createCLAHE(clipLimit=clahe_clip_limit, tileGridSize=(clahe_tiles, clahe_tiles))
