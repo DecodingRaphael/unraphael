@@ -3,7 +3,7 @@ example_code/
 .cookiecutters/
 
 reports/
-images/
+runs/
 
 src/models/
 src/1_image_preprocessing
@@ -87,9 +87,6 @@ target/
 
 # Jupyter NB Checkpoints
 .ipynb_checkpoints/
-
-# exclude data from source control by default
-/data/
 
 # Mac OS-specific storage files
 .DS_Store

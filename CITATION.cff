@@ -1,0 +1,33 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: Unraphael
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Thijs
+    family-names: Vroegh
+    affiliation: Netherlands eScience Center
+    orcid: 'https://orcid.org/0000-0002-6311-0798'
+  - given-names: Stef
+    family-names: Smeets
+    affiliation: Netherlands eScience Center
+    orcid: 'https://orcid.org/0000-0001-5107-3531'
+repository-code: 'https://github.com/DecodingRaphael'
+url: 'https://unraphael.readthedocs.io'
+abstract: >-
+  Python toolkit for unraveling image similarity with a focus on artistic
+  practice
+keywords:
+  - art
+  - raphael
+  - computer-vision
+  - renaissance
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.11192044
+license: Apache-2.0
+version: 0.1.0

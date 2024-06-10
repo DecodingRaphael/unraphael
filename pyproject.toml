@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 # https://packaging.python.org/en/latest/specifications/declaring-project-metadata/
 [project]
 name = "unraphael"
-version = "0.1.0"
+version = "0.2.0"
 description = "Decoding Raphael: Computational Study of the Production and Reproduction of Italian Renaissance Paintings."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -31,6 +31,11 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Image Processing",
 ]
 dependencies = [
+    "numpy",
+    "opencv-python-headless",
+    "rembg",
+    "scikit-image",
+    "scipy",
     'PyYAML',
 ]
 
@@ -49,6 +54,10 @@ develop = [
     "pytest",
     "pycodestyle",
 ]
+dash = [
+    "seaborn",
+    "streamlit",
+]
 docs = [
     "markdown-include",
     "mkdocs",
@@ -63,6 +72,7 @@ publishing = [
 ]
 
 [project.scripts]
+unraphael-dash = "unraphael.cli:dash_entry"
 
 [tool.setuptools]
 zip-safe = false
@@ -75,8 +85,7 @@ namespaces = true
 
 [tool.coverage.run]
 branch = true
-source = ["unraphael"]
-concurrency = ["multiprocessing"]
+source = ["src/unraphael", "dash"]
 data_file = ".coverage"
 
 [tool.pytest.ini_options]
@@ -88,67 +97,32 @@ files = ["src/unraphael", "tests"]
 allow_redefinition = true
 
 [[tool.mypy.overrides]]
-module = ["yaml.*"]
+module = ["yaml.*", "toml.*"]
 ignore_missing_imports = true
 
 [tool.ruff]
+line-length = 96
+target-version = "py310"
+extend-include = ["*.ipynb"]
+
+[tool.ruff.lint]
 select = [
     "F",  # Pyflakes
     "E",  # pycodestyle (error)
     "W",  # pycodestyle (warning)
     "I",  # isort
 ]
-ignore = []
-extend-include = ["*.ipynb"]
 
-# Allow autofix for all enabled rules (when `--fix`) is provided.
-fixable = ["A", "B", "C", "D", "E", "F", "I"]
-unfixable = []
-
-exclude = [
-    ".bzr",
-    ".direnv",
-    ".eggs",
-    ".git",
-    ".hg",
-    ".mypy_cache",
-    ".nox",
-    ".pants.d",
-    ".ruff_cache",
-    ".svn",
-    ".tox",
-    ".venv",
-    "__pypackages__",
-    "_build",
-    "buck-out",
-    "build",
-    "dist",
-    "node_modules",
-    "venv",
-    ".venv",
-    "scripts",
-]
-per-file-ignores = {}
-
-# Allow unused variables when underscore-prefixed.
-dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
-
-target-version = "py310"
-line-length = 96
-
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 known-first-party = ["unraphael"]
 required-imports = ["from __future__ import annotations"]
-
-[tool.isort]
-profile = "black"
 
 [tool.ruff.format]
 quote-style = "single"
 indent-style = "space"
 
 [tool.bumpversion]
-current_version = "0.1.0"
+current_version = "0.2.0"
 
 [[tool.bumpversion.files]]
 filename = "src/unraphael/__init__.py"
