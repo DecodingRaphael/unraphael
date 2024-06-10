@@ -1,0 +1,70 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+  workflow_dispatch:
+
+jobs:
+  test:
+    if: github.event.pull_request.draft == false
+    name: Run Coverage and Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - uses: actions/cache@v4
+        id: cache-virtualenv
+        with:
+          path: ${{ env.pythonLocation }}
+          key: ${{ env.pythonLocation }}-${{ hashFiles('pyproject.toml') }}
+
+      - name: Install dependencies
+        if: steps.cache-virtualenv.outputs.cache-hit != 'true'
+        run: |
+          python -m pip install -e .[develop,dash]
+
+      - name: Test with pytest + cov
+        run: |
+          coverage run -m pytest
+
+      - name: Report coverage
+        run: |
+          coverage json
+          export TOTAL=$(python -c "import json;print(json.load(open('coverage.json'))['totals']['percent_covered_display'])")
+          echo "total=$TOTAL" >> $GITHUB_ENV
+          echo "### Total coverage: ${TOTAL}%" >> $GITHUB_STEP_SUMMARY
+          echo $'\n```' >> $GITHUB_STEP_SUMMARY
+          coverage report >> $GITHUB_STEP_SUMMARY
+          echo $'\n```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Make coverage badge
+        if: ${{ github.ref == 'refs/heads/main' && matrix.python-version == '3.10' }}
+        uses: schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.GIST_TOKEN }}
+          gistID: 808729a4ba7f123f650e32c499e143a4
+          filename: covbadge.svg
+          label: Coverage
+          message: ${{ env.total }}%
+          minColorRange: 50
+          maxColorRange: 90
+          valColorRange: ${{ env.total }}
