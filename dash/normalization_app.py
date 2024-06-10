@@ -107,15 +107,46 @@ def main():
         # Second block with options
         with st.expander("", expanded = True):
             st.write("#### :orange[2b. Parameters for aligning images]")
-            st.write("Select the alignment procedure to align the images to the base image.")
-                    
+            
+            st.write(""" The following methods are used for image registration and alignment. Depending
+             on your specific alignment requirements and computational constraints, you may choose
+             one method over the other. Example usage scenarios and comparative analysis can help you 
+             choose the most suitable alignment technique for your specific requirements.""")
+
+            st.write("""- **Feature-based Alignment (ORB, SIFT or SURF)**: Utilizes feature detection and matching for estimating 
+                    translation, rotation, shear, and scaling. Suitable for images with distinct features and 
+                    complex transformations. Note that keypoint matching may fail with poor feature detection.""")
+
+            st.write("""- **Enhanced Correlation Coefficient (ECC) Maximization**: Identifies the geometric 
+                    transformation that maximizes the correlation coefficient between two images. It can handle 
+                    translation, rotation, and scaling, especially accurate for small to moderate transformations, 
+                    and robust to noise and varying illumination.""")
+
+            st.write("""- **Fast Fourier Transform (FFT) Phase Correlation Method**: Primarily designed for 
+                    translational shifts. For rotation, consider alternate methods like log-polar transform or 
+                    feature matching. Efficient for translational alignment but may not handle rotation or 
+                    scaling effectively.""")
+
+            st.write("""- **Fourier Mellin Transform (FMT) Method**: Logarithm of the Fourier magnitude of an 
+                    image followed by another Fourier transform to obtain a log-polar transform. Rotation and 
+                    scale invariant but computationally intensive compared to other methods.""")
+
+            st.write("""- **Rotation Alignment Method**: Aligns images by finding the optimal rotation to minimize 
+                    the difference between them. Suited when rotation is the primary misalignment source and 
+                    computational cost is not a major concern.""")
+            
+            st.write("""- **User-provided keypoints** (from pose estimation): Aligns images based on user-provided 
+                     keypoints obtained from pose estimation.""")
+            
+                   
+            st.write("")
             col3, col4 = st.columns(2)
             st.markdown("---")
             
             options = ['Feature based alignment',
                        'Enhanced Correlation Coefficient Maximization', 
                        'Fourier Mellin Transform',
-                       'FFT phase correlation',
+                       'FFT phase correlation', 
                        'Rotational Alignment',
                        'User-provided keypoints (from pose estimation)']
             
@@ -127,13 +158,13 @@ def main():
             
 
             # Display the dropdown menu
-            selected_option = col3.selectbox('Select an option:', options,                                             
+            selected_option = col3.selectbox('Select the alignment procedure to align the images to the base image:', options,                                             
             help="""**Feature based alignment**: Aligns images based on detected features using algorithms like SIFT, SURF, or ORB.
                     **Enhanced Correlation Coefficient Maximization**: Estimates the parameters of a geometric transformation between two images by maximizing the correlation coefficient.
                     **Fourier Mellin Transform**: Uses the Fourier Mellin Transform to align images based on their frequency content.
                     **FFT phase correlation**: Aligns images by computing the phase correlation between their Fourier transforms.
                     **Rotational Alignment**: Aligns images by rotating them to a common orientation.
-                    **User-provided keypoints (from pose estimation)**: Aligns images based on user-provided keypoints obtained from pose estimation.""")
+                    """)
             
             # Initialize motion_model
             motion_model = None
@@ -150,7 +181,7 @@ def main():
                 help         = """The normalization applied in the cross correlation. If 'don't normalize' is selected, the cross correlation is not normalized. 
                 If 'normalize' is selected, the cross correlation is normalized by the product of the magnitudes of the Fourier transforms of the images. 
                 If 'phase' is selected, the cross correlation is normalized by the product of the magnitudes and phases of the Fourier transforms of the images.""")               
-                
+               
                                               
         # Alignment procedure
         if uploaded_files and len(names) > 0:
@@ -203,7 +234,7 @@ def main():
                     
                     for filename, aligned_image, angle in processed_images:
                         # Convert aligned_image to RGB color mode for optimal display
-                        fcol2.write(f'Difference in rotational degree for {filename}: {angle:.2f}')
+                        #fcol2.write(f'Difference in rotational degree for {filename}: {angle:.2f}')
                         aligned_image_rgb = cv2.cvtColor(aligned_image, cv2.COLOR_BGR2RGB)                      
                         stacked_image = np.hstack([base_image, aligned_image_rgb])
                         stacked_image_pil = Image.fromarray(stacked_image)                       
@@ -217,7 +248,7 @@ def main():
                         # Save all figures to dictionary
                         save_aligned_images[f'aligned_{filename}'] = aligned_image_rgb                       
                                                                 
-                    image_viewer(stacked_image_paths, stacked_image_names, ncol=1, nrow=1, image_name_visible=True)                    
+                    image_viewer(stacked_image_paths, stacked_image_names, ncol=1, nrow=1, image_name_visible=True)
                     
                     # Remove temporary stacked images (for display only)
                     for temp_file in stacked_image_paths:

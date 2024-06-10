@@ -106,7 +106,6 @@ def eccAlign(im1, im2, warp_mode):
 
     Returns:
     - im2_aligned: The aligned image.
-
     """
     
     # Ensure both images are resized to the same dimensions
@@ -162,10 +161,7 @@ def fourier_mellin_transform_match(image1_path, image2_path, corrMethod = "don't
 
     Returns:
         numpy.ndarray: The aligned image as a numpy array.
-
-    Raises:
-        FileNotFoundError: If either image1_path or image2_path does not exist.
-
+    
     Notes:
         - The function applies the Fourier-Mellin transform to match the image2 to the image1.
         - The images are converted to grayscale before applying the transform.
@@ -178,19 +174,18 @@ def fourier_mellin_transform_match(image1_path, image2_path, corrMethod = "don't
     img1 = dip.Image(image1_path)
     img2 = dip.Image(image2_path)
     
-    # to grayscale if they are not already
+    # Convert images to grayscale if they are not already
     img1 = dip.Image(img1.TensorToSpatial())
     img2 = dip.Image(img2.TensorToSpatial())
     
     # They're gray-scale images, even if the JPEG file has RGB values
-    img1 = img1(1)  # green channel only
-    img2 = img2(1)
+    img1_gray = img1(1)  # green channel only
+    img2_gray = img2(1)
     
     # obtain transformation matrix
     out = dip.Image()
-    matrix = dip.FourierMellinMatch2D(img1, img2, out=out, correlationMethod = corrMethod)
+    matrix = dip.FourierMellinMatch2D(img1_gray, img2_gray, out=out, correlationMethod = corrMethod)
         
-    
     print("########################")
     print(matrix)
     
@@ -209,18 +204,26 @@ def fourier_mellin_transform_match(image1_path, image2_path, corrMethod = "don't
     # Calculate average scaling factor
     scaling_factor = (s_x + s_y) / 2
 
-    # Print the result
     print("Average scaling factor:", scaling_factor)
-
-    # Calculate the rotational angle
+    
     angle = -math.atan2(m12, m11) * 180 / math.pi
-    print(f'Rotational degree fourier_mellin_transform: {angle:.2f}') # rotation angle, in degrees
+    print(f'Rotational degree Fourier Mellin Transformation: {angle:.2f}')
     
     # Apply the affine transformation using the transformation matrix to align img2 to img1 (template)
-    moved_img = dip.Image()
-    dip.AffineTransform(img2, out=moved_img, matrix=matrix)
+    if img2.TensorElements() > 1:  # If img2 is a color image
+        aligned_channels = []
+        for i in range(img2.TensorElements()):  # For each color channel
+            img2_channel = img2(i)
+            moved_channel = dip.Image()
+            dip.AffineTransform(img2_channel, out=moved_channel, matrix=matrix)
+            aligned_channels.append(np.asarray(moved_channel))
         
-    aligned_image = np.asarray(moved_img)
+        # Stack the aligned channels back into a color image
+        aligned_image = np.stack(aligned_channels, axis=-1)
+    else:  # If img2 is grayscale
+        moved_img = dip.Image()
+        dip.AffineTransform(img2, out=moved_img, matrix=matrix)
+        aligned_image = np.asarray(moved_img)
     
     return aligned_image, angle
  
@@ -389,6 +392,8 @@ def align_all_selected_images_to_template(base_image_path, input_files, selected
                     corrMethod = "normalize"
                 elif motion_model == "phase":
                     corrMethod = "phase"
+                else: # default to homography
+                    corrMethod == "don't normalize"
                     
                 aligned, angle = fourier_mellin_transform_match(template, resized_image, corrMethod)
 
@@ -401,8 +406,8 @@ def align_all_selected_images_to_template(base_image_path, input_files, selected
             #elif selected_option == "User-provided keypoints (from pose estimation)":
                  #aligned, angle = rotationAlign(template, resized_image)
                                               
-            #else: # default to feature based alignment
-            #    aligned = featureAlign(template, preprocessed_image)
+            else: # default to feature based alignment
+                aligned = featureAlign(template, preprocessed_image)
             
             # append filename and aligned image to list
             aligned_images.append((filename, aligned, angle))
@@ -637,7 +642,26 @@ def reinhard_color_transfer(template, target):
     
     return adjusted_img
 
-def preprocess_image(template, image, brightness=False, contrast=False, sharpness=False, color=False, reinhard=False):
+def to_grayscale(image):
+    
+    """
+    Convert an image to grayscale.
+
+    Parameters:
+    - image: The input image in BGR format.
+
+    Returns:
+    - grayscale_img: The input image converted to grayscale.
+    """
+    if len(image.shape) == 3 and image.shape[2] == 3:  # Check if the image is in BGR format
+        grayscale_img = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        return grayscale_img
+    elif len(image.shape) == 2:  # Check if the image is already grayscale
+        return image
+    else:
+        raise ValueError("Input image must be in BGR format with three channels or grayscale.")
+
+def preprocess_image(template, image, brightness=False, contrast=False, sharpness=False, color=False, reinhard=False, gray=False):
     """
     Preprocesses the input image based on the selected enhancement options.
 
@@ -653,22 +677,18 @@ def preprocess_image(template, image, brightness=False, contrast=False, sharpnes
     """
     if brightness:
         image = normalize_brightness(template, image)
-        pass
-
+        
     if contrast:
         image = normalize_contrast(template, image)
-        pass
-
+        
     if sharpness:
         image = normalize_sharpness(template, image)
-        pass
 
-    if color:        
+    if color:
         image = normalize_colors(template, image)
         
     if reinhard:        
-        image = reinhard_color_transfer(template, image)
-        
+        image = reinhard_color_transfer(template, image)      
         
     return image
          
