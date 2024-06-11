@@ -10,10 +10,7 @@ from typing import Any
 
 import cv2
 import diplib as dip
-import matplotlib.pyplot as plt
 import numpy as np
-from IPython.display import HTML, display
-from matplotlib import animation
 from numpy.fft import fft2, ifft2
 from skimage.exposure import match_histograms
 
@@ -766,91 +763,3 @@ def preprocess_image(
         image = reinhard_color_transfer(template, image)
 
     return image
-
-
-def load_images(image_path1, image_path2):
-    painting1 = cv2.cvtColor(image_path1, cv2.COLOR_BGR2GRAY)
-    painting2 = cv2.cvtColor(image_path2, cv2.COLOR_BGR2GRAY)
-    return painting1, painting2
-
-
-def resize_images(img1, img2):
-    common_size = (min(img1.shape[1], img2.shape[1]), min(img1.shape[0], img2.shape[0]))
-    painting1_resized = cv2.resize(img1, common_size)
-    painting2_resized = cv2.resize(img2, common_size)
-    return painting1_resized, painting2_resized
-
-
-def detect_and_match_features(img1, img2):
-    orb = cv2.ORB_create()
-
-    (keypoints1, descriptors1) = orb.detectAndCompute(img1, None)
-    (keypoints2, descriptors2) = orb.detectAndCompute(img2, None)
-
-    # match the features
-    method = cv2.DESCRIPTOR_MATCHER_BRUTEFORCE_HAMMING
-    matcher = cv2.DescriptorMatcher_create(method)
-    matches = matcher.match(descriptors1, descriptors2, None)
-
-    # sort the matches by their distance (the smaller the distance,
-    # the "more similar" the features are)
-    matches = sorted(matches, key=lambda x: x.distance)
-
-    # keep only the top matches
-    keep = int(len(matches) * 0.2)
-    matches = matches[:keep]
-
-    ptsA = np.zeros((len(matches), 2), dtype='float')
-    ptsB = np.zeros((len(matches), 2), dtype='float')
-
-    # loop over the top matches
-    for i, m in enumerate(matches):
-        # indicate that the two keypoints in the respective images map to each other
-        ptsA[i] = keypoints1[m.queryIdx].pt
-        ptsB[i] = keypoints2[m.trainIdx].pt
-
-    return ptsA, ptsB
-
-
-def estimate_homography(points1, points2):
-    (H, mask) = cv2.findHomography(points1, points2, cv2.RANSAC)
-    return H
-
-
-def rotational_degree(H):
-    ## derive rotation angle between figures from the homography matrix
-    theta = -math.atan2(H[0, 1], H[0, 0]) * 180 / math.pi
-    print(f'Rotational degree: {theta:.2f}')  # rotation angle, in degrees
-    return theta
-
-
-def animate_images(painting1_resized, painting2_resized, H, num_frames=100):
-    fig, ax = plt.subplots()
-    blended_image = cv2.addWeighted(painting1_resized, 1, painting2_resized, 0, 0)
-    im = ax.imshow(
-        cv2.cvtColor(blended_image, cv2.COLOR_BGR2RGB),
-        extent=[0, blended_image.shape[1], 0, blended_image.shape[0]],
-    )
-
-    def update(frame):
-        alpha = frame / num_frames
-        # interpolated_H = (1 - alpha) * H + alpha * np.eye(3)
-        (h, w) = painting2_resized.shape[:2]
-        blended_image = cv2.warpPerspective(painting1_resized, H, (w, h))
-        blended_image = cv2.addWeighted(blended_image, 1 - alpha, painting2_resized, alpha, 0)
-        im.set_array(cv2.cvtColor(blended_image, cv2.COLOR_BGR2RGB))
-        ax.set_title(f'Frame {frame + 1}/{num_frames}')
-
-    ani = animation.FuncAnimation(
-        fig, update, frames=num_frames, interval=25, repeat=True, repeat_delay=1000
-    )
-    display(HTML(ani.to_jshtml()))
-    plt.close(fig)  # Close the figure after animation
-
-
-def main(image_path1, image_path2):
-    painting1, painting2 = load_images(image_path1, image_path2)
-    painting1_resized, painting2_resized = resize_images(painting1, painting2)
-    points1, points2 = detect_and_match_features(painting1_resized, painting2_resized)
-    H = estimate_homography(points1, points2)
-    animate_images(painting1_resized, painting2_resized, H)
