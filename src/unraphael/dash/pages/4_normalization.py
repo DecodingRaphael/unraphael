@@ -5,16 +5,14 @@ from __future__ import annotations
 
 import io
 
-import cv2
 import imageio
 import numpy as np
 import streamlit as st
 from outline_normalization import align_all_selected_images_to_template
 from skimage import img_as_ubyte
 from streamlit_image_comparison import image_comparison
+from styling import set_custom_css
 from widgets import load_config_widget, load_images_widget, show_images_widget
-
-st.set_page_config(layout='wide', page_title='')
 
 
 def image_downloads_widget(*, images: dict[str, np.ndarray]):
@@ -52,9 +50,10 @@ def image_downloads_widget(*, images: dict[str, np.ndarray]):
 
 
 def main():
+    set_custom_css()
+
     st.title('Image normalization')
     st.write('For a selected image, normalize and align all other images')
-    st.markdown('---')
 
     with st.sidebar:
         load_config_widget()
@@ -216,12 +215,13 @@ def main():
             ),
         )
 
-    selected = show_images_widget(uploaded_files)
+    st.subheader('Select base image')
+    selected_base = show_images_widget(uploaded_files)
 
-    if not selected:
+    if not selected_base:
         st.stop()
 
-    base_image = uploaded_files.pop(selected)
+    base_image = uploaded_files.pop(selected_base)
     other_images = uploaded_files
 
     # equalizing brightness,contrast, sharpness,and/or color
@@ -236,17 +236,28 @@ def main():
     if not processed_images:
         st.stop()
 
-    image_list = {name: d['image'] for name, d in processed_images.items()}
-    show_images_widget(image_list, key='processed')
+    st.subheader('Comparison')
+
+    options = tuple(processed_images.keys())
+
+    col1, col2 = st.columns(2)
+
+    selected_compare = col1.selectbox('Pick image', options=options)
 
     img1 = img_as_ubyte(base_image)
 
-    for name, data in processed_images.items():
-        aligned_image = data['image']
-        aligned_image_rgb = cv2.cvtColor(aligned_image, cv2.COLOR_BGR2RGB)
-        image_comparison(img1=img1, img2=aligned_image_rgb)
+    data = processed_images[selected_compare]
+    img2 = data['image']
 
-    image_downloads_widget(images=image_list)
+    angle_str = f"{data['angle']:.2f}°"
+    col2.metric('Alignment angle', angle_str)
+
+    image_comparison(
+        img1=img1,
+        img2=img2,
+        label1=selected_base,
+        label2=selected_compare,
+    )
 
 
 # run main function
