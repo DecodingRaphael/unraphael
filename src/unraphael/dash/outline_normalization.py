@@ -33,6 +33,7 @@ def featureAlign(image, template, method='ORB', maxFeatures=50000, keepPercent=0
     Returns:
         numpy.ndarray: The aligned image.
     """
+    breakpoint()
     templateGray = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
     imageGray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
@@ -360,18 +361,18 @@ def rotationAlign(im1, im2):
 
 
 def align_all_selected_images_to_template(
-    base_image_path,
-    input_files,
+    base_image: np.ndarray,
+    input_images: dict[str, np.ndarray],
     selected_option,
     motion_model,
     preprocess_options,
     feature_method='ORB',
-):
+) -> dict[str, dict[str, Any]]:
     """Aligns all images in a folder to a template image using the selected
     alignment method and preprocess options.
 
     Parameters:
-     - base_image_path (str): The file path of the template image
+     - base_image (np.ndarray): The file path of the template image
      - input_files (list): List of file paths of images to be aligned
      - selected_option (str): The selected alignment method
      - motion_model (str): The selected motion model for ECC alignment
@@ -381,76 +382,67 @@ def align_all_selected_images_to_template(
      Returns:
      - aligned_images (list): List of tuples containing filename and aligned image.
     """
-
-    # load the base image to which we want to align all the other selected images
-    template = cv2.imread(base_image_path)
-
     aligned_images = []
     angle = None
 
-    for filename in input_files:
-        if filename.endswith(('.jpg', '.jpeg', '.png')):
-            # image to be aligned
-            image = cv2.imread(filename)
+    for name, image in input_images.items():
+        preprocessed_image = preprocess_image(base_image, image, **preprocess_options)
 
-            preprocessed_image = preprocess_image(template, image, **preprocess_options)
+        # equal size between base_image and image, necessary for some alignment methods
+        target_size = (base_image.shape[1], base_image.shape[0])
+        resized_image = cv2.resize(preprocessed_image, target_size)
 
-            # equal size between template and image, necessary for some alignment methods
-            target_size = (template.shape[1], template.shape[0])
-            resized_image = cv2.resize(preprocessed_image, target_size)
+        if selected_option == 'Feature based alignment':
+            # feature alignment does not require resizing
+            aligned, angle = featureAlign(preprocessed_image, base_image, method=feature_method)
 
-            if selected_option == 'Feature based alignment':
-                # feature alignment does not require resizing
-                aligned, angle = featureAlign(
-                    preprocessed_image, template, method=feature_method
-                )
+        elif selected_option == 'Enhanced Correlation Coefficient Maximization':
+            if motion_model == 'translation':
+                warp_mode = cv2.MOTION_TRANSLATION
+            elif motion_model == 'euclidian':
+                warp_mode = cv2.MOTION_EUCLIDEAN
+            elif motion_model == 'affine':
+                warp_mode = cv2.MOTION_AFFINE
+            elif motion_model == 'homography':
+                warp_mode = cv2.MOTION_HOMOGRAPHY
+            else:  # default to homography
+                warp_mode = cv2.MOTION_HOMOGRAPHY
 
-            elif selected_option == 'Enhanced Correlation Coefficient Maximization':
-                if motion_model == 'translation':
-                    warp_mode = cv2.MOTION_TRANSLATION
-                elif motion_model == 'euclidian':
-                    warp_mode = cv2.MOTION_EUCLIDEAN
-                elif motion_model == 'affine':
-                    warp_mode = cv2.MOTION_AFFINE
-                elif motion_model == 'homography':
-                    warp_mode = cv2.MOTION_HOMOGRAPHY
-                else:  # default to homography
-                    warp_mode = cv2.MOTION_HOMOGRAPHY
+            aligned, angle = eccAlign(base_image, resized_image, warp_mode)
 
-                aligned, angle = eccAlign(template, resized_image, warp_mode)
+            if aligned is None:
+                print(f'Error aligning image {filename}')
+                continue
 
-                if aligned is None:
-                    print(f'Error aligning image {filename}')
-                    continue
+        elif selected_option == 'Fourier Mellin Transform':
+            if motion_model == "don't normalize":
+                corrMethod = "don't normalize"
+            elif motion_model == 'normalize':
+                corrMethod = 'normalize'
+            elif motion_model == 'phase':
+                corrMethod = 'phase'
+            else:  # default to homography
+                corrMethod == "don't normalize"
 
-            elif selected_option == 'Fourier Mellin Transform':
-                if motion_model == "don't normalize":
-                    corrMethod = "don't normalize"
-                elif motion_model == 'normalize':
-                    corrMethod = 'normalize'
-                elif motion_model == 'phase':
-                    corrMethod = 'phase'
-                else:  # default to homography
-                    corrMethod == "don't normalize"
+            aligned, angle = fourier_mellin_transform_match(
+                base_image, resized_image, corrMethod
+            )
 
-                aligned, angle = fourier_mellin_transform_match(
-                    template, resized_image, corrMethod
-                )
+        elif selected_option == 'FFT phase correlation':
+            aligned = align_images_with_translation(base_image, resized_image)
 
-            elif selected_option == 'FFT phase correlation':
-                aligned = align_images_with_translation(template, resized_image)
+        elif selected_option == 'Rotational Alignment':
+            aligned, angle = rotationAlign(base_image, resized_image)
 
-            elif selected_option == 'Rotational Alignment':
-                aligned, angle = rotationAlign(template, resized_image)
+        # elif selected_option == "User-provided keypoints (from pose estimation)":
+        # aligned, angle = rotationAlign(base_image, resized_image)
 
-            # elif selected_option == "User-provided keypoints (from pose estimation)":
-            # aligned, angle = rotationAlign(template, resized_image)
+        else:  # default to feature based alignment
+            aligned = featureAlign(base_image, preprocessed_image)
 
-            else:  # default to feature based alignment
-                aligned = featureAlign(template, preprocessed_image)
+        # append filename and aligned image to list
+        aligned_images[filename] = {'image': aligned, 'angle': angle}
 
-            # append filename and aligned image to list
-            aligned_images.append((filename, aligned, angle))
     return aligned_images
 
 
