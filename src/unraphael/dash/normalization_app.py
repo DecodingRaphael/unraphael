@@ -15,9 +15,6 @@ from outline_normalization import align_all_selected_images_to_template
 from streamlit_image_comparison import image_comparison
 from widgets import show_images_widget
 
-
-sys.path.append('../')
-
 st.set_page_config(layout="wide", page_title = "")
 
 def image_downloads_widget(*, images: dict[str, np.ndarray]):
