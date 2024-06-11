@@ -6,6 +6,7 @@ contrast, sharpness, brightness, and colour."""
 from __future__ import annotations
 
 import math
+from typing import Any
 
 import cv2
 import diplib as dip
@@ -17,23 +18,31 @@ from numpy.fft import fft2, ifft2
 from skimage.exposure import match_histograms
 
 
-# Feature-based alignment
 def featureAlign(image, template, method='ORB', maxFeatures=50000, keepPercent=0.15):
     """Aligns an input image with a template image using feature matching and
     homography transformation, rather than a correlation based method on the
     whole image to search for these values.
 
-    Parameters:
-        image (numpy.ndarray): The input image to be aligned.
-        template (numpy.ndarray): The template image to align the input image with.
-        method (str, optional): The feature detection method to use ('SIFT', 'ORB', 'SURF'). Default is 'ORB'.
-        maxFeatures (int, optional): The maximum number of features to detect and extract using ORB. Default is 500.
-        keepPercent (float, optional): The percentage of top matches to keep. Default is 0.2.
+    Parameters
+    ----------
+    image : np.ndarray
+        The input image to be aligned.
+    template : np.ndarray
+        The template image to align the input image with.
+    method : str, optional
+        The feature detection method to use ('SIFT', 'ORB', 'SURF').
+    Default is 'ORB'.
+    maxFeatures : int, optional
+        The maximum number of features to detect and extract
+    using ORB. Default is 500.
+    keepPercent : float, optional
+        The percentage of top matches to keep. Default is 0.2.
 
-    Returns:
-        numpy.ndarray: The aligned image.
+    Returns
+    -------
+    np.ndarray
+        The aligned image.
     """
-    breakpoint()
     templateGray = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
     imageGray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
@@ -57,7 +66,8 @@ def featureAlign(image, template, method='ORB', maxFeatures=50000, keepPercent=0
 
     matches = matcher.match(descsA, descsB, None)
 
-    # sort the matches by their distance: the smaller the distance, the "more similar" the features are
+    # sort the matches by their distance: the smaller the distance,
+    # the "more similar" the features are
     matches = sorted(matches, key=lambda x: x.distance)
 
     # keep top matches
@@ -76,13 +86,6 @@ def featureAlign(image, template, method='ORB', maxFeatures=50000, keepPercent=0
     # compute the homography matrix between the two sets of matched points
     (H, mask) = cv2.findHomography(ptsA, ptsB, method=cv2.RANSAC)
 
-    # By creating a modified homography matrix (H_no_rotation) that excludes the
-    # rotation component, i.e., preserving only translation, scale, and shear,
-    # we can do image alignment while preserving the differences in rotation
-    H_no_rotation = np.array(
-        [[H[0, 0], H[0, 1], H[0, 2]], [H[1, 0], H[1, 1], H[1, 2]], [0, 0, 1]]
-    )
-
     ## derive rotation angle between figures from the homography matrix
     angle = -math.atan2(H[0, 1], H[0, 0]) * 180 / math.pi
     print(f'Rotational degree ORB feature: {angle:.2f}')  # rotation angle, in degrees
@@ -93,8 +96,6 @@ def featureAlign(image, template, method='ORB', maxFeatures=50000, keepPercent=0
         image, H, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0, 0)
     )
 
-    # apply the homography matrix to align the images, without modifying the rotation
-    # aligned = cv2.warpPerspective(image, H_no_rotation, (w, h))
     return aligned, angle
 
 
@@ -131,7 +132,8 @@ def eccAlign(im1, im2, warp_mode):
 
     number_of_iterations = 5000
 
-    # Specify the threshold of the increment in the correlation coefficient between two iterations
+    # Specify the threshold of the increment in the correlation
+    # coefficient between two iterations
     termination_eps = 1e-8
 
     # Define termination criteria
@@ -183,13 +185,6 @@ def eccAlign(im1, im2, warp_mode):
 def fourier_mellin_transform_match(image1_path, image2_path, corrMethod="don't normalize"):
     """Apply Fourier-Mellin transform to match one image to another.
 
-    Args:
-        image1_path (str): The file path of the template image.
-        image2_path (str): The file path of the image to align.
-
-    Returns:
-        numpy.ndarray: The aligned image as a numpy array.
-
     Notes:
         - The function applies the Fourier-Mellin transform to match the image2 to the image1.
         - The images are converted to grayscale before applying the transform.
@@ -197,6 +192,18 @@ def fourier_mellin_transform_match(image1_path, image2_path, corrMethod="don't n
 
     Example:
         aligned_image = fourier_mellin_transform_match('template.jpg', 'image.jpg')
+
+    Parameters
+    ----------
+    image1_path : str
+        The file path of the template image.
+    image2_path : str
+        The file path of the image to align.
+
+    Returns
+    -------
+    np.ndarray:
+        The aligned image as a numpy array.
     """
 
     img1 = dip.Image(image1_path)
@@ -227,10 +234,6 @@ def fourier_mellin_transform_match(image1_path, image2_path, corrMethod="don't n
     s_x = matrix[0]  # Scaling factor for x-axis
     s_y = matrix[3]  # Scaling factor for y-axis
 
-    # Extract translation values
-    t_x = matrix[4]  # Translation along x-axis
-    t_y = matrix[5]  # Translation along y-axis
-
     # Calculate average scaling factor
     scaling_factor = (s_x + s_y) / 2
 
@@ -239,7 +242,8 @@ def fourier_mellin_transform_match(image1_path, image2_path, corrMethod="don't n
     angle = -math.atan2(m12, m11) * 180 / math.pi
     print(f'Rotational degree Fourier Mellin Transformation: {angle:.2f}')
 
-    # Apply the affine transformation using the transformation matrix to align img2 to img1 (template)
+    # Apply the affine transformation using the transformation
+    # matrix to align img2 to img1 (template)
     if img2.TensorElements() > 1:  # If img2 is a color image
         aligned_channels = []
         for i in range(img2.TensorElements()):  # For each color channel
@@ -371,18 +375,27 @@ def align_all_selected_images_to_template(
     """Aligns all images in a folder to a template image using the selected
     alignment method and preprocess options.
 
-    Parameters:
-     - base_image (np.ndarray): The file path of the template image
-     - input_files (list): List of file paths of images to be aligned
-     - selected_option (str): The selected alignment method
-     - motion_model (str): The selected motion model for ECC alignment
-     - preprocess_options (dict): Dictionary containing preprocessing options
-     - feature_method (str, optional): The feature detection method to use ('SIFT', 'ORB', 'SURF'). Default is 'ORB'
+    Parameters
+    ----------
+    base_image : np.ndarray
+        The file path of the template image
+    input_files : list
+        List of file paths of images to be aligned
+    selected_option : str
+        The selected alignment method
+    motion_model : str
+        The selected motion model for ECC alignment
+    preprocess_options : dict
+        Dictionary containing preprocessing options
+    feature_method : str, optional
+        The feature detection method to use ('SIFT', 'ORB', 'SURF'). Default is 'ORB'
 
-     Returns:
-     - aligned_images (list): List of tuples containing filename and aligned image.
+    Returns
+    -------
+    aligned_images : dict[str, dict[str, Any]]
+        List of tuples containing filename and aligned image.
     """
-    aligned_images = []
+    aligned_images = {}
     angle = None
 
     for name, image in input_images.items():
@@ -411,7 +424,7 @@ def align_all_selected_images_to_template(
             aligned, angle = eccAlign(base_image, resized_image, warp_mode)
 
             if aligned is None:
-                print(f'Error aligning image {filename}')
+                print(f'Error aligning image {name}')
                 continue
 
         elif selected_option == 'Fourier Mellin Transform':
@@ -440,8 +453,7 @@ def align_all_selected_images_to_template(
         else:  # default to feature based alignment
             aligned = featureAlign(base_image, preprocessed_image)
 
-        # append filename and aligned image to list
-        aligned_images[filename] = {'image': aligned, 'angle': angle}
+        aligned_images[name] = {'image': aligned, 'angle': angle}
 
     return aligned_images
 
@@ -479,7 +491,8 @@ def normalize_brightness(template, target):
     # Split LAB channels of the target image
     l_target, a_target, b_target = cv2.split(target_lab)
 
-    # Adjust the L channel (brightness) of the target image based on the mean brightness of the template
+    # Adjust the L channel (brightness) of the target image based
+    # on the mean brightness of the template
     l_target = (
         (l_target * (np.mean(l_template) / np.mean(l_target))).clip(0, 255).astype(np.uint8)
     )
@@ -558,7 +571,8 @@ def normalize_contrast(template, target):
         print(f'Contrast ratio: {std_template / std_target}')
         print(f'Adapted value (target): {np.std(normalized_img_lab[:, :, 0])}')
 
-    else:  # when both images are grayscale
+    else:
+        # Both images are grayscale
         # Calculate contrast metric (standard deviation) for grayscale intensity of both images
         std_template = np.std(template)
         std_target = np.std(target)
@@ -578,14 +592,20 @@ def normalize_sharpness(template, target):
     """Normalize the sharpness of the target image to match the sharpness of
     the template image.
 
-    Parameters:
-    - template: Reference image (template) in BGR or grayscale format.
-    - target: Target image to be adjusted in BGR or grayscale format.
+    Parameters
+    ----------
+    template : ...
+        Reference image (template) in BGR or grayscale format.
+    target : ...
+        Target image to be adjusted in BGR or grayscale format.
 
-    Returns:
-    - normalized_img: Target image with sharpness normalized to match the template image.
+    Returns
+    -------
+    normalized_img : ...
+        Target image with sharpness normalized to match the template image.
     """
-    if len(template.shape) == 3 and len(target.shape) == 3:  # Both images are color
+    if len(template.shape) == 3 and len(target.shape) == 3:
+        # Both images are color
         # Convert images to grayscale
         template_gray = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
         target_gray = cv2.cvtColor(target, cv2.COLOR_BGR2GRAY)
@@ -748,11 +768,9 @@ def preprocess_image(
     return image
 
 
-# ------------------------------------------------------------------------------
-# Animation of alignment
 def load_images(image_path1, image_path2):
-    painting1 = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    painting2 = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
+    painting1 = cv2.cvtColor(image_path1, cv2.COLOR_BGR2GRAY)
+    painting2 = cv2.cvtColor(image_path2, cv2.COLOR_BGR2GRAY)
     return painting1, painting2
 
 
@@ -774,7 +792,8 @@ def detect_and_match_features(img1, img2):
     matcher = cv2.DescriptorMatcher_create(method)
     matches = matcher.match(descriptors1, descriptors2, None)
 
-    # sort the matches by their distance (the smaller the distance, the "more similar" the features are)
+    # sort the matches by their distance (the smaller the distance,
+    # the "more similar" the features are)
     matches = sorted(matches, key=lambda x: x.distance)
 
     # keep only the top matches
