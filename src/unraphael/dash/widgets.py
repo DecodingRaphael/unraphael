@@ -27,11 +27,17 @@ _load_images = st.cache_data(load_images)
 _load_images_from_drc = st.cache_data(load_images_from_drc)
 
 
-def show_images_widget(images: dict[str, np.ndarray], *, n_cols: int = 4):
+def show_images_widget(
+    images: dict[str, np.ndarray], *, n_cols: int = 4, key: str = 'show_images'
+) -> None | str:
     """Widget to show images with given number of columns."""
     col1, col2 = st.columns(2)
-    n_cols = col1.number_input('Number of columns', value=8, min_value=1, step=1)
-    selected = col2.selectbox('Selected', options=images.keys())
+    n_cols = col1.number_input(
+        'Number of columns', value=8, min_value=1, step=1, key=f'{key}_cols'
+    )
+    selected = col2.selectbox(
+        'Selected', options=[None] + list(images.keys()), key=f'{key}_sel'
+    )
 
     cols = st.columns(n_cols)
 

@@ -28,8 +28,8 @@ def load_images(
 
             x, y = im.shape
             k = y / width
-            new_shape = int(x / k), int(y / k)
-            im = resize(im, new_shape)
+            new_shape2 = int(x / k), int(y / k)
+            im = resize(im, new_shape2)
 
         else:
             if im.ndim <= 2:
@@ -37,8 +37,8 @@ def load_images(
 
             x, y, z = im.shape
             k = y / width
-            new_shape = int(x / k), int(y / k), z
-            im = resize(im, new_shape)
+            new_shape3 = int(x / k), int(y / k), z
+            im = resize(im, new_shape3)
 
         images[name] = im
 

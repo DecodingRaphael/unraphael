@@ -10,7 +10,7 @@ import imageio
 import numpy as np
 import streamlit as st
 from outline_normalization import align_all_selected_images_to_template
-from PIL import Image
+from skimage import img_as_ubyte
 from streamlit_image_comparison import image_comparison
 from widgets import load_config_widget, load_images_widget, show_images_widget
 
@@ -216,15 +216,13 @@ def main():
             ),
         )
 
-    scol1, scol2 = st.columns(2)
-    fcol1, fcol2 = st.columns(2)
-
     selected = show_images_widget(uploaded_files)
 
-    # todo: default to None to in show_images_widget
-    if selected:
-        base_image = uploaded_files.pop(selected)
-        other_images = uploaded_files
+    if not selected:
+        st.stop()
+
+    base_image = uploaded_files.pop(selected)
+    other_images = uploaded_files
 
     # equalizing brightness,contrast, sharpness,and/or color
     processed_images = align_all_selected_images_to_template(
@@ -238,16 +236,15 @@ def main():
     if not processed_images:
         st.stop()
 
-    fcol2.write('Aligned image:')
+    image_list = {name: d['image'] for name, d in processed_images.items()}
+    show_images_widget(image_list, key='processed')
 
-    base_image = Image.open(st.session_state['disp_img'])
+    img1 = img_as_ubyte(base_image)
 
-    image_list = {name: image for name, image, _ in processed_images}
-    show_images_widget(image_list)
-
-    for filename, aligned_image, angle in processed_images:
+    for name, data in processed_images.items():
+        aligned_image = data['image']
         aligned_image_rgb = cv2.cvtColor(aligned_image, cv2.COLOR_BGR2RGB)
-        image_comparison(img1=base_image, img2=aligned_image_rgb)
+        image_comparison(img1=img1, img2=aligned_image_rgb)
 
     image_downloads_widget(images=image_list)
 
