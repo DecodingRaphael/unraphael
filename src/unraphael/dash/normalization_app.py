@@ -13,6 +13,8 @@ import imageio
 import cv2
 from outline_normalization import align_all_selected_images_to_template
 from streamlit_image_comparison import image_comparison
+from widgets import show_images_widget
+
 
 sys.path.append('../')
 
@@ -78,190 +80,170 @@ def main():
                                     
     # Initialize processed_images
     processed_images = []
-    
-    if uploaded_files and len(names) > 0:
-                        
-        # First block with options
-        with st.expander("", expanded = True):
-            st.write("#### :orange[2a. Parameters for equalizing images]")
-            st.write("The processed image is shown with a preset of parameters. Use the sliders to explore the effects of image filters, or to \
-                    refine the adjustment. - When you are happy with the result, download the processed image.")
-            
-            col1, col2 = st.columns(2)
-            st.markdown("---")
-            
-            brightness = col1.checkbox("Equalize brightness", value = False)
-            contrast   = col1.checkbox("Equalize contrast", value = False)
-            sharpness  = col2.checkbox("Equalize sharpness", value = False)
-            color      = col2.checkbox("Equalize colors", value = False)
-            reinhard    = col2.checkbox("Reinhard color transfer", value = False)
-                        
-        preprocess_options = {
-            'brightness': brightness,
-            'contrast': contrast,
-            'sharpness': sharpness,
-            'color': color,
-            'reinhard': reinhard
-        }
+
+    if not uploaded_files or len(names) == 0:
+        st.stop()
+                            
+    with st.expander("", expanded = True):
+        st.write("#### :orange[2a. Parameters for equalizing images]")
+        st.write("The processed image is shown with a preset of parameters. Use the sliders to explore the effects of image filters, or to \
+                refine the adjustment. - When you are happy with the result, download the processed image.")
         
-        # Second block with options
-        with st.expander("", expanded = True):
-            st.write("#### :orange[2b. Parameters for aligning images]")
-            
-            st.write(""" The following methods are used for image registration and alignment. Depending
-             on your specific alignment requirements and computational constraints, you may choose
-             one method over the other. Example usage scenarios and comparative analysis can help you 
-             choose the most suitable alignment technique for your specific requirements.""")
+        col1, col2 = st.columns(2)
+        st.markdown("---")
+        
+        brightness = col1.checkbox("Equalize brightness", value = False)
+        contrast   = col1.checkbox("Equalize contrast", value = False)
+        sharpness  = col2.checkbox("Equalize sharpness", value = False)
+        color      = col2.checkbox("Equalize colors", value = False)
+        reinhard    = col2.checkbox("Reinhard color transfer", value = False)
+                    
+    preprocess_options = {
+        'brightness': brightness,
+        'contrast': contrast,
+        'sharpness': sharpness,
+        'color': color,
+        'reinhard': reinhard
+    }
 
-            st.write("""- **Feature-based Alignment (ORB, SIFT or SURF)**: Utilizes feature detection and matching for estimating 
-                    translation, rotation, shear, and scaling. Suitable for images with distinct features and 
-                    complex transformations. Note that keypoint matching may fail with poor feature detection.""")
+    # Second block with options
+    with st.expander("", expanded = True):
+        st.write("#### :orange[2b. Parameters for aligning images]")
+        
+        st.write(""" The following methods are used for image registration and alignment. Depending
+         on your specific alignment requirements and computational constraints, you may choose
+         one method over the other. Example usage scenarios and comparative analysis can help you 
+         choose the most suitable alignment technique for your specific requirements.""")
 
-            st.write("""- **Enhanced Correlation Coefficient (ECC) Maximization**: Identifies the geometric 
-                    transformation that maximizes the correlation coefficient between two images. It can handle 
-                    translation, rotation, and scaling, especially accurate for small to moderate transformations, 
-                    and robust to noise and varying illumination.""")
+        st.write("""- **Feature-based Alignment (ORB, SIFT or SURF)**: Utilizes feature detection and matching for estimating 
+                translation, rotation, shear, and scaling. Suitable for images with distinct features and 
+                complex transformations. Note that keypoint matching may fail with poor feature detection.""")
 
-            st.write("""- **Fast Fourier Transform (FFT) Phase Correlation Method**: Primarily designed for 
-                    translational shifts. For rotation, consider alternate methods like log-polar transform or 
-                    feature matching. Efficient for translational alignment but may not handle rotation or 
-                    scaling effectively.""")
+        st.write("""- **Enhanced Correlation Coefficient (ECC) Maximization**: Identifies the geometric 
+                transformation that maximizes the correlation coefficient between two images. It can handle 
+                translation, rotation, and scaling, especially accurate for small to moderate transformations, 
+                and robust to noise and varying illumination.""")
 
-            st.write("""- **Fourier Mellin Transform (FMT) Method**: Logarithm of the Fourier magnitude of an 
-                    image followed by another Fourier transform to obtain a log-polar transform. Rotation and 
-                    scale invariant but computationally intensive compared to other methods.""")
+        st.write("""- **Fast Fourier Transform (FFT) Phase Correlation Method**: Primarily designed for 
+                translational shifts. For rotation, consider alternate methods like log-polar transform or 
+                feature matching. Efficient for translational alignment but may not handle rotation or 
+                scaling effectively.""")
 
-            st.write("""- **Rotation Alignment Method**: Aligns images by finding the optimal rotation to minimize 
-                    the difference between them. Suited when rotation is the primary misalignment source and 
-                    computational cost is not a major concern.""")
-            
-            st.write("""- **User-provided keypoints** (from pose estimation): Aligns images based on user-provided 
-                     keypoints obtained from pose estimation.""")
-            
-                   
-            st.write("")
-            col3, col4 = st.columns(2)
-            st.markdown("---")
-            
-            options = ['Feature based alignment',
-                       'Enhanced Correlation Coefficient Maximization', 
-                       'Fourier Mellin Transform',
-                       'FFT phase correlation', 
-                       'Rotational Alignment',
-                       'User-provided keypoints (from pose estimation)']
-            
-            #TODO: add more options for alignment procedures
-            # https://pypi.org/project/pystackreg/
-            # https://github.com/bnsreenu/python_for_microscopists/blob/master/119_sub_pixel_image_registration.py
-            # https://github.com/bnsreenu/python_for_microscopists/blob/master/120_img_registration_methods_in_python.py
-            # https://github.com/bnsreenu/python_for_microscopists/blob/master/121_image_registration_using_pystackreg.py
-            
+        st.write("""- **Fourier Mellin Transform (FMT) Method**: Logarithm of the Fourier magnitude of an 
+                image followed by another Fourier transform to obtain a log-polar transform. Rotation and 
+                scale invariant but computationally intensive compared to other methods.""")
 
-            # Display the dropdown menu
-            selected_option = col3.selectbox('Select the alignment procedure to align the images to the base image:', options,                                             
-            help="""**Feature based alignment**: Aligns images based on detected features using algorithms like SIFT, SURF, or ORB.
-                    **Enhanced Correlation Coefficient Maximization**: Estimates the parameters of a geometric transformation between two images by maximizing the correlation coefficient.
-                    **Fourier Mellin Transform**: Uses the Fourier Mellin Transform to align images based on their frequency content.
-                    **FFT phase correlation**: Aligns images by computing the phase correlation between their Fourier transforms.
-                    **Rotational Alignment**: Aligns images by rotating them to a common orientation.
-                    """)
-            
-            # Initialize motion_model
-            motion_model = None
-            
-            if selected_option == 'Feature based alignment':
-                motion_model = col4.selectbox("Select algorithm for feature detection and description:", ['SIFT','SURF','ORB'])
-                
-            if selected_option == 'Enhanced Correlation Coefficient Maximization':
-                motion_model = col4.selectbox("Select motion model:", ['translation','euclidian','affine','homography'],
-                help         = ". The motion model defines the transformation between the base image and the input images. Translation is the simplest model, while homography is the most complex.")
-                
-            if selected_option == 'Fourier Mellin Transform':
-                motion_model = col4.selectbox("normalization applied in the cross correlation?", ["don't normalize","normalize","phase"],
-                help         = """The normalization applied in the cross correlation. If 'don't normalize' is selected, the cross correlation is not normalized. 
-                If 'normalize' is selected, the cross correlation is normalized by the product of the magnitudes of the Fourier transforms of the images. 
-                If 'phase' is selected, the cross correlation is normalized by the product of the magnitudes and phases of the Fourier transforms of the images.""")               
+        st.write("""- **Rotation Alignment Method**: Aligns images by finding the optimal rotation to minimize 
+                the difference between them. Suited when rotation is the primary misalignment source and 
+                computational cost is not a major concern.""")
+        
+        st.write("""- **User-provided keypoints** (from pose estimation): Aligns images based on user-provided 
+                 keypoints obtained from pose estimation.""")
+        
                
-                                              
-        # Alignment procedure
-        if uploaded_files and len(names) > 0:
+        st.write("")
+        col3, col4 = st.columns(2)
+        st.markdown("---")
+        
+        options = ['Feature based alignment',
+                   'Enhanced Correlation Coefficient Maximization', 
+                   'Fourier Mellin Transform',
+                   'FFT phase correlation', 
+                   'Rotational Alignment',
+                   'User-provided keypoints (from pose estimation)']
+        
+        #TODO: add more options for alignment procedures
+        # https://pypi.org/project/pystackreg/
+        # https://github.com/bnsreenu/python_for_microscopists/blob/master/119_sub_pixel_image_registration.py
+        # https://github.com/bnsreenu/python_for_microscopists/blob/master/120_img_registration_methods_in_python.py
+        # https://github.com/bnsreenu/python_for_microscopists/blob/master/121_image_registration_using_pystackreg.py
+
+        # Display the dropdown menu
+        selected_option = col3.selectbox('Select the alignment procedure to align the images to the base image:', options,                                             
+        help="""**Feature based alignment**: Aligns images based on detected features using algorithms like SIFT, SURF, or ORB.
+                **Enhanced Correlation Coefficient Maximization**: Estimates the parameters of a geometric transformation between two images by maximizing the correlation coefficient.
+                **Fourier Mellin Transform**: Uses the Fourier Mellin Transform to align images based on their frequency content.
+                **FFT phase correlation**: Aligns images by computing the phase correlation between their Fourier transforms.
+                **Rotational Alignment**: Aligns images by rotating them to a common orientation.
+                """)
+        
+        # Initialize motion_model
+        motion_model = None
+        
+        if selected_option == 'Feature based alignment':
+            motion_model = col4.selectbox("Select algorithm for feature detection and description:", ['SIFT','SURF','ORB'])
             
-            scol1 , scol2 = st.columns(2)
-            fcol1 , fcol2 = st.columns(2)
-                                   
-            set_baseline = scol1.button("Select baseline image to align to")
-            align_images = scol2.button("Align images to baseline image")
-                        
-            if set_baseline:
-                filename = uploaded_files[np.random.randint(len(uploaded_files))].name.split('/')[-1]
-                width, height = Image.open(filename).size
+        if selected_option == 'Enhanced Correlation Coefficient Maximization':
+            motion_model = col4.selectbox("Select motion model:", ['translation','euclidian','affine','homography'],
+            help         = ". The motion model defines the transformation between the base image and the input images. Translation is the simplest model, while homography is the most complex.")
+            
+        if selected_option == 'Fourier Mellin Transform':
+            motion_model = col4.selectbox("normalization applied in the cross correlation?", ["don't normalize","normalize","phase"],
+            help         = """The normalization applied in the cross correlation. If 'don't normalize' is selected, the cross correlation is not normalized. 
+            If 'normalize' is selected, the cross correlation is normalized by the product of the magnitudes of the Fourier transforms of the images. 
+            If 'phase' is selected, the cross correlation is normalized by the product of the magnitudes and phases of the Fourier transforms of the images.""")               
+                                          
+    # Alignment procedure
+    if not uploaded_files or len(names) == 0:
+        st.stop()       
+    
+    scol1 , scol2 = st.columns(2)
+    fcol1 , fcol2 = st.columns(2)
+                           
+    set_baseline = scol1.button("Select baseline image to align to")
+    align_images = scol2.button("Align images to baseline image")
                 
-                fcol1.write(f"**Base Image:** {filename} ({width}x{height})")
-                fcol1.image(Image.open(filename),use_column_width = True)
-                st.session_state["disp_img"] = filename                
-                        
-            if align_images:
-                idx = names.index(st.session_state["disp_img"])
-                                
-                # Remove baseline image from the list of selected images
-                base_image = uploaded_files.pop(idx).name.split('/')[-1]
+    if set_baseline:
+        filename = uploaded_files[np.random.randint(len(uploaded_files))].name.split('/')[-1]
+        width, height = Image.open(filename).size
+        
+        fcol1.write(f"**Base Image:** {filename} ({width}x{height})")
+        fcol1.image(Image.open(filename),use_column_width = True)
+        st.session_state["disp_img"] = filename                
                 
-                width, height = Image.open(base_image).size
-                                
-                # Extract the filenames from the list of selected images which will be aligned
-                file_names = [file.name.split('/')[-1] for file in uploaded_files]
-                               
-                processed_images = align_all_selected_images_to_template(
-                             base_image_path    = base_image,         # base image
-                             input_files        = file_names,         # images to be aligned
-                             selected_option    = selected_option,    # alignment procedure
-                             motion_model       = motion_model,       # motion model
-                             preprocess_options = preprocess_options) # equalizing brightness,contrast, sharpness,and/or color
+    if not align_images:
+        st.stop()
 
-                if processed_images:
+    idx = names.index(st.session_state["disp_img"])
                     
-                    stacked_image_paths = []
-                    stacked_image_names = []
-                    save_aligned_images = {}
+    # Remove baseline image from the list of selected images
+    base_image = uploaded_files.pop(idx).name.split('/')[-1]
+    
+    width, height = Image.open(base_image).size
+                    
+    # Extract the filenames from the list of selected images which will be aligned
+    file_names = [file.name.split('/')[-1] for file in uploaded_files]
+                   
+    processed_images = align_all_selected_images_to_template(
+                 base_image_path    = base_image,         # base image
+                 input_files        = file_names,         # images to be aligned
+                 selected_option    = selected_option,    # alignment procedure
+                 motion_model       = motion_model,       # motion model
+                 preprocess_options = preprocess_options) # equalizing brightness,contrast, sharpness,and/or color
 
-                    fcol1.write("")
-                    fcol1.write(f"**Base Image:** {base_image} ({width}x{height})")
-                    fcol1.text(f"Original width = {width}px and height = {height}px")
-                    fcol2.write("")
-                    fcol2.write("**Aligned Image:**")
-                                                            
-                    base_image = Image.open(st.session_state["disp_img"])
-                    
-                    for filename, aligned_image, angle in processed_images:
-                        # Convert aligned_image to RGB color mode for optimal display
-                        #fcol2.write(f'Difference in rotational degree for {filename}: {angle:.2f}')
-                        aligned_image_rgb = cv2.cvtColor(aligned_image, cv2.COLOR_BGR2RGB)                      
-                        stacked_image = np.hstack([base_image, aligned_image_rgb])
-                        stacked_image_pil = Image.fromarray(stacked_image)                       
-                                                                                                                    
-                        # Create a temporary file for the stacked image (neccesary for image_viewer widget)
-                        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as temp_file:
-                            stacked_image_pil.save(temp_file.name, format="JPEG")
-                            stacked_image_paths.append(temp_file.name)
-                            stacked_image_names.append(filename)
-                        
-                        # Save all figures to dictionary
-                        save_aligned_images[f'aligned_{filename}'] = aligned_image_rgb                       
-                                                                
-                    image_viewer(stacked_image_paths, stacked_image_names, ncol=1, nrow=1, image_name_visible=True)
-                    
-                    # Remove temporary stacked images (for display only)
-                    for temp_file in stacked_image_paths:
-                        os.remove(temp_file)
-                        
-                    #TODO: add heatmap with rotation angles
+    if not processed_images:
+        st.stop()
+        
+    stacked_image_paths = []
+    stacked_image_names = []
+    save_aligned_images = {}
 
-                    for filename, aligned_image, angle in processed_images:
-                        aligned_image_rgb = cv2.cvtColor(aligned_image, cv2.COLOR_BGR2RGB)
-                        image_comparison(img1=base_image,img2=aligned_image_rgb)             
-                    
-                    
-                    image_downloads_widget(images = save_aligned_images)
+    fcol1.write("")
+    fcol1.write(f"**Base Image:** {base_image} ({width}x{height})")
+    fcol1.text(f"Original width = {width}px and height = {height}px")
+    fcol2.write("")
+    fcol2.write("**Aligned Image:**")
+                                            
+    base_image = Image.open(st.session_state["disp_img"])                 
+
+    image_list = {name: image for name, image, _ in processed_images}
+    show_images_widget(image_list)                                     
+        
+    for filename, aligned_image, angle in processed_images:
+        aligned_image_rgb = cv2.cvtColor(aligned_image, cv2.COLOR_BGR2RGB)
+        image_comparison(img1=base_image, img2=aligned_image_rgb)             
+    
+    image_downloads_widget(images = image_list)
                     
                     
 # run main function
