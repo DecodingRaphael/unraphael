@@ -83,7 +83,7 @@ def load_config_widget():
     )
 
 
-def load_images_widget():
+def load_images_widget(**loader_kwargs):
     """Widget to load images."""
 
     load_example = st.sidebar.checkbox('Load example', value=False, key='load_example')
@@ -98,7 +98,7 @@ def load_images_widget():
     )
 
     if load_example:
-        images = _load_images_from_drc(image_directory, width=width)
+        images = _load_images_from_drc(image_directory, width=width, **loader_kwargs)
     else:
         if not uploaded_files:
             st.info('Upload images to continue')
