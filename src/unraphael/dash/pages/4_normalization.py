@@ -3,9 +3,9 @@
 # Import libraries
 from __future__ import annotations
 
-import io
+from typing import Any
 
-import imageio
+import imageio.v3 as imageio
 import numpy as np
 import streamlit as st
 from outline_normalization import align_all_selected_images_to_template
@@ -15,37 +15,49 @@ from styling import set_custom_css
 from widgets import load_config_widget, load_images_widget, show_images_widget
 
 
-def image_downloads_widget(*, images: dict[str, np.ndarray]):
-    """This widget takes a dict of images and shows them with download
-    buttons."""
+def comparison_widget(
+    baseimage: np.ndarray,
+    basename: str,
+    images: dict[str, dict[str, Any]],
+):
+    """Widget to compare processed images."""
+    st.subheader('Comparison')
 
-    st.title('Save Aligned Images to Disk')
+    options = tuple(images.keys())
 
-    cols = st.columns(len(images))
+    col1, col2 = st.columns((0.3, 0.7))
 
-    for col, key in zip(cols, images):
-        image = images[key]
+    compare_name = col1.selectbox('Pick image', options=options)
 
-        height, width = image.shape[:2]
+    img1 = img_as_ubyte(baseimage)
 
-        # Remove '.jpg' or '.png' from filename if present
-        if '.jpg' in key:
-            filename = key.replace('.jpg', '.png')
-        elif '.png' in key:
-            filename = key.replace('.png', '.png')  # Just to ensure it's .png
-        else:
-            filename = f'{key}.png'  # If neither '.jpg' nor '.png' is present
+    data = images[compare_name]
+    img2 = data['image']
 
-        img_bytes = io.BytesIO()
-        imageio.imwrite(img_bytes, image, format='png')
-        img_bytes.seek(0)
+    angle_str = f"{data['angle']:.2f}°"
+    col1.metric('Alignment angle', angle_str)
 
-        col.download_button(
-            label=f' {filename} ({width}x{height})',
-            data=img_bytes,
-            file_name=filename,
-            mime='image/png',
-            key=filename,
+    col1.download_button(
+        label='Download left',
+        data=imageio.imwrite('<bytes>', img2, extension='.png'),
+        file_name=compare_name + '.png',
+        key=compare_name,
+    )
+
+    col1.download_button(
+        label='Download right',
+        data=imageio.imwrite('<bytes>', img2, extension='.png'),
+        file_name=basename + '.png',
+        key=basename,
+    )
+
+    with col2:
+        image_comparison(
+            img1=img1,
+            img2=img2,
+            label1=basename,
+            label2=compare_name,
+            width=450,
         )
 
 
@@ -236,27 +248,10 @@ def main():
     if not processed_images:
         st.stop()
 
-    st.subheader('Comparison')
-
-    options = tuple(processed_images.keys())
-
-    col1, col2 = st.columns(2)
-
-    selected_compare = col1.selectbox('Pick image', options=options)
-
-    img1 = img_as_ubyte(base_image)
-
-    data = processed_images[selected_compare]
-    img2 = data['image']
-
-    angle_str = f"{data['angle']:.2f}°"
-    col2.metric('Alignment angle', angle_str)
-
-    image_comparison(
-        img1=img1,
-        img2=img2,
-        label1=selected_base,
-        label2=selected_compare,
+    comparison_widget(
+        baseimage=base_image,
+        basename=selected_base,
+        images=processed_images,
     )
 
 
