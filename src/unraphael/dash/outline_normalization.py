@@ -11,7 +11,6 @@ import cv2
 import diplib as dip
 import numpy as np
 from numpy.fft import fft2, ifft2
-from skimage import img_as_ubyte
 from skimage.exposure import match_histograms
 
 
@@ -40,9 +39,6 @@ def featureAlign(image, template, method='ORB', maxFeatures=50000, keepPercent=0
     np.ndarray
         The aligned image.
     """
-    template = img_as_ubyte(template)
-    image = img_as_ubyte(image)
-
     templateGray = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
     imageGray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 

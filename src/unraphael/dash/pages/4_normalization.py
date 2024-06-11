@@ -9,87 +9,22 @@ import imageio.v3 as imageio
 import numpy as np
 import streamlit as st
 from outline_normalization import align_all_selected_images_to_template
-from skimage import img_as_ubyte
 from streamlit_image_comparison import image_comparison
 from styling import set_custom_css
 from widgets import load_config_widget, load_images_widget, show_images_widget
 
 
-def comparison_widget(
-    baseimage: np.ndarray,
-    basename: str,
-    images: dict[str, dict[str, Any]],
-):
-    """Widget to compare processed images."""
-    st.subheader('Comparison')
+def image_alignment_widget(*, base_name: str, images: dict[str, np.ndarray]):
+    col1, col2 = st.columns(2)
 
-    options = tuple(images.keys())
+    with col1:
+        st.subheader('Equalization parameters')
 
-    col1, col2 = st.columns((0.3, 0.7))
-
-    compare_name = col1.selectbox('Pick image', options=options)
-
-    img1 = img_as_ubyte(baseimage)
-
-    data = images[compare_name]
-    img2 = data['image']
-
-    angle_str = f"{data['angle']:.2f}°"
-    col1.metric('Alignment angle', angle_str)
-
-    col1.download_button(
-        label='Download left',
-        data=imageio.imwrite('<bytes>', img2, extension='.png'),
-        file_name=compare_name + '.png',
-        key=compare_name,
-    )
-
-    col1.download_button(
-        label='Download right',
-        data=imageio.imwrite('<bytes>', img2, extension='.png'),
-        file_name=basename + '.png',
-        key=basename,
-    )
-
-    with col2:
-        image_comparison(
-            img1=img1,
-            img2=img2,
-            label1=basename,
-            label2=compare_name,
-            width=450,
-        )
-
-
-def main():
-    set_custom_css()
-
-    st.title('Image normalization')
-    st.write('For a selected image, normalize and align all other images')
-
-    with st.sidebar:
-        load_config_widget()
-
-        uploaded_files = load_images_widget(as_gray=False)
-
-    processed_images = []
-
-    if not uploaded_files:
-        st.stop()
-
-    with st.expander('Parameters for equalizing images', expanded=False):
-        st.write(
-            'The processed image is shown with a preset of parameters. Use the sliders to '
-            'explore the effects of image filters, or to refine the adjustment.'
-        )
-
-        col1, col2 = st.columns(2)
-
-        brightness = col1.checkbox('Equalize brightness', value=False)
-        contrast = col1.checkbox('Equalize contrast', value=False)
-        sharpness = col1.checkbox('Equalize sharpness', value=False)
-        color = col2.checkbox('Equalize colors', value=False)
-        reinhard = col2.checkbox('Reinhard color transfer', value=False)
+        brightness = st.checkbox('Equalize brightness', value=False)
+        contrast = st.checkbox('Equalize contrast', value=False)
+        sharpness = st.checkbox('Equalize sharpness', value=False)
+        color = st.checkbox('Equalize colors', value=False)
+        reinhard = st.checkbox('Reinhard color transfer', value=False)
 
     preprocess_options = {
         'brightness': brightness,
@@ -99,7 +34,7 @@ def main():
         'reinhard': reinhard,
     }
 
-    with st.expander('Parameters for aligning images', expanded=False):
+    with st.expander('Help for parameters for aligning images', expanded=False):
         st.write(
             (
                 'The following methods are used for image registration and alignment. '
@@ -109,7 +44,6 @@ def main():
                 'alignment technique for your specific requirements.'
             )
         )
-
         st.write(
             (
                 '- **Feature-based Alignment (ORB, SIFT or SURF)**: '
@@ -119,7 +53,6 @@ def main():
                 'matching may fail with poor feature detection.'
             )
         )
-
         st.write(
             (
                 '- **Enhanced Correlation Coefficient (ECC) Maximization**: '
@@ -129,7 +62,6 @@ def main():
                 'and robust to noise and varying illumination.'
             )
         )
-
         st.write(
             (
                 '- **Fast Fourier Transform (FFT) Phase Correlation Method**: '
@@ -139,7 +71,6 @@ def main():
                 'scaling effectively.'
             )
         )
-
         st.write(
             (
                 '- **Fourier Mellin Transform (FMT) Method**: Logarithm of the Fourier '
@@ -148,7 +79,6 @@ def main():
                 'intensive compared to other methods.'
             )
         )
-
         st.write(
             (
                 '- **Rotation Alignment Method**: Aligns images by finding the '
@@ -157,15 +87,12 @@ def main():
                 'is not a major concern.'
             )
         )
-
         st.write(
             (
                 '- **User-provided keypoints** (from pose estimation): '
                 'Aligns images based on user-provided keypoints obtained from pose estimation.'
             )
         )
-
-    col3, col4 = st.columns(2)
 
     options = [
         'Feature based alignment',
@@ -175,69 +102,62 @@ def main():
         'Rotational Alignment',
         'User-provided keypoints (from pose estimation)',
     ]
+    with col2:
+        st.subheader('Alignment parameters')
 
-    selected_option = col3.selectbox(
-        'Alignment procedure:',
-        options,
-        help=(
-            '**Feature based alignment**: Aligns images based on detected features using '
-            'algorithms like SIFT, SURF, or ORB.'
-            '\n**Enhanced Correlation Coefficient Maximization**: Estimates the parameters '
-            'of a geometric transformation between two images by maximizing the correlation '
-            'coefficient.'
-            '\n**Fourier Mellin Transform**: Uses the Fourier Mellin Transform to align '
-            'images based on their frequency content.'
-            '\n**FFT phase correlation**: Aligns images by computing the phase correlation '
-            'between their Fourier transforms.'
-            '\n**Rotational Alignment**: Aligns images by rotating them to a common '
-            'orientation.'
-        ),
-    )
-
-    motion_model = None
-
-    if selected_option == 'Feature based alignment':
-        motion_model = col4.selectbox(
-            'Algorithm:',
-            ['SIFT', 'SURF', 'ORB'],
-        )
-
-    if selected_option == 'Enhanced Correlation Coefficient Maximization':
-        motion_model = col4.selectbox(
-            'Motion model:',
-            ['translation', 'euclidian', 'affine', 'homography'],
+        selected_option = st.selectbox(
+            'Alignment procedure:',
+            options,
             help=(
-                'The motion model defines the transformation between the base image and the '
-                'input images. Translation is the simplest model, while homography is the most '
-                'complex.'
+                '**Feature based alignment**: Aligns images based on detected features using '
+                'algorithms like SIFT, SURF, or ORB.'
+                '\n**Enhanced Correlation Coefficient Maximization**: Estimates the '
+                'he parameters of a geometric transformation between two images by '
+                'maximizing the correlation coefficient.'
+                '\n**Fourier Mellin Transform**: Uses the Fourier Mellin Transform to align '
+                'images based on their frequency content.'
+                '\n**FFT phase correlation**: Aligns images by computing the phase correlation '
+                'between their Fourier transforms.'
+                '\n**Rotational Alignment**: Aligns images by rotating them to a common '
+                'orientation.'
             ),
         )
 
-    if selected_option == 'Fourier Mellin Transform':
-        motion_model = col4.selectbox(
-            'Normalization method for cross correlation',
-            [None, 'normalize', 'phase'],
-            help=(
-                'The normalization applied in the cross correlation. If `None` is selected, '
-                ' the cross correlation is not normalized. If `normalize` is selected, the '
-                'cross correlation is normalized by the product of the magnitudes of the '
-                ' Fourier transforms of the images. If `phase` is selected, the cross '
-                ' correlation is normalized by the product of the magnitudes and phases '
-                'of the Fourier transforms of the images.'
-            ),
-        )
+        if selected_option == 'Feature based alignment':
+            motion_model = st.selectbox(
+                'Algorithm:',
+                ['SIFT', 'SURF', 'ORB'],
+            )
+        elif selected_option == 'Enhanced Correlation Coefficient Maximization':
+            motion_model = st.selectbox(
+                'Motion model:',
+                ['translation', 'euclidian', 'affine', 'homography'],
+                help=(
+                    'The motion model defines the transformation between the base '
+                    'image and the input images. Translation is the simplest model, '
+                    'while homography is the most complex.'
+                ),
+            )
+        elif selected_option == 'Fourier Mellin Transform':
+            motion_model = st.selectbox(
+                'Normalization method for cross correlation',
+                [None, 'normalize', 'phase'],
+                help=(
+                    'The normalization applied in the cross correlation. If `None`, '
+                    'the cross correlation is not normalized. If `normalize`, the '
+                    'cross correlation is normalized by the product of the magnitudes of the '
+                    'Fourier transforms of the images. If `phase`, the cross '
+                    'correlation is normalized by the product of the magnitudes and phases '
+                    'of the Fourier transforms of the images.'
+                ),
+            )
+        else:
+            motion_model = None
 
-    st.subheader('Select base image')
-    selected_base = show_images_widget(uploaded_files)
+    base_image = images[base_name]
+    other_images = {name: image for name, image in images.items() if name != base_name}
 
-    if not selected_base:
-        st.stop()
-
-    base_image = uploaded_files.pop(selected_base)
-    other_images = uploaded_files
-
-    # equalizing brightness,contrast, sharpness,and/or color
-    processed_images = align_all_selected_images_to_template(
+    return align_all_selected_images_to_template(
         base_image=base_image,
         input_images=other_images,
         selected_option=selected_option,
@@ -245,12 +165,78 @@ def main():
         preprocess_options=preprocess_options,
     )
 
+
+def comparison_widget(
+    base_image: np.ndarray,
+    base_name: str,
+    images: dict[str, dict[str, Any]],
+):
+    """Widget to compare processed images."""
+    st.subheader('Comparison')
+
+    col1, col2 = st.columns((0.3, 0.7))
+
+    image_name = col1.selectbox('Pick image', options=tuple(images.keys()))
+    data = images[image_name]
+
+    image = data['image']
+    angle_str = f"{data['angle']:.2f}°"
+
+    with col1:
+        st.metric('Alignment angle', angle_str)
+
+        st.download_button(
+            label='Download left',
+            data=imageio.imwrite('<bytes>', base_image, extension='.png'),
+            file_name=image_name + '.png',
+            key=image_name,
+        )
+
+        st.download_button(
+            label='Download right',
+            data=imageio.imwrite('<bytes>', image, extension='.png'),
+            file_name=base_name + '.png',
+            key=base_name,
+        )
+
+    with col2:
+        image_comparison(
+            img1=base_image,
+            img2=image,
+            label1=base_name,
+            label2=image_name,
+            width=450,
+        )
+
+
+def main():
+    set_custom_css()
+
+    st.title('Image alignment')
+    st.write('For a selected image, normalize and align all other images')
+
+    with st.sidebar:
+        load_config_widget()
+
+        images = load_images_widget(as_gray=False, as_ubyte=True)
+
+    if not images:
+        st.stop()
+
+    st.subheader('Select base image')
+    selected = show_images_widget(images)
+
+    if not selected:
+        st.stop()
+
+    processed_images = image_alignment_widget(base_name=selected, images=images)
+
     if not processed_images:
         st.stop()
 
     comparison_widget(
-        baseimage=base_image,
-        basename=selected_base,
+        base_image=images[selected],
+        base_name=selected,
         images=processed_images,
     )
 
