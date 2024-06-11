@@ -11,7 +11,7 @@ import streamlit as st
 from outline_normalization import align_all_selected_images_to_template
 from streamlit_image_comparison import image_comparison
 from styling import set_custom_css
-from widgets import load_config_widget, load_images_widget, show_images_widget
+from widgets import load_images_widget, show_images_widget
 
 
 def image_alignment_widget(*, base_name: str, images: dict[str, np.ndarray]):
@@ -111,14 +111,14 @@ def image_alignment_widget(*, base_name: str, images: dict[str, np.ndarray]):
             help=(
                 '**Feature based alignment**: Aligns images based on detected features using '
                 'algorithms like SIFT, SURF, or ORB.'
-                '\n**Enhanced Correlation Coefficient Maximization**: Estimates the '
+                '\n\n**Enhanced Correlation Coefficient Maximization**: Estimates the '
                 'he parameters of a geometric transformation between two images by '
                 'maximizing the correlation coefficient.'
-                '\n**Fourier Mellin Transform**: Uses the Fourier Mellin Transform to align '
+                '\n\n**Fourier Mellin Transform**: Uses the Fourier Mellin Transform to align '
                 'images based on their frequency content.'
-                '\n**FFT phase correlation**: Aligns images by computing the phase correlation '
-                'between their Fourier transforms.'
-                '\n**Rotational Alignment**: Aligns images by rotating them to a common '
+                '\n\n**FFT phase correlation**: Aligns images by computing '
+                'the phase correlation between their Fourier transforms.'
+                '\n\n**Rotational Alignment**: Aligns images by rotating them to a common '
                 'orientation.'
             ),
         )
@@ -216,15 +216,13 @@ def main():
     st.write('For a selected image, normalize and align all other images')
 
     with st.sidebar:
-        load_config_widget()
-
         images = load_images_widget(as_gray=False, as_ubyte=True)
 
     if not images:
         st.stop()
 
     st.subheader('Select base image')
-    selected = show_images_widget(images)
+    selected = show_images_widget(images, message='Select base image for alignment')
 
     if not selected:
         st.stop()

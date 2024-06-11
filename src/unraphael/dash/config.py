@@ -13,6 +13,9 @@ if TYPE_CHECKING:
 def to_session_state(key: str, section: str | None = None):
     section = section if section else key
 
+    if 'config' not in st.session_state:
+        st.session_state['config'] = {}
+
     try:
         st.session_state.config[section] = yaml.safe_load(st.session_state[key])
     except AttributeError:
