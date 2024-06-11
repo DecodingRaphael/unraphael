@@ -2,7 +2,6 @@
 equalization of selected to-be-aligned images to a baseline image in terms of
 contrast, sharpness, brightness, and colour."""
 
-# Libraries ----
 from __future__ import annotations
 
 import math
@@ -179,7 +178,7 @@ def eccAlign(im1, im2, warp_mode):
     return im2_aligned, angle
 
 
-def fourier_mellin_transform_match(image1_path, image2_path, corrMethod="don't normalize"):
+def fourier_mellin_transform_match(image1_path, image2_path, corrMethod=None):
     """Apply Fourier-Mellin transform to match one image to another.
 
     Notes:
@@ -415,7 +414,7 @@ def align_all_selected_images_to_template(
                 warp_mode = cv2.MOTION_AFFINE
             elif motion_model == 'homography':
                 warp_mode = cv2.MOTION_HOMOGRAPHY
-            else:  # default to homography
+            else:
                 warp_mode = cv2.MOTION_HOMOGRAPHY
 
             aligned, angle = eccAlign(base_image, resized_image, warp_mode)
@@ -425,17 +424,10 @@ def align_all_selected_images_to_template(
                 continue
 
         elif selected_option == 'Fourier Mellin Transform':
-            if motion_model == "don't normalize":
-                corrMethod = "don't normalize"
-            elif motion_model == 'normalize':
-                corrMethod = 'normalize'
-            elif motion_model == 'phase':
-                corrMethod = 'phase'
-            else:  # default to homography
-                corrMethod == "don't normalize"
+            corr_method = motion_model
 
             aligned, angle = fourier_mellin_transform_match(
-                base_image, resized_image, corrMethod
+                base_image, resized_image, corr_method
             )
 
         elif selected_option == 'FFT phase correlation':
@@ -443,9 +435,6 @@ def align_all_selected_images_to_template(
 
         elif selected_option == 'Rotational Alignment':
             aligned, angle = rotationAlign(base_image, resized_image)
-
-        # elif selected_option == "User-provided keypoints (from pose estimation)":
-        # aligned, angle = rotationAlign(base_image, resized_image)
 
         else:  # default to feature based alignment
             aligned = featureAlign(base_image, preprocessed_image)
