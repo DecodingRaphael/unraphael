@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 import rembg
-from skimage import color
+from skimage import color, img_as_ubyte
 from skimage.color import hsv2rgb, rgb2hsv
 from skimage.exposure import adjust_gamma, equalize_adapthist
 from skimage.filters import rank, unsharp_mask
@@ -114,6 +114,8 @@ def remove_background(image: np.ndarray, mask_process: bool = False, **kwargs) -
     if mask_process:
         kwargs['only_mask'] = True
         kwargs['post_process_mask'] = True
+
+    image = img_as_ubyte(image)
 
     image = rembg.remove(image, **kwargs)
 
