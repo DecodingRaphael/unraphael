@@ -26,7 +26,7 @@ def preprocess_image_widget(image: np.ndarray):
 
     image_params = {}
 
-    image_params['bilateral_strength'] = col1.slider(
+    image_params['bilateral_strength'] = col1.number_input(
         'Bilateral Filter Strength',
         min_value=0,
         max_value=15,
@@ -34,7 +34,7 @@ def preprocess_image_widget(image: np.ndarray):
         key='bilateral',
         help='(default = 2)',
     )
-    image_params['saturation_factor'] = col1.slider(
+    image_params['saturation_factor'] = col1.number_input(
         'Color Saturation',
         min_value=0.0,
         max_value=2.0,
@@ -43,26 +43,26 @@ def preprocess_image_widget(image: np.ndarray):
         key='saturation',
         help='(default = 1.1)',
     )
-    image_params['clahe_clip_limit'] = col1.slider(
+    image_params['clahe_clip_limit'] = col1.number_input(
         'CLAHE Clip Limit',
         min_value=0.0,
-        max_value=5.0,
-        value=2.0,
-        step=0.05,
+        max_value=1.0,
+        value=0.01,
+        step=0.01,
         key='clahe',
         help='Threshold for contrast limiting (default = 2)',
     )
-    image_params['clahe_tiles'] = col1.slider(
+    image_params['clahe_tiles'] = col1.number_input(
         'CLAHE Tile Grid Size',
-        min_value=2,
+        min_value=1,
         max_value=15,
-        value=8,
+        value=1,
         step=1,
         key='tiles',
         help='Tile size for local contrast enhancement (default = 8)',
     )
 
-    image_params['sigma_sharpness'] = col2.slider(
+    image_params['sigma_sharpness'] = col2.number_input(
         'Sharpness Sigma',
         min_value=0.0,
         max_value=3.0,
@@ -71,28 +71,28 @@ def preprocess_image_widget(image: np.ndarray):
         key='sharpness',
         help='(default = 0.5)',
     )
-    image_params['contrast'] = col2.slider(
-        'Contrast',
+    image_params['gamma'] = col2.number_input(
+        'Gamma',
         min_value=0.1,
         max_value=3.0,
         value=1.0,
         step=0.1,
-        key='contrast',
-        help='(default = 1.0)',
+        key='gamma',
+        help='(default = 1)',
     )
-    image_params['brightness'] = col2.slider(
-        'Brightness',
-        min_value=-100,
-        max_value=100,
-        value=10,
-        step=1,
-        key='brightness',
-        help='(default = 10)',
+    image_params['gain'] = col2.number_input(
+        'Gain',
+        min_value=0.0,
+        max_value=2.0,
+        value=1.0,
+        step=0.1,
+        key='gain',
+        help='(default = 1)',
     )
-    image_params['sharpening_kernel_size'] = col2.slider(
-        'Sharpening kernel size',
+    image_params['sharpening_radius'] = col2.number_input(
+        'Sharpening radius',
         min_value=1,
-        max_value=9,
+        max_value=20,
         step=2,
         value=3,
         key='sharpen',
