@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import cv2
 import numpy as np
 import platformdirs
 import streamlit as st
+from skimage import draw
 from styling import set_custom_css
 from ultralytics import YOLO
 from widgets import image_downloads_widget, load_image_widget
@@ -57,10 +57,14 @@ def _segmentation_task(*, results):
             image = result.orig_img
 
             label = c.names[c.boxes.cls.tolist().pop()]
-            b_mask = np.zeros(image.shape[:2], np.uint8)
-            contour = c.masks.xy.pop().astype(int).reshape(-1, 1, 2)
-            cv2.drawContours(b_mask, [contour], -1, (255, 255, 255), cv2.FILLED)
-            new_image = np.dstack([image, b_mask])
+
+            cont = c.masks.xy.pop().astype(int)
+            cont = np.fliplr(cont)
+
+            mask = draw.polygon2mask(polygon=cont, image_shape=image.shape[:2])
+            mask = mask.astype('uint8') * 255
+
+            new_image = np.dstack([image, mask])
 
             objects[f'{label}_{ci}'] = new_image
 

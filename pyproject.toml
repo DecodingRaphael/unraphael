@@ -32,7 +32,6 @@ classifiers = [
 ]
 dependencies = [
     "numpy",
-    "opencv-python-headless",
     "rembg",
     "scikit-image",
     "scipy",

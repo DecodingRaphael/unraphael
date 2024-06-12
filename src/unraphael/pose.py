@@ -2,17 +2,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-import cv2
 import numpy as np
+from skimage import draw
 
 
 @dataclass
 class BodyDrawer:
     keypoints: np.ndarray
-    HEAD: tuple[int, int, int] = (0, 255, 0)  # green
-    BODY: tuple[int, int, int] = (0, 0, 255)  # blue
-    LEGS: tuple[int, int, int] = (255, 165, 0)  # orange
-    REST: tuple[int, int, int] = (128, 0, 128)  # purple
+    HEAD: tuple[int, int, int] = (0, 255, 0)  # lime
+    BODY: tuple[int, int, int] = (255, 140, 0)  # orange
+    LEGS: tuple[int, int, int] = (0, 255, 255)  # cyan
+    REST: tuple[int, int, int] = (255, 0, 255)  # magenta
 
     def draw(self, *, image):
         self.draw_points_head(image=image)
@@ -27,11 +27,8 @@ class BodyDrawer:
         for j, kp in enumerate(self.keypoints):
             if j in indices:
                 if kp[2] > 0.5:
-                    x, y = (
-                        int(kp[0]),
-                        int(kp[1]),
-                    )
-                    cv2.circle(image, (x, y), 5, color, -1)
+                    rr, cc = draw.disk((kp[1], kp[0]), radius=5, shape=image.shape)
+                    image[rr, cc] = color
 
     def draw_points_head(self, *, image):
         # indices for eyes, ears, and nose
@@ -55,9 +52,8 @@ class BodyDrawer:
 
             # check confidence of both keypoints
             if kp1[2] > 0.5 and kp2[2] > 0.5:
-                p1 = (int(kp1[0]), int(kp1[1]))
-                p2 = (int(kp2[0]), int(kp2[1]))
-                cv2.line(image, p1, p2, color, 2)
+                rr, cc = draw.line(int(kp1[1]), int(kp1[0]), int(kp2[1]), int(kp2[0]))
+                image[rr, cc] = color
 
     def draw_skeleton_legs(self, *, image):
         # left hip to left knee, left knee to left ankle
