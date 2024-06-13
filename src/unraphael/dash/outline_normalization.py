@@ -95,19 +95,38 @@ def featureAlign(image, template, method='ORB', maxFeatures=50000, keepPercent=0
     return aligned, angle
 
 
-def eccAlign(im1, im2, warp_mode):
+def ecc_align(im1: np.ndarray, im2: np.ndarray, *, mode: None | str = None):
     """Aligns two images using the ECC (Enhanced Correlation Coefficient)
     algorithm. the ECC methodology can compensate for both shifts, shifts +
     rotations (euclidean), shifts + rotation + shear (affine), or homographic
     (3D) transformations of one image to the next.
 
-    Parameters:
-    - im1: template
-    - im2: The image to be warped to match the template
+    Parameters
+    ----------
+    im1 : np.ndarray
+        template
+    im2 : np.ndarray
+        The image to be warped to match the template
+    mode : str
+        Warp mode, must be one of translation, euclidian, affine, homography (default)
 
-    Returns:
-    - im2_aligned: The aligned image.
+    Returns
+    -------
+    im2_aligned : np.ndarray
+        The aligned image.
     """
+    if not mode:
+        warp_mode = cv2.MOTION_HOMOGRAPHY
+    if mode == 'translation':
+        warp_mode = cv2.MOTION_TRANSLATION
+    elif mode == 'euclidian':
+        warp_mode = cv2.MOTION_EUCLIDEAN
+    elif mode == 'affine':
+        warp_mode = cv2.MOTION_AFFINE
+    elif mode == 'homography':
+        warp_mode = cv2.MOTION_HOMOGRAPHY
+    else:
+        raise ValueError(f'Invalid warp mode: {warp_mode}')
 
     # Ensure both images are resized to the same dimensions
     target_size = (min(im1.shape[1], im2.shape[1]), min(im1.shape[0], im2.shape[0]))
@@ -150,10 +169,8 @@ def eccAlign(im1, im2, warp_mode):
             gaussFiltSize=1,
         )
     except cv2.error as e:
-        print(f'Error during ECC alignment: {e}')
-        return None
+        raise RuntimeError(f'Error during ECC alignment: {e}')
 
-    # Warp im2 based on im1
     if warp_mode == cv2.MOTION_HOMOGRAPHY:
         im2_aligned = cv2.warpPerspective(
             im2_resized,
@@ -173,7 +190,6 @@ def eccAlign(im1, im2, warp_mode):
 
     row1_col0 = warp_matrix[0, 1]
     angle = math.degrees(math.asin(row1_col0))
-    print(f'Rotational degree ECC: {angle:.2f}')
 
     return im2_aligned, angle
 
@@ -360,9 +376,9 @@ def rotationAlign(im1, im2):
     return rotated, angle
 
 
-def align_all_selected_images_to_template(
+def align_image_to_base(
     base_image: np.ndarray,
-    input_images: dict[str, np.ndarray],
+    image: dict[str, np.ndarray],
     *,
     selected_option: str,
     motion_model: str,
@@ -389,54 +405,35 @@ def align_all_selected_images_to_template(
     aligned_images : dict[str, dict[str, Any]]
         List of tuples containing filename and aligned image.
     """
-    aligned_images = {}
-    angle = 0
 
-    for name, image in input_images.items():
-        # equal size between base_image and image, necessary for some alignment methods
-        target_size = (base_image.shape[1], base_image.shape[0])
-        resized_image = cv2.resize(image, target_size)
+    # equal size between base_image and image, necessary for some alignment methods
+    target_size = (base_image.shape[1], base_image.shape[0])
+    resized_image = cv2.resize(image, target_size)
 
-        if selected_option == 'Feature based alignment':
-            aligned, angle = featureAlign(image, base_image, method=feature_method)
+    if selected_option == 'Feature based alignment':
+        aligned, angle = featureAlign(image, base_image, method=feature_method)
 
-        elif selected_option == 'Enhanced Correlation Coefficient Maximization':
-            if motion_model == 'translation':
-                warp_mode = cv2.MOTION_TRANSLATION
-            elif motion_model == 'euclidian':
-                warp_mode = cv2.MOTION_EUCLIDEAN
-            elif motion_model == 'affine':
-                warp_mode = cv2.MOTION_AFFINE
-            elif motion_model == 'homography':
-                warp_mode = cv2.MOTION_HOMOGRAPHY
-            else:
-                warp_mode = cv2.MOTION_HOMOGRAPHY
+    elif selected_option == 'Enhanced Correlation Coefficient Maximization':
+        aligned, angle = ecc_align(base_image, resized_image, mode=motion_model)
 
-            aligned, angle = eccAlign(base_image, resized_image, warp_mode)
+        if aligned is None:
+            raise RuntimeError('Error aligning image')
 
-            if aligned is None:
-                print(f'Error aligning image {name}')
-                continue
+    elif selected_option == 'Fourier Mellin Transform':
+        corr_method = motion_model
 
-        elif selected_option == 'Fourier Mellin Transform':
-            corr_method = motion_model
+        aligned, angle = fourier_mellin_transform_match(base_image, resized_image, corr_method)
 
-            aligned, angle = fourier_mellin_transform_match(
-                base_image, resized_image, corr_method
-            )
+    elif selected_option == 'FFT phase correlation':
+        aligned = align_images_with_translation(base_image, resized_image)
 
-        elif selected_option == 'FFT phase correlation':
-            aligned = align_images_with_translation(base_image, resized_image)
+    elif selected_option == 'Rotational Alignment':
+        aligned, angle = rotationAlign(base_image, resized_image)
 
-        elif selected_option == 'Rotational Alignment':
-            aligned, angle = rotationAlign(base_image, resized_image)
+    else:  # default to feature based alignment
+        aligned = featureAlign(base_image, image)
 
-        else:  # default to feature based alignment
-            aligned = featureAlign(base_image, image)
-
-        aligned_images[name] = {'image': aligned, 'angle': angle}
-
-    return aligned_images
+    return {'image': aligned, 'angle': angle}
 
 
 def normalize_brightness(template, target):

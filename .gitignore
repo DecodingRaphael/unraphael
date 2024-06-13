@@ -4,6 +4,7 @@ example_code/
 
 reports/
 runs/
+temp/
 
 src/models/
 src/1_image_preprocessing
