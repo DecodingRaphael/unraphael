@@ -35,8 +35,8 @@ print(cv2.__version__) #Version 4.8.0
 print(cv2.data.haarcascades)
 
 # Read images in gray
-image1 = cv2.imread('../data/raw/0_Edinburgh_Nat_Gallery.jpg',1)
-image2 = cv2.imread('../data/raw/Bridgewater/8_London_OrderStJohn.jpg',1)
+image1 = cv2.imread('../../data/raw/Bridgewater/0_Edinburgh_Nat_Gallery.jpg',1)
+image2 = cv2.imread('../../data/raw/Bridgewater/8_London_OrderStJohn.jpg',1)
 
 # Display the image
 cv2.imshow('Image', image1)
@@ -47,14 +47,6 @@ cv2.destroyAllWindows()
 gray_image1 = cv2.cvtColor(image1, cv2.COLOR_BGR2GRAY)
 gray_image2 = cv2.cvtColor(image2, cv2.COLOR_BGR2GRAY)
 
-#plt.imshow(gray_image1,cmap='gray')
-#plt.imshow(gray_image2,cmap='gray')
-
-
-# Apply resizing if necessary
-
-# ......
-
 # Step 2: Object Detection
 
 # Object detection (i.e., faces and/or body) in the painting with detect_objects_haar
@@ -62,7 +54,7 @@ def detect_objects_haar(image, scaleFactor=1.08, minNeighbors=5, scale_factor=2.
     
     # Load the pre-trained Haar Cascade classifier for faces
     face_cascade = cv2.CascadeClassifier(
-        '../data/haarcascades/cascades/haarcascade_frontalface_default.xml')
+        '../../data/haarcascades/cascades/haarcascade_frontalface_default.xml')
     
     # Load the pre-trained Haar Cascade classifier for the full or upper body
     # body_cascade = cv2.CascadeClassifier(
@@ -333,7 +325,8 @@ plt.show()
 
 # Step 6: Similarity measures  ----
 
-# Use a similarity metric (e.g., Euclidean distance, cosine similarity) to quantify the similarity between the proportions of the main figures.
+# Use a similarity metric (e.g., Euclidean distance, cosine similarity) to quantify the similarity
+# between the proportions of the main figures.
 
 # Define a function to calculate the similarity between two sets of proportion measures
 def calculate_similarity(proportions1, proportions2):
@@ -400,8 +393,4 @@ print("Cosine Similarity Matrix:")
 print(cosine_similarity_values)
 # In the cosine similarity calculation, each row corresponds to a feature set from 
 # the first image, and each column corresponds to a feature set from the second image.
-
-
-# Step 6: Display Result
-
 

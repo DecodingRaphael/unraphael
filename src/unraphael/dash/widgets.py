@@ -27,11 +27,19 @@ _load_images = st.cache_data(load_images)
 _load_images_from_drc = st.cache_data(load_images_from_drc)
 
 
-def show_images_widget(images: dict[str, np.ndarray], *, n_cols: int = 4):
+def show_images_widget(
+    images: dict[str, np.ndarray],
+    *,
+    n_cols: int = 4,
+    key: str = 'show_images',
+    message: str = 'Select image',
+) -> None | str:
     """Widget to show images with given number of columns."""
     col1, col2 = st.columns(2)
-    n_cols = col1.number_input('Number of columns', value=8, min_value=1, step=1)
-    selected = col2.selectbox('Selected', options=images.keys())
+    n_cols = col1.number_input(
+        'Number of columns for display', value=8, min_value=1, step=1, key=f'{key}_cols'
+    )
+    selected = col2.selectbox(message, options=[None] + list(images.keys()), key=f'{key}_sel')
 
     cols = st.columns(n_cols)
 
@@ -39,6 +47,9 @@ def show_images_widget(images: dict[str, np.ndarray], *, n_cols: int = 4):
         if i % n_cols == 0:
             cols = st.columns(n_cols)
         col = cols[i % n_cols]
+        if name == selected:
+            name = f'*{name}'
+
         col.image(im, use_column_width=True, caption=name)
 
     return selected
@@ -83,7 +94,7 @@ def load_config_widget():
     )
 
 
-def load_images_widget():
+def load_images_widget(**loader_kwargs):
     """Widget to load images."""
 
     load_example = st.sidebar.checkbox('Load example', value=False, key='load_example')
@@ -98,7 +109,7 @@ def load_images_widget():
     )
 
     if load_example:
-        images = _load_images_from_drc(image_directory, width=width)
+        images = _load_images_from_drc(image_directory, width=width, **loader_kwargs)
     else:
         if not uploaded_files:
             st.info('Upload images to continue')

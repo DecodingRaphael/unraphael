@@ -7,10 +7,18 @@
 # Background material:
 # https://pyimagesearch.com/2020/08/31/image-alignment-and-registration-with-opencv/
 # https://stackoverflow.com/questions/76568361/image-registration-issue-using-opencvpython
+# https://stackoverflow.com/questions/59654471/featured-based-image-alignment-issue/59655966#59655966#
 # https://learnopencv.com/image-alignment-feature-based-using-opencv-c-python/
+
 # https://forum.opencv.org/t/image-difference-after-image-registration-and-alignment/10553/3
 # https://pyimagesearch.com/2017/06/19/image-difference-with-opencv-and-python/
 # https://stackoverflow.com/questions/56183201/detect-and-visualize-differences-between-two-images-with-opencv-python
+
+# https://github.com/khufkens/align_images/blob/master/align_images.py
+# https://stackoverflow.com/questions/72109611/text-documents-image-alignment
+# https://learnopencv.com/image-alignment-ecc-in-opencv-c-python/
+# https://stackoverflow.com/questions/62495112/aligning-and-cropping-same-scene-images
+# https://github.com/Galaxies99/AlignHDRToolkit
 
 # libraries ----
 import math
@@ -236,12 +244,14 @@ def compare_images(image_path1, image_path2, result_path = "filled_after.jpg"):
 print("[INFO] loading images...")
 
 # template to align to
-template = cv2.imread("../../data/interim/no_bg/output_0_Edinburgh_Nat_Gallery.jpg")
+template = cv2.imread("../../data/interim/no_background/output_7_UK_Warrington Museum.jpg")
+#template = cv2.imread("../../data/interim/no_background/output_0_Edinburgh_Nat_Gallery.jpg")
 #template = cv2.imread("../../data/interim/segments/output_2_Naples_Museo Capodimonte_segment0_person-0.jpg")
 #template = cv2.imread("../../data/interim/outlines/outer_contour_aligned_0_combined_mask.jpg")
     
 # image to align
-image    = cv2.imread("../../data/interim/no_bg/output_1_London_Nat_Gallery.jpg")
+image    = cv2.imread("../../data/interim/no_background/output_8_London_OrderStJohn.jpg")
+#image    = cv2.imread("../../data/interim/no_background/output_1_London_Nat_Gallery.jpg")
 #image    = cv2.imread("../../data/interim/segments/output_1_London_Nat_Gallery_segment0_person-0.jpg")  
 #image    = cv2.imread("../../data/interim/outlines/outer_contour_aligned_1_combined_mask.jpg")  
 
@@ -391,3 +401,91 @@ output_directory = "../../data/interim/aligned"
 
 # align all images to the original painting (edinburgh)
 align_all_images_to_template(template_path, input_directory, output_directory, debug=False)
+
+
+###############################################################################
+
+import cv2
+import numpy as np
+import math
+import sys
+
+# Read the images to be aligned
+# im2 is to be warped to match im1
+im1 =  template
+im2 =  image
+
+# Convert images to grayscale for computing the rotation via ECC method
+im1_gray = cv2.cvtColor(im1,cv2.COLOR_BGR2GRAY)
+im2_gray = cv2.cvtColor(im2,cv2.COLOR_BGR2GRAY)
+
+# Find size of image1
+sz = im1.shape
+
+# Define the motion model - euclidean is rigid (SRT)
+warp_mode = cv2.MOTION_EUCLIDEAN
+
+# Define 2x3 matrix and initialize the matrix to identity matrix I (eye)
+warp_matrix = np.eye(2, 3, dtype=np.float32)
+
+# Specify the number of iterations.
+number_of_iterations = 5000
+
+# Specify the threshold of the increment
+# in the correlation coefficient between two iterations
+termination_eps = 1e-3
+
+# Define termination criteria
+criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, number_of_iterations,  termination_eps)
+
+# Run the ECC algorithm. The results are stored in warp_matrix.
+(cc, warp_matrix) = cv2.findTransformECC (im1_gray, im2_gray, warp_matrix, warp_mode, criteria, None, 1)
+
+# Warp im2 using affine
+im2_aligned = cv2.warpAffine(im2, warp_matrix, (sz[1],sz[0]), flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP);
+
+# write output
+#cv2.imwrite(outfile, im2_aligned)
+
+# Print rotation angle
+row1_col0 = warp_matrix[0,1]
+angle = math.degrees(math.asin(row1_col0))
+print(angle)
+
+# Side-by-side stacked visualization of the aligned output
+stacked = np.hstack([im1,im2_aligned])
+cv2.imshow("Image Alignment Stacked", stacked)
+cv2.waitKey(0)
+
+
+#################
+
+import diplib as dip
+import numpy as np
+
+# Load the two images  
+
+# template
+img2 = dip.ImageRead("../../data/interim/no_background/output_6_Oxford_Christ_Church.jpg")
+
+# image to align
+img1 = dip.ImageRead("../../data/interim/no_background/output_1_London_Nat_Gallery.jpg")
+
+# They're gray-scale images, even if the JPEG file has RGB values
+img1 = img1(1)  # just keep the green channel
+img2 = img2(1)
+
+# They need to be the same size
+out_size = np.minimum(img1.Sizes(), img2.Sizes())
+img1.Crop(out_size)
+img2.Crop(out_size)
+
+# Apply Fourier-Mellin to transform one image to match the other
+out = dip.Image()
+matrix = dip.FourierMellinMatch2D(img1, img2, out=out, correlationMethod="don't normalize")
+
+#dip.JoinChannels((img1, out)).Show()
+
+stacked = np.hstack([img1,out])
+cv2.imshow("Image Alignment Stacked", stacked)
+cv2.waitKey(0)
