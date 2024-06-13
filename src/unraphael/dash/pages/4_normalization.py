@@ -40,6 +40,7 @@ def align_images_widget(*, base_image: np.ndarray, images: dict[str, np.ndarray]
     st.subheader('Alignment parameters')
 
     options = [
+        None,
         'Feature based alignment',
         'Enhanced Correlation Coefficient Maximization',
         'Fourier Mellin Transform',
@@ -66,7 +67,9 @@ def align_images_widget(*, base_image: np.ndarray, images: dict[str, np.ndarray]
         ),
     )
 
-    if selected_option == 'Feature based alignment':
+    if not selected_option:
+        st.stop()
+    elif selected_option == 'Feature based alignment':
         motion_model = st.selectbox(
             'Algorithm:',
             ['SIFT', 'SURF', 'ORB'],
@@ -166,22 +169,6 @@ def alignment_help_widget():
     )
 
 
-def image_alignment_widget(*, base_image: np.ndarray, images: dict[str, np.ndarray]):
-    """This widget helps to align all images to the given base image."""
-    col1, col2 = st.columns(2)
-
-    with col1:
-        images = equalize_images_widget(base_image=base_image, images=images)
-
-    with col2:
-        images = align_images_widget(base_image=base_image, images=images)
-
-    with st.expander('Help for parameters for aligning images', expanded=False):
-        alignment_help_widget()
-
-    return images
-
-
 def comparison_widget(
     base_image: np.ndarray,
     base_name: str,
@@ -244,20 +231,23 @@ def main():
         st.stop()
 
     base_image = images[base_name]
-    other_images = {name: image for name, image in images.items() if name != base_name}
+    images = {name: image for name, image in images.items() if name != base_name}
 
-    # other_images = equalize_images(base_image=base_image, images=other_images)
-    # other_images = align_images(base_image=base_image, images=other_images)
+    col1, col2 = st.columns(2)
 
-    processed_images = image_alignment_widget(base_image=base_image, images=other_images)
+    with col1:
+        images = equalize_images_widget(base_image=base_image, images=images)
 
-    if not processed_images:
-        st.stop()
+    with col2:
+        images = align_images_widget(base_image=base_image, images=images)
+
+    with st.expander('Help for parameters for aligning images', expanded=False):
+        alignment_help_widget()
 
     comparison_widget(
         base_image=base_image,
         base_name=base_name,
-        images=processed_images,
+        images=images,
     )
 
 
