@@ -392,7 +392,7 @@ def align_all_selected_images_to_template(
         List of tuples containing filename and aligned image.
     """
     aligned_images = {}
-    angle = None
+    angle = 0
 
     for name, image in input_images.items():
         preprocessed_image = preprocess_image(base_image, image, **preprocess_options)

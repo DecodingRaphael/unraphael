@@ -1,6 +1,3 @@
-# run with: streamlit run normalization_app.py --server.enableXsrfProtection false
-
-# Import libraries
 from __future__ import annotations
 
 from typing import Any
@@ -15,6 +12,7 @@ from widgets import load_images_widget, show_images_widget
 
 
 def image_alignment_widget(*, base_name: str, images: dict[str, np.ndarray]):
+    """This widget helps to align all images to the given base image."""
     col1, col2 = st.columns(2)
 
     with col1:
@@ -237,8 +235,3 @@ def main():
         base_name=selected,
         images=processed_images,
     )
-
-
-# run main function
-if __name__ == '__main__':
-    main()
