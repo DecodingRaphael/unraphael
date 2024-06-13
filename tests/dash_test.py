@@ -33,6 +33,18 @@ def test_image_sim_load():
     assert not at.exception
 
 
+def test_detect_objects_load():
+    at = AppTest.from_file(str(dash_directory / 'pages' / '3_detect_objects.py'))
+    at.run(timeout=5)
+    assert not at.exception
+
+
+def test_normalization_load():
+    at = AppTest.from_file(str(dash_directory / 'pages' / '4_normalization.py'))
+    at.run(timeout=5)
+    assert not at.exception
+
+
 def test_preprocess_workflow():
     at = AppTest.from_file(str(dash_directory / 'pages' / '1_preprocess.py'))
     at.run(timeout=5)
@@ -62,6 +74,41 @@ def test_image_similarity_workflow():
     assert at.session_state['method'] == 'sift'
 
     at.session_state['continue_ransac'] = True
+    at.run(timeout=10)
+
+    assert not at.exception
+
+
+def test_detect_objects_workflow():
+    at = AppTest.from_file(str(dash_directory / 'pages' / '2_image_similarity.py'))
+    at.run(timeout=5)
+    assert not at.exception
+
+    assert 'load_example' in at.session_state
+
+    at.session_state['load_example'] = True
+    at.run(timeout=5)
+
+    assert not at.exception
+
+    at.session_state['select task'] = 'Detection'
+    at.run(timeout=10)
+
+    assert not at.exception
+
+
+def test_normalization_workflow():
+    at = AppTest.from_file(str(dash_directory / 'pages' / '4_normalization.py'))
+    at.session_state['width'] = 100
+    at.run(timeout=5)
+    assert not at.exception
+
+    at.session_state['load_example'] = True
+    at.run(timeout=5)
+
+    assert not at.exception
+
+    at.session_state['alignment procedure'] = 'Feature based alignment'
     at.run(timeout=10)
 
     assert not at.exception
