@@ -235,3 +235,7 @@ def main():
         base_name=selected,
         images=processed_images,
     )
+
+
+if __name__ == '__main__':
+    main()
