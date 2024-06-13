@@ -5,13 +5,13 @@ from typing import Any
 import imageio.v3 as imageio
 import numpy as np
 import streamlit as st
-from outline_normalization import align_all_selected_images_to_template
+from outline_normalization import align_all_selected_images_to_template, equalize_images
 from streamlit_image_comparison import image_comparison
 from styling import set_custom_css
 from widgets import load_images_widget, show_images_widget
 
 
-def image_alignment_widget(*, base_name: str, images: dict[str, np.ndarray]):
+def image_alignment_widget(*, base_image: np.ndarray, images: dict[str, np.ndarray]):
     """This widget helps to align all images to the given base image."""
     col1, col2 = st.columns(2)
 
@@ -152,15 +152,19 @@ def image_alignment_widget(*, base_name: str, images: dict[str, np.ndarray]):
         else:
             motion_model = None
 
-    base_image = images[base_name]
-    other_images = {name: image for name, image in images.items() if name != base_name}
+    # base_image = images[base_name]
+    # other_images = {name: image for name, image in images.items() if name != base_name}
+
+    images = {
+        name: equalize_images(base_image, image, **preprocess_options)
+        for name, image in images.items()
+    }
 
     return align_all_selected_images_to_template(
         base_image=base_image,
-        input_images=other_images,
+        input_images=images,
         selected_option=selected_option,
         motion_model=motion_model,
-        preprocess_options=preprocess_options,
     )
 
 
@@ -220,19 +224,25 @@ def main():
         st.stop()
 
     st.subheader('Select base image')
-    selected = show_images_widget(images, message='Select base image for alignment')
+    base_name = show_images_widget(images, message='Select base image for alignment')
 
-    if not selected:
+    if not base_name:
         st.stop()
 
-    processed_images = image_alignment_widget(base_name=selected, images=images)
+    base_image = images[base_name]
+    other_images = {name: image for name, image in images.items() if name != base_name}
+
+    # other_images = equalize_images(base_image=base_image, images=other_images)
+    # other_images = align_images(base_image=base_image, images=other_images)
+
+    processed_images = image_alignment_widget(base_image=base_image, images=other_images)
 
     if not processed_images:
         st.stop()
 
     comparison_widget(
-        base_image=images[selected],
-        base_name=selected,
+        base_image=base_image,
+        base_name=base_name,
         images=processed_images,
     )
 

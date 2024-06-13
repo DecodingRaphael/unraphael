@@ -363,10 +363,10 @@ def rotationAlign(im1, im2):
 def align_all_selected_images_to_template(
     base_image: np.ndarray,
     input_images: dict[str, np.ndarray],
-    selected_option,
-    motion_model,
-    preprocess_options,
-    feature_method='ORB',
+    *,
+    selected_option: str,
+    motion_model: str,
+    feature_method: str = 'ORB',
 ) -> dict[str, dict[str, Any]]:
     """Aligns all images in a folder to a template image using the selected
     alignment method and preprocess options.
@@ -381,8 +381,6 @@ def align_all_selected_images_to_template(
         The selected alignment method
     motion_model : str
         The selected motion model for ECC alignment
-    preprocess_options : dict
-        Dictionary containing preprocessing options
     feature_method : str, optional
         The feature detection method to use ('SIFT', 'ORB', 'SURF'). Default is 'ORB'
 
@@ -395,14 +393,12 @@ def align_all_selected_images_to_template(
     angle = 0
 
     for name, image in input_images.items():
-        preprocessed_image = preprocess_image(base_image, image, **preprocess_options)
-
         # equal size between base_image and image, necessary for some alignment methods
         target_size = (base_image.shape[1], base_image.shape[0])
-        resized_image = cv2.resize(preprocessed_image, target_size)
+        resized_image = cv2.resize(image, target_size)
 
         if selected_option == 'Feature based alignment':
-            aligned, angle = featureAlign(preprocessed_image, base_image, method=feature_method)
+            aligned, angle = featureAlign(image, base_image, method=feature_method)
 
         elif selected_option == 'Enhanced Correlation Coefficient Maximization':
             if motion_model == 'translation':
@@ -436,7 +432,7 @@ def align_all_selected_images_to_template(
             aligned, angle = rotationAlign(base_image, resized_image)
 
         else:  # default to feature based alignment
-            aligned = featureAlign(base_image, preprocessed_image)
+            aligned = featureAlign(base_image, image)
 
         aligned_images[name] = {'image': aligned, 'angle': angle}
 
@@ -713,9 +709,10 @@ def to_grayscale(image):
         raise ValueError('Input image must be in BGR format with three channels or grayscale.')
 
 
-def preprocess_image(
-    template,
-    image,
+def equalize_images(
+    template: np.ndarray,
+    image: np.ndarray,
+    *,
     brightness=False,
     contrast=False,
     sharpness=False,
