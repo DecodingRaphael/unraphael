@@ -115,7 +115,7 @@ def load_images_widget(**loader_kwargs):
             st.info('Upload images to continue')
             st.stop()
 
-        images = _load_images(uploaded_files, width=width)
+        images = _load_images(uploaded_files, width=width, **loader_kwargs)
 
     if not images:
         raise ValueError('No images were loaded')
