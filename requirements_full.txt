@@ -51,9 +51,7 @@ numpy==1.26.4
 onnxruntime==1.18.0
     # via rembg
 opencv-python-headless==4.10.0.82
-    # via
-    #   rembg
-    #   unraphael (pyproject.toml)
+    # via rembg
 packaging==24.0
     # via
     #   lazy-loader
