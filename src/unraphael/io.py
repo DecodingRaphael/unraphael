@@ -13,10 +13,26 @@ if TYPE_CHECKING:
     import numpy as np
 
 
+def resize_to_width(image: np.ndarray, *, width: int) -> np.ndarray:
+    """Resize image to given width."""
+    new_shape: tuple[int, ...]
+
+    if len(image.shape) == 2:
+        x, y = image.shape
+        k = y / width
+        new_shape = int(x / k), int(y / k)
+    else:
+        x, y, z = image.shape
+        k = y / width
+        new_shape = int(x / k), int(y / k), z
+
+    return resize(image, new_shape)
+
+
 def load_images(
     image_files: Sequence[Any],
     *,
-    width: int,
+    width: None | int = None,
     as_gray: bool = True,
     as_ubyte: bool = False,
 ) -> dict[str, np.ndarray]:
@@ -30,20 +46,12 @@ def load_images(
         if as_gray:
             if im.ndim > 2:
                 im = rgb2gray(im)
-
-            x, y = im.shape
-            k = y / width
-            new_shape2 = int(x / k), int(y / k)
-            im = resize(im, new_shape2)
-
         else:
             if im.ndim <= 2:
                 im = gray2rgb(im)
 
-            x, y, z = im.shape
-            k = y / width
-            new_shape3 = int(x / k), int(y / k), z
-            im = resize(im, new_shape3)
+        if width:
+            resize_to_width(im, width=width)
 
         if as_ubyte:
             im = img_as_ubyte(im)

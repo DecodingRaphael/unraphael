@@ -1,6 +1,4 @@
 version: 0.1
-width: 240
-method: sift
 sift:
   upsampling: 2
   n_octaves: 8

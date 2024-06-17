@@ -5,10 +5,8 @@ from typing import TYPE_CHECKING
 import imageio.v3 as imageio
 import streamlit as st
 from config import (
-    _load_config,
-    _update_session_state,
     dump_session_state,
-    to_session_state,
+    load_config,
 )
 from scipy.cluster.hierarchy import linkage
 from seaborn import clustermap
@@ -16,8 +14,8 @@ from seaborn import clustermap
 from unraphael.feature import (
     heatmap_to_condensed_distance_matrix,
 )
-from unraphael.io import load_images, load_images_from_drc
-from unraphael.locations import data_directory, image_directory
+from unraphael.io import load_images, load_images_from_drc, resize_to_width
+from unraphael.locations import image_directory
 
 if TYPE_CHECKING:
     import numpy as np
@@ -78,12 +76,7 @@ def load_image_widget() -> tuple[str, np.ndarray]:
 def load_config_widget():
     """Widget to load config file."""
     uploaded_file = st.sidebar.file_uploader('Load config ', type=['yml', 'yaml'])
-    if not uploaded_file:
-        uploaded_file = data_directory / 'config.yaml'
-
-    config = _load_config(uploaded_file)
-    if 'config' not in st.session_state:
-        _update_session_state(config)
+    load_config(uploaded_file)
 
     st.download_button(
         label='Download config',
@@ -100,25 +93,37 @@ def load_images_widget(**loader_kwargs):
     load_example = st.sidebar.checkbox('Load example', value=False, key='load_example')
     uploaded_files = st.file_uploader('Upload Images', accept_multiple_files=True)
 
-    width = st.number_input(
-        'Width',
-        step=10,
-        key='width',
-        on_change=to_session_state,
-        kwargs={'key': 'width'},
-    )
-
     if load_example:
-        images = _load_images_from_drc(image_directory, width=width, **loader_kwargs)
+        images = _load_images_from_drc(image_directory, **loader_kwargs)
     else:
         if not uploaded_files:
             st.info('Upload images to continue')
             st.stop()
 
-        images = _load_images(uploaded_files, width=width, **loader_kwargs)
+        images = _load_images(uploaded_files, **loader_kwargs)
 
     if not images:
         raise ValueError('No images were loaded')
+
+    images = equalize_width_widget(images)
+
+    return images
+
+
+def equalize_width_widget(images: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
+    """This widget equalizes the width of the images."""
+    enabled = st.checkbox('Equalize width', value=True)
+
+    width = st.number_input(
+        'Width',
+        value=240,
+        step=10,
+        key='width',
+        disabled=(not enabled),
+    )
+
+    if enabled:
+        return {name: resize_to_width(image, width=width) for name, image in images.items()}
 
     return images
 
