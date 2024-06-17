@@ -53,7 +53,7 @@ def align_images_widget(*, base_image: np.ndarray, images: dict[str, np.ndarray]
         'User-provided keypoints (from pose estimation)',
     ]
 
-    selected_option = st.selectbox(
+    align_method = st.selectbox(
         'Alignment procedure:',
         options,
         help=(
@@ -71,14 +71,12 @@ def align_images_widget(*, base_image: np.ndarray, images: dict[str, np.ndarray]
         ),
     )
 
-    if not selected_option:
-        st.stop()
-    elif selected_option == 'Feature based alignment':
+    if align_method == 'Feature based alignment':
         motion_model = st.selectbox(
             'Algorithm:',
             ['SIFT', 'SURF', 'ORB'],
         )
-    elif selected_option == 'Enhanced Correlation Coefficient Maximization':
+    elif align_method == 'Enhanced Correlation Coefficient Maximization':
         motion_model = st.selectbox(
             'Motion model:',
             ['translation', 'euclidian', 'affine', 'homography'],
@@ -88,7 +86,7 @@ def align_images_widget(*, base_image: np.ndarray, images: dict[str, np.ndarray]
                 'while homography is the most complex.'
             ),
         )
-    elif selected_option == 'Fourier Mellin Transform':
+    elif align_method == 'Fourier Mellin Transform':
         motion_model = st.selectbox(
             'Normalization method for cross correlation',
             [None, 'normalize', 'phase'],
@@ -113,7 +111,7 @@ def align_images_widget(*, base_image: np.ndarray, images: dict[str, np.ndarray]
         res[name] = _align_image_to_base(
             base_image=base_image,
             image=image,
-            selected_option=selected_option,
+            align_method=align_method,
             motion_model=motion_model,
         )
 
