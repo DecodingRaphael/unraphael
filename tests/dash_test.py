@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import sys
 
-import pytest
 from streamlit.testing.v1 import AppTest
 
 from unraphael.locations import dash_directory
@@ -16,11 +15,6 @@ def test_home():
     assert not at.exception
 
 
-@pytest.mark.xfail(
-    reason='Fails with Thread "MainThread": missing ScriptRunContext'
-    'on the CI because of rembg dependency. Only the first time the page is'
-    'loaded does the test fail.'
-)
 def test_preprocess_load():
     at = AppTest.from_file(str(dash_directory / 'pages' / '1_preprocess.py'))
     at.run(timeout=5)
@@ -29,6 +23,18 @@ def test_preprocess_load():
 
 def test_image_sim_load():
     at = AppTest.from_file(str(dash_directory / 'pages' / '2_image_similarity.py'))
+    at.run(timeout=5)
+    assert not at.exception
+
+
+def test_detect_objects_load():
+    at = AppTest.from_file(str(dash_directory / 'pages' / '3_detect_objects.py'))
+    at.run(timeout=5)
+    assert not at.exception
+
+
+def test_normalization_load():
+    at = AppTest.from_file(str(dash_directory / 'pages' / '4_normalization.py'))
     at.run(timeout=5)
     assert not at.exception
 
@@ -62,6 +68,41 @@ def test_image_similarity_workflow():
     assert at.session_state['method'] == 'sift'
 
     at.session_state['continue_ransac'] = True
+    at.run(timeout=10)
+
+    assert not at.exception
+
+
+def test_detect_objects_workflow():
+    at = AppTest.from_file(str(dash_directory / 'pages' / '2_image_similarity.py'))
+    at.run(timeout=5)
+    assert not at.exception
+
+    assert 'load_example' in at.session_state
+
+    at.session_state['load_example'] = True
+    at.run(timeout=5)
+
+    assert not at.exception
+
+    at.session_state['select task'] = 'Detection'
+    at.run(timeout=10)
+
+    assert not at.exception
+
+
+def test_normalization_workflow():
+    at = AppTest.from_file(str(dash_directory / 'pages' / '4_normalization.py'))
+    at.session_state['width'] = 100
+    at.run(timeout=5)
+    assert not at.exception
+
+    at.session_state['load_example'] = True
+    at.run(timeout=5)
+
+    assert not at.exception
+
+    at.session_state['alignment procedure'] = 'Feature based alignment'
     at.run(timeout=10)
 
     assert not at.exception
