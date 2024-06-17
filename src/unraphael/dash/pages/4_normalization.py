@@ -70,7 +70,7 @@ def align_images_widget(*, base_image: np.ndarray, images: dict[str, np.ndarray]
             'orientation.'
         ),
     )
-    st.write(align_method)
+
     if not align_method:
         st.stop()
     elif align_method == 'Feature based alignment':
