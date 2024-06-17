@@ -663,16 +663,21 @@ def reinhard_color_transfer(template, target):
     """Perform Reinhard color transfer from the template image to the target
     image.
 
-    Parameters:
-    - template: Reference image (template) in BGR color format.
-    - target: Target image to be adjusted in BGR color format.
+    Parameters
+    ----------
+    template : np.ndarray
+        Reference image (template) in RGB color format.
+    target : np.ndarray
+        Target image to be adjusted in RGB color format.
 
-    Returns:
-    - adjusted_img: Target image with colors adjusted using Reinhard color transfer.
+    Returns
+    -------
+    adjusted_img : np.ndarray
+        Target image with colors adjusted using Reinhard color transfer.
     """
     # Convert images to LAB color space
-    template_lab = cv2.cvtColor(template, cv2.COLOR_BGR2LAB)
-    target_lab = cv2.cvtColor(target, cv2.COLOR_BGR2LAB)
+    template_lab = cv2.cvtColor(template, cv2.COLOR_RGB2LAB)
+    target_lab = cv2.cvtColor(target, cv2.COLOR_RGB2LAB)
 
     # Compute mean and standard deviation of each channel in LAB color space
     template_mean, template_std = get_mean_and_std(template_lab)
@@ -683,65 +688,58 @@ def reinhard_color_transfer(template, target):
     target_lab = np.clip(target_lab, 0, 255)
 
     # Convert back to BGR color space
-    adjusted_img = cv2.cvtColor(target_lab.astype(np.uint8), cv2.COLOR_LAB2BGR)
+    adjusted_img = cv2.cvtColor(target_lab.astype(np.uint8), cv2.COLOR_LAB2RGB)
 
     return adjusted_img
 
 
-def to_grayscale(image):
-    """Convert an image to grayscale.
-
-    Parameters:
-    - image: The input image in BGR format.
-
-    Returns:
-    - grayscale_img: The input image converted to grayscale.
-    """
-    if len(image.shape) == 3 and image.shape[2] == 3:  # Check if the image is in BGR format
-        grayscale_img = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        return grayscale_img
-    elif len(image.shape) == 2:  # Check if the image is already grayscale
-        return image
-    else:
-        raise ValueError('Input image must be in BGR format with three channels or grayscale.')
-
-
-def equalize_images(
-    template: np.ndarray,
+def equalize_image_with_base(
+    base_image: np.ndarray,
     image: np.ndarray,
     *,
-    brightness=False,
-    contrast=False,
-    sharpness=False,
-    color=False,
-    reinhard=False,
-    gray=False,
+    brightness: bool = False,
+    contrast: bool = False,
+    sharpness: bool = False,
+    color: bool = False,
+    reinhard: bool = False,
 ):
     """Preprocesses the input image based on the selected enhancement options.
 
-    Parameters:
-    - image: The input image in BGR format.
-    - brightness: Whether to equalize brightness.
-    - contrast: Whether to equalize contrast.
-    - sharpness: Whether to equalize sharpness.
-    - color: Whether to equalize colors.
+    Parameters
+    ----------
+    base_image : np.ndarray
+        The base image to equalize to
+    image : np.ndarray
+        The input image in RGB format.
+    brightness : bool
+        Whether to equalize brightness.
+    contrast : bool
+        Whether to equalize contrast.
+    sharpness : bool
+        Whether to equalize sharpness.
+    color : bool
+        Whether to equalize colors.
+    reinhard : bool
+        Whether to perform Reinhard color transfer
 
-    Returns:
-    - preprocessed_image: The preprocessed image.
+    Returns
+    -------
+    preprocessed_image : np.ndarray
+        The equalized image
     """
     if brightness:
-        image = normalize_brightness(template, image)
+        image = normalize_brightness(base_image, image)
 
     if contrast:
-        image = normalize_contrast(template, image)
+        image = normalize_contrast(base_image, image)
 
     if sharpness:
-        image = normalize_sharpness(template, image)
+        image = normalize_sharpness(base_image, image)
 
     if color:
-        image = normalize_colors(template, image)
+        image = normalize_colors(base_image, image)
 
     if reinhard:
-        image = reinhard_color_transfer(template, image)
+        image = reinhard_color_transfer(base_image, image)
 
     return image

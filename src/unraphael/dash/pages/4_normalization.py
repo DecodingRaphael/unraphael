@@ -5,10 +5,13 @@ from typing import Any
 import imageio.v3 as imageio
 import numpy as np
 import streamlit as st
-from outline_normalization import align_image_to_base, equalize_images
+from outline_normalization import align_image_to_base, equalize_image_with_base
 from streamlit_image_comparison import image_comparison
 from styling import set_custom_css
 from widgets import load_images_widget, show_images_widget
+
+_align_image_to_base = st.cache_data(align_image_to_base)
+_equalize_image_with_base = st.cache_data(equalize_image_with_base)
 
 
 def equalize_images_widget(*, base_image: np.ndarray, images: dict[str, np.ndarray]):
@@ -30,7 +33,7 @@ def equalize_images_widget(*, base_image: np.ndarray, images: dict[str, np.ndarr
     }
 
     return {
-        name: equalize_images(base_image, image, **preprocess_options)
+        name: _equalize_image_with_base(base_image, image, **preprocess_options)
         for name, image in images.items()
     }
 
@@ -106,7 +109,7 @@ def align_images_widget(*, base_image: np.ndarray, images: dict[str, np.ndarray]
 
     for i, (name, image) in enumerate(images.items()):
         progress.progress(i / len(images), f'Aligning {name}...')
-        res[name] = align_image_to_base(
+        res[name] = _align_image_to_base(
             base_image=base_image,
             image=image,
             selected_option=selected_option,
