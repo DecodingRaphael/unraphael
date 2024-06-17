@@ -11,6 +11,7 @@ import cv2
 import diplib as dip
 import numpy as np
 from numpy.fft import fft2, ifft2
+from skimage.color import rgb2gray
 
 
 def feature_align(image, template, method='ORB', maxFeatures=50000, keepPercent=0.15):
@@ -196,7 +197,9 @@ def ecc_align(im1: np.ndarray, im2: np.ndarray, *, mode: None | str = None):
     return im2_aligned, angle
 
 
-def fourier_mellin_transform_match(image1_path, image2_path, corrMethod=None):
+def fourier_mellin_transform_match(
+    image1: np.ndarray, image2: np.ndarray, corrMethod: str | None = None
+):
     """Apply Fourier-Mellin transform to match one image to another.
 
     Notes:
@@ -204,41 +207,30 @@ def fourier_mellin_transform_match(image1_path, image2_path, corrMethod=None):
         - The images are converted to grayscale before applying the transform.
         - The resulting aligned image is returned as a numpy array.
 
-    Example:
-        aligned_image = fourier_mellin_transform_match('template.jpg', 'image.jpg')
-
     Parameters
     ----------
-    image1_path : str
-        The file path of the template image.
-    image2_path : str
-        The file path of the image to align.
+    image1 : ndarray
+        The template image.
+    image2 : ndarray
+        The the image to align.
 
     Returns
     -------
     np.ndarray:
         The aligned image as a numpy array.
     """
+    if corrMethod:
+        kwargs = {'correlationMethod': corrMethod}
+    else:
+        kwargs = {}
 
-    img1 = dip.Image(image1_path)
-    img2 = dip.Image(image2_path)
+    img2 = dip.Image(image2)
 
-    # Convert images to grayscale if they are not already
-    img1 = dip.Image(img1.TensorToSpatial())
-    img2 = dip.Image(img2.TensorToSpatial())
+    img1_gray = dip.Image(rgb2gray(image1))
+    img2_gray = dip.Image(rgb2gray(image2))
 
-    # They're gray-scale images, even if the JPEG file has RGB values
-    img1_gray = img1(1)  # green channel only
-    img2_gray = img2(1)
-
-    # obtain transformation matrix
     out = dip.Image()
-    matrix = dip.FourierMellinMatch2D(
-        img1_gray, img2_gray, out=out, correlationMethod=corrMethod
-    )
-
-    print('########################')
-    print(matrix)
+    matrix = dip.FourierMellinMatch2D(img1_gray, img2_gray, out=out, **kwargs)
 
     # Extract elements from the matrix
     m11 = matrix[0]
@@ -258,17 +250,19 @@ def fourier_mellin_transform_match(image1_path, image2_path, corrMethod=None):
 
     # Apply the affine transformation using the transformation
     # matrix to align img2 to img1 (template)
-    if img2.TensorElements() > 1:  # If img2 is a color image
+    if img2.TensorElements() > 1:
+        # If img2 is a color image
         aligned_channels = []
-        for i in range(img2.TensorElements()):  # For each color channel
+        # For each color channel
+        for i in range(img2.TensorElements()):
             img2_channel = img2(i)
             moved_channel = dip.Image()
             dip.AffineTransform(img2_channel, out=moved_channel, matrix=matrix)
             aligned_channels.append(np.asarray(moved_channel))
 
-        # Stack the aligned channels back into a color image
         aligned_image = np.stack(aligned_channels, axis=-1)
-    else:  # If img2 is grayscale
+    else:
+        # If img2 is grayscale
         moved_img = dip.Image()
         dip.AffineTransform(img2, out=moved_img, matrix=matrix)
         aligned_image = np.asarray(moved_img)
