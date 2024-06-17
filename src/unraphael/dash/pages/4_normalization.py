@@ -5,7 +5,8 @@ from typing import Any
 import imageio.v3 as imageio
 import numpy as np
 import streamlit as st
-from outline_normalization import align_image_to_base, equalize_image_with_base
+from align import align_image_to_base
+from equalize import equalize_image_with_base
 from streamlit_image_comparison import image_comparison
 from styling import set_custom_css
 from widgets import load_images_widget, show_images_widget
