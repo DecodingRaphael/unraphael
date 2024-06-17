@@ -33,8 +33,8 @@ def test_detect_objects_load():
     assert not at.exception
 
 
-def test_normalization_load():
-    at = AppTest.from_file(str(dash_directory / 'pages' / '4_normalization.py'))
+def test_compare_load():
+    at = AppTest.from_file(str(dash_directory / 'pages' / '4_compare.py'))
     at.run(timeout=5)
     assert not at.exception
 
@@ -91,8 +91,8 @@ def test_detect_objects_workflow():
     assert not at.exception
 
 
-def test_normalization_workflow():
-    at = AppTest.from_file(str(dash_directory / 'pages' / '4_normalization.py'))
+def test_compare_workflow():
+    at = AppTest.from_file(str(dash_directory / 'pages' / '4_compare.py'))
     at.session_state['width'] = 100
     at.run(timeout=5)
     assert not at.exception
