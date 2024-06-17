@@ -71,9 +71,7 @@ def align_images_widget(*, base_image: np.ndarray, images: dict[str, np.ndarray]
         ),
     )
 
-    if not align_method:
-        st.stop()
-    elif align_method == 'Feature based alignment':
+    if align_method == 'Feature based alignment':
         motion_model = st.selectbox(
             'Algorithm:',
             ['SIFT', 'SURF', 'ORB'],

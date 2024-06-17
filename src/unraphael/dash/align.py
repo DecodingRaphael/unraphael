@@ -360,7 +360,7 @@ def align_image_to_base(
     base_image: np.ndarray,
     image: dict[str, np.ndarray],
     *,
-    align_method: str,
+    align_method: str | None,
     motion_model: str,
     feature_method: str = 'ORB',
 ) -> dict[str, Any]:
@@ -392,7 +392,9 @@ def align_image_to_base(
 
     angle = 0
 
-    if align_method == 'Feature based alignment':
+    if not align_method:
+        aligned = image
+    elif align_method == 'Feature based alignment':
         aligned, angle = feature_align(image=image, template=base_image, method=feature_method)
 
     elif align_method == 'Enhanced Correlation Coefficient Maximization':
