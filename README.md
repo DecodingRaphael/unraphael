@@ -22,9 +22,20 @@ pip install unraphael
 
 You can also [try unraphael directly from your browser](https://unraphael.streamlit.app/).
 
-| <a href="https://unraphael.streamlit.app/image_similarity"><img src="docs/_static/dash_image_sim.png" alt="Image similarity" width="85%"/></a> | <a href="https://unraphael.streamlit.app/preprocess"><img src="docs/_static/dash_preprocess.png" alt="Image preprocessing" width="85%"/></a> | <a href="https://unraphael.streamlit.app/detect"><img src="docs/_static/dash_detect.png" alt="Object detection" width="85%"/></a> |
-| - | - | - |
-| [Image similarity](https://unraphael.streamlit.app/image_similarity) | [Image preprocessing](https://unraphael.streamlit.app/preprocess) | [Object detection](https://unraphael.streamlit.app/detect) |
+<table>
+  <tr>
+     <td><a href =https://unraphael.streamlit.app/image_similarity>Image similarity</a></td>
+     <td><a href =https://unraphael.streamlit.app/image_similarity>Image preprocessing</a></td>
+     <td><a href =https://unraphael.streamlit.app/image_similarity>Object detection</a></td>
+     <td><a href =https://unraphael.streamlit.app/image_similarity>Image comparison</a></td>
+  </tr>
+  <tr>
+    <td><img src="docs/_static/dash_image_sim.png" alt="Image similarity" width="85%"/></td>
+    <td><img src="docs/_static/dash_preprocess.png" alt="Image preprocessing" width="85%"/></td>
+    <td><img src="docs/_static/dash_detect.png" alt="Object detection" width="85%"/></td>
+    <td><img src="docs/_static/dash_compare.png" alt="Image comparison" width="85%"/></td>
+  </tr>
+</table>
 
 ## Using the unraphael dashboard locally
 
