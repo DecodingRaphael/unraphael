@@ -13,7 +13,7 @@ import numpy as np
 from numpy.fft import fft2, ifft2
 
 
-def featureAlign(image, template, method='ORB', maxFeatures=50000, keepPercent=0.15):
+def feature_align(image, template, method='ORB', maxFeatures=50000, keepPercent=0.15):
     """Aligns an input image with a template image using feature matching and
     homography transformation, rather than a correlation based method on the
     whole image to search for these values.
@@ -413,7 +413,7 @@ def align_image_to_base(
     resized_image = cv2.resize(image, target_size)
 
     if selected_option == 'Feature based alignment':
-        aligned, angle = featureAlign(image, base_image, method=feature_method)
+        aligned, angle = feature_align(image, base_image, method=feature_method)
 
     elif selected_option == 'Enhanced Correlation Coefficient Maximization':
         aligned, angle = ecc_align(base_image, resized_image, mode=motion_model)
@@ -433,6 +433,6 @@ def align_image_to_base(
         aligned, angle = rotationAlign(base_image, resized_image)
 
     else:  # default to feature based alignment
-        aligned = featureAlign(base_image, image)
+        aligned = feature_align(base_image, image)
 
     return {'image': aligned, 'angle': angle}
