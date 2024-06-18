@@ -3,12 +3,16 @@ image in terms of contrast, sharpness, brightness, and colour."""
 
 from __future__ import annotations
 
+from typing import Any
+
 import cv2
 import numpy as np
 from skimage.exposure import match_histograms
 
 
-def normalize_brightness(template: np.ndarray, target: np.ndarray) -> np.ndarray:
+def normalize_brightness(
+    template: np.ndarray, image_d: np.ndarray
+) -> dict[str, np.ndarray | dict[str, Any]]:
     """Normalizes the brightness of the target image based on the luminance of
     the template image. This refers to the process of bringing the brightness
     of the target image into alignment with the brightness of the template
@@ -32,6 +36,8 @@ def normalize_brightness(template: np.ndarray, target: np.ndarray) -> np.ndarray
     equalized_img : np.ndarray
         Adjusted target image with equalized brightness
     """
+    target = image_d['image']
+
     # Convert the template image to LAB color space
     template_lab = cv2.cvtColor(template, cv2.COLOR_RGB2LAB)
 
@@ -83,14 +89,21 @@ def normalize_brightness(template: np.ndarray, target: np.ndarray) -> np.ndarray
     # Calculate the ratio of the brightness of the grayscale images
     ratio_gray = mean_template_gray / mean_eq_image_gray
 
-    print(f'Brightness ratio (LAB): {ratio_lab}')
-    print(f'Brightness ratio (RGB): {ratio_rgb}')
-    print(f'Brightness ratio (Grayscale): {ratio_gray}')
+    metrics = image_d['metrics'].copy()
+    metrics.update(
+        {
+            'brightness_ratio_gray': ratio_gray,
+            'brightness_ratio_lab': ratio_lab,
+            'brightness_ratio_rgb': ratio_rgb,
+        }
+    )
 
-    return equalized_img
+    return {'image': equalized_img, 'metrics': metrics}
 
 
-def normalize_contrast(template: np.ndarray, target: np.ndarray) -> np.ndarray:
+def normalize_contrast(
+    template: np.ndarray, image_d: np.ndarray
+) -> dict[str, np.ndarray | dict[str, Any]]:
     """Normalize the contrast of the target image to match the contrast of the
     template image.
 
@@ -106,6 +119,8 @@ def normalize_contrast(template: np.ndarray, target: np.ndarray) -> np.ndarray:
     normalized_img : np.ndarray
         Target image with contrast normalized to match the template image.
     """
+    target = image_d['image']
+
     if len(template.shape) == 3 and len(target.shape) == 3:  # Both images are color
         # Convert images to LAB color space
         template_lab = cv2.cvtColor(template, cv2.COLOR_RGB2LAB)
@@ -123,11 +138,7 @@ def normalize_contrast(template: np.ndarray, target: np.ndarray) -> np.ndarray:
 
         # Convert the adjusted LAB image back to RGB
         normalized_img = cv2.cvtColor(normalized_img_lab, cv2.COLOR_LAB2RGB)
-
-        print(f'Contrast value (template): {std_template}')
-        print(f'Contrast value (target): {std_target}')
-        print(f'Contrast ratio: {std_template / std_target}')
-        print(f'Adapted value (target): {np.std(normalized_img_lab[:, :, 0])}')
+        adapted_value = np.std(normalized_img_lab[:, :, 0])
 
     else:
         # Both images are grayscale
@@ -137,16 +148,24 @@ def normalize_contrast(template: np.ndarray, target: np.ndarray) -> np.ndarray:
 
         # Adjust contrast of target image to match template image
         normalized_img = (target * (std_template / std_target)).clip(0, 255).astype(np.uint8)
+        adapted_value = np.std(normalized_img[:, :, 0])
 
-        print(f'Contrast value (template): {std_template}')
-        print(f'Contrast value (target): {std_target}')
-        print(f'Contrast ratio: {std_template / std_target}')
-        print(f'Adapted value (target): {np.std(normalized_img[:, :, 0])}')
+    metrics = image_d['metrics'].copy()
+    metrics.update(
+        {
+            'contrast_template': std_template,
+            'contrast_target': std_target,
+            'contrast_ratio': std_template / std_target,
+            'adapted_value': adapted_value,
+        }
+    )
 
-    return normalized_img
+    return {'image': normalized_img, 'metrics': metrics}
 
 
-def normalize_sharpness(template: np.ndarray, target: np.ndarray) -> np.ndarray:
+def normalize_sharpness(
+    template: np.ndarray, image_d: np.ndarray
+) -> dict[str, np.ndarray | dict[str, Any]]:
     """Normalize the sharpness of the target image to match the sharpness of
     the template image.
 
@@ -162,6 +181,8 @@ def normalize_sharpness(template: np.ndarray, target: np.ndarray) -> np.ndarray:
     normalized_img : np.ndarray
         Target image with sharpness normalized to match the template image.
     """
+    target = image_d['image']
+
     if len(template.shape) == 3 and len(target.shape) == 3:
         # Both images are color
         # Convert images to grayscale
@@ -188,11 +209,6 @@ def normalize_sharpness(template: np.ndarray, target: np.ndarray) -> np.ndarray:
         (target * (mean_grad_template / mean_grad_target)).clip(0, 255).astype(np.uint8)
     )
 
-    # Print sharpness values
-    print(f'Sharpness value (template): {mean_grad_template}')
-    print(f'Sharpness value (target): {mean_grad_target}')
-    print(f'Sharpness ratio: {mean_grad_template / mean_grad_target}')
-
     # Calculate sharpness value for the normalized image
     grad_x_normalized = cv2.Sobel(
         cv2.cvtColor(normalized_img, cv2.COLOR_RGB2GRAY), cv2.CV_64F, 1, 0, ksize=3
@@ -202,12 +218,23 @@ def normalize_sharpness(template: np.ndarray, target: np.ndarray) -> np.ndarray:
     )
     grad_normalized = cv2.magnitude(grad_x_normalized, grad_y_normalized)
     mean_grad_normalized = np.mean(grad_normalized)
-    print(f'Sharpness value (normalized): {mean_grad_normalized}')
 
-    return normalized_img
+    metrics = image_d['metrics'].copy()
+    metrics.update(
+        {
+            'sharpness_template': mean_grad_template,
+            'sharpness_target': mean_grad_target,
+            'sharpness_ratio': mean_grad_template / mean_grad_target,
+            'sharpness_normalized': mean_grad_normalized,
+        }
+    )
+
+    return {'image': normalized_img, 'metrics': metrics}
 
 
-def normalize_colors(template: np.ndarray, target: np.ndarray) -> np.ndarray:
+def normalize_colors(
+    template: np.ndarray, image_d: np.ndarray
+) -> dict[str, np.ndarray | dict[str, Any]]:
     """Normalize the colors of the target image to match the color distribution
     of the template image.
 
@@ -223,12 +250,17 @@ def normalize_colors(template: np.ndarray, target: np.ndarray) -> np.ndarray:
     normalized_img : np.ndarray
         Target image with colors normalized to match the template image.
     """
+    target = image_d['image']
 
     matched = match_histograms(target, template, channel_axis=-1)
-    return matched
+
+    metrics = image_d['metrics'].copy()
+    return {'image': matched, 'metrics': metrics}
 
 
-def reinhard_color_transfer(template: np.ndarray, target: np.ndarray) -> np.ndarray:
+def reinhard_color_transfer(
+    template: np.ndarray, image_d: np.ndarray
+) -> dict[str, np.ndarray | dict[str, Any]]:
     """Perform Reinhard color transfer from the template image to the target
     image.
 
@@ -244,6 +276,8 @@ def reinhard_color_transfer(template: np.ndarray, target: np.ndarray) -> np.ndar
     adjusted_img : np.ndarray
         Target image with colors adjusted using Reinhard color transfer.
     """
+    target = image_d['image']
+
     # Convert images to LAB color space
     template_lab = cv2.cvtColor(template, cv2.COLOR_RGB2LAB)
     target_lab = cv2.cvtColor(target, cv2.COLOR_RGB2LAB)
@@ -261,7 +295,8 @@ def reinhard_color_transfer(template: np.ndarray, target: np.ndarray) -> np.ndar
     # Convert back to RGB color space
     adjusted_img = cv2.cvtColor(target_lab.astype(np.uint8), cv2.COLOR_LAB2RGB)
 
-    return adjusted_img
+    metrics = image_d['metrics'].copy()
+    return {'image': adjusted_img, 'metrics': metrics}
 
 
 def equalize_image_with_base(
@@ -273,7 +308,7 @@ def equalize_image_with_base(
     sharpness: bool = False,
     color: bool = False,
     reinhard: bool = False,
-):
+) -> dict[str, np.ndarray | dict[str, Any]]:
     """Preprocesses the input image based on the selected enhancement options.
 
     Parameters
@@ -295,22 +330,24 @@ def equalize_image_with_base(
 
     Returns
     -------
-    preprocessed_image : np.ndarray
+    preprocessed_image : dict[str, np.ndarray | dict[str, Any]]
         The equalized image
     """
+    image_d = {'image': image, 'metrics': {}}
+
     if brightness:
-        image = normalize_brightness(base_image, image)
+        image_d = normalize_brightness(template=base_image, image_d=image_d)
 
     if contrast:
-        image = normalize_contrast(base_image, image)
+        image_d = normalize_contrast(template=base_image, image_d=image_d)
 
     if sharpness:
-        image = normalize_sharpness(base_image, image)
+        image_d = normalize_sharpness(template=base_image, image_d=image_d)
 
     if color:
-        image = normalize_colors(base_image, image)
+        image_d = normalize_colors(template=base_image, image_d=image_d)
 
     if reinhard:
-        image = reinhard_color_transfer(base_image, image)
+        image_d = reinhard_color_transfer(template=base_image, image_d=image_d)
 
-    return image
+    return image_d

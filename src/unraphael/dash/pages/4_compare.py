@@ -39,7 +39,9 @@ def equalize_images_widget(*, base_image: np.ndarray, images: dict[str, np.ndarr
     }
 
 
-def align_images_widget(*, base_image: np.ndarray, images: dict[str, np.ndarray]):
+def align_images_widget(
+    *, base_image: np.ndarray, images: dict[str, np.ndarray | dict[str, Any]]
+):
     """This widget helps with aligning images."""
     st.subheader('Alignment parameters')
 
@@ -106,11 +108,11 @@ def align_images_widget(*, base_image: np.ndarray, images: dict[str, np.ndarray]
 
     progress = st.progress(0, text='Aligning...')
 
-    for i, (name, image) in enumerate(images.items()):
+    for i, (name, image_d) in enumerate(images.items()):
         progress.progress(i / len(images), f'Aligning {name}...')
         res[name] = _align_image_to_base(
             base_image=base_image,
-            image=image,
+            image_d=image_d,
             align_method=align_method,
             motion_model=motion_model,
         )
@@ -190,13 +192,13 @@ def comparison_widget(
     col1, col2 = st.columns((0.3, 0.7))
 
     image_name = col1.selectbox('Pick image', options=tuple(images.keys()))
-    data = images[image_name]
+    image_d = images[image_name]
 
-    image = data['image']
-    angle_str = f"{data['angle']:.2f}°"
+    image = image_d['image']
 
     with col1:
-        st.metric('Alignment angle', angle_str)
+        for key, value in image_d['metrics'].items():
+            st.metric(key, f'{value:.2f}')
 
         st.download_button(
             label='Download left',
