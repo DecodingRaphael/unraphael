@@ -175,14 +175,12 @@ def cluster_image_widget(
                 plt.axis('off')
                 plt.show()
 
-        )
-
 
 def main():
     set_custom_css()
 
     st.title('Clustering of images')
-    st.write('For a set of images, group images based on their strucutral similarity.')
+    st.write('For a set of images, group images based on their structural similarity.')
 
     with st.sidebar:
         images = load_images_widget(as_gray=False, as_ubyte=True)
