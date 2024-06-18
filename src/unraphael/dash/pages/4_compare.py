@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Any
-
 import imageio.v3 as imageio
 import numpy as np
 import streamlit as st
@@ -10,6 +8,8 @@ from equalize import equalize_image_with_base
 from streamlit_image_comparison import image_comparison
 from styling import set_custom_css
 from widgets import load_images_widget, show_images_widget
+
+from unraphael.types import ImageType
 
 _align_image_to_base = st.cache_data(align_image_to_base)
 _equalize_image_with_base = st.cache_data(equalize_image_with_base)
@@ -40,8 +40,8 @@ def equalize_images_widget(*, base_image: np.ndarray, images: dict[str, np.ndarr
 
 
 def align_images_widget(
-    *, base_image: np.ndarray, images: dict[str, np.ndarray | dict[str, Any]]
-):
+    *, base_image: ImageType, images: dict[str, ImageType]
+) -> dict[str, ImageType]:
     """This widget helps with aligning images."""
     st.subheader('Alignment parameters')
 
@@ -182,9 +182,8 @@ def alignment_help_widget():
 
 
 def comparison_widget(
-    base_image: np.ndarray,
-    base_name: str,
-    images: dict[str, dict[str, Any]],
+    base_image: ImageType,
+    images: dict[str, ImageType],
 ):
     """Widget to compare processed images."""
     st.subheader('Comparison')
@@ -194,32 +193,30 @@ def comparison_widget(
     image_name = col1.selectbox('Pick image', options=tuple(images.keys()))
     image_d = images[image_name]
 
-    image = image_d['image']
-
     with col1:
-        for key, value in image_d['metrics'].items():
+        for key, value in image_d.metrics.items():
             st.metric(key, f'{value:.2f}')
 
         st.download_button(
             label='Download left',
-            data=imageio.imwrite('<bytes>', base_image, extension='.png'),
-            file_name=image_name + '.png',
-            key=image_name,
+            data=imageio.imwrite('<bytes>', base_image.data, extension='.png'),
+            file_name=image_d.name + '.png',
+            key=image_d.name,
         )
 
         st.download_button(
             label='Download right',
-            data=imageio.imwrite('<bytes>', image, extension='.png'),
-            file_name=base_name + '.png',
-            key=base_name,
+            data=imageio.imwrite('<bytes>', image_d.data, extension='.png'),
+            file_name=base_image.name + '.png',
+            key=base_image.name,
         )
 
     with col2:
         image_comparison(
-            img1=base_image,
-            img2=image,
-            label1=base_name,
-            label2=image_name,
+            img1=base_image.data,
+            label1=base_image.name,
+            img2=image_d.data,
+            label2=image_d.name,
             width=450,
         )
 
@@ -242,6 +239,10 @@ def main():
     if not base_name:
         st.stop()
 
+    from unraphael.types import ImageType
+
+    images = {name: ImageType(data=data, name=name) for name, data in images.items()}
+
     base_image = images[base_name]
     images = {name: image for name, image in images.items() if name != base_name}
 
@@ -258,7 +259,6 @@ def main():
 
     comparison_widget(
         base_image=base_image,
-        base_name=base_name,
         images=images,
     )
 
