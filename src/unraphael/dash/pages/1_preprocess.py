@@ -1,18 +1,18 @@
 from __future__ import annotations
 
-import numpy as np
 import streamlit as st
 from styling import set_custom_css
 from widgets import image_downloads_widget, load_image_widget
 
 from unraphael.preprocess import apply_mask, process_image, remove_background
+from unraphael.types import ImageType
 
 _process_image = st.cache_data(process_image)
 _apply_mask = st.cache_data(apply_mask)
 _remove_background = st.cache_data(remove_background)
 
 
-def preprocess_image_widget(image: np.ndarray):
+def preprocess_image_widget(image: ImageType) -> ImageType:
     """Widget to preprocess image with user input options."""
     st.title('Preprocessing')
     st.write(
@@ -98,13 +98,13 @@ def preprocess_image_widget(image: np.ndarray):
         key='sharpen',
         help='(default = 3)',
     )
-    out = _process_image(image, **image_params)
-    col3.image(image, 'before')
-    col4.image(out, 'after')
+    out = image.apply(_process_image, **image_params)
+    col3.image(image.data, 'before')
+    col4.image(out.data, 'after')
     return out
 
 
-def remove_background_widget(image: np.ndarray) -> np.ndarray:
+def remove_background_widget(image: ImageType) -> tuple[ImageType, ImageType]:
     """This widget takes an image and provides the user with some choices to
     remove the background."""
     st.title('Background removal')
@@ -166,12 +166,11 @@ def remove_background_widget(image: np.ndarray) -> np.ndarray:
         help='(default = 10)',
     )
 
-    nobg = _remove_background(image, **background_params, mask_process=False)
+    nobg = image.apply(_remove_background, mask_process=False, **background_params)
+    mask = image.apply(_remove_background, mask_process=True, **background_params)
 
-    mask = _remove_background(image, **background_params, mask_process=True)
-
-    col3.image(mask, 'mask')
-    col4.image(nobg, 'background removed')
+    col3.image(mask.data, 'mask')
+    col4.image(nobg.data, 'background removed')
 
     return nobg, mask
 
@@ -179,18 +178,18 @@ def remove_background_widget(image: np.ndarray) -> np.ndarray:
 def main():
     set_custom_css()
 
-    name, image = load_image_widget()
+    image = load_image_widget()
 
     processed = preprocess_image_widget(image)
     processed_nobg, processed_mask = remove_background_widget(processed)
 
-    images = {
-        'original': image,
-        'processed': processed_nobg,
-        'extracted': _apply_mask(image, processed_mask),
-    }
+    images = [
+        image.replace(name='original'),
+        processed_nobg.replace(name='processed'),
+        ImageType(name='extracted', data=_apply_mask(image.data, processed_mask.data)),
+    ]
 
-    image_downloads_widget(basename=name, images=images)
+    image_downloads_widget(images=images, basename=image.name)
 
 
 if __name__ == '__main__':

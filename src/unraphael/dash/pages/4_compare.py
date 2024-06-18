@@ -33,17 +33,13 @@ def equalize_images_widget(*, base_image: np.ndarray, images: dict[str, np.ndarr
         'reinhard': reinhard,
     }
 
-    return {
-        name: _equalize_image_with_base(
-            base_image=base_image, image=image, **preprocess_options
-        )
-        for name, image in images.items()
-    }
+    return [
+        _equalize_image_with_base(base_image=base_image, image=image, **preprocess_options)
+        for image in images
+    ]
 
 
-def align_images_widget(
-    *, base_image: ImageType, images: dict[str, ImageType]
-) -> dict[str, ImageType]:
+def align_images_widget(*, base_image: ImageType, images: list[ImageType]) -> list[ImageType]:
     """This widget helps with aligning images."""
     st.subheader('Alignment parameters')
 
@@ -106,17 +102,19 @@ def align_images_widget(
     else:
         motion_model = None
 
-    res = {}
+    res = []
 
     progress = st.progress(0, text='Aligning...')
 
-    for i, (name, image) in enumerate(images.items()):
-        progress.progress((i + 1) / len(images), f'Aligning {name}...')
-        res[name] = _align_image_to_base(
-            base_image=base_image,
-            image=image,
-            align_method=align_method,
-            motion_model=motion_model,
+    for i, image in enumerate(images):
+        progress.progress((i + 1) / len(images), f'Aligning {image.name}...')
+        res.append(
+            _align_image_to_base(
+                base_image=base_image,
+                image=image,
+                align_method=align_method,
+                motion_model=motion_model,
+            )
         )
 
     return res
@@ -185,40 +183,44 @@ def alignment_help_widget():
 
 def comparison_widget(
     base_image: ImageType,
-    images: dict[str, ImageType],
+    images: list[ImageType],
 ):
     """Widget to compare processed images."""
     st.subheader('Comparison')
 
     col1, col2 = st.columns((0.3, 0.7))
 
-    image_name = col1.selectbox('Pick image', options=tuple(images.keys()))
-    image_d = images[image_name]
+    options = [image.name for image in images]
+    selected_name = col1.selectbox('Pick image', options=options)
+
+    for image in images:
+        if image.name == selected_name:
+            break
 
     with col1:
-        for key, value in image_d.metrics.items():
+        for key, value in image.metrics.items():
             st.metric(key, f'{value:.2f}')
 
         st.download_button(
             label='Download left',
             data=imageio.imwrite('<bytes>', base_image.data, extension='.png'),
-            file_name=image_d.name + '.png',
-            key=image_d.name,
+            file_name=base_image.name + '.png',
+            key=base_image.name,
         )
 
         st.download_button(
             label='Download right',
-            data=imageio.imwrite('<bytes>', image_d.data, extension='.png'),
-            file_name=base_image.name + '.png',
-            key=base_image.name,
+            data=imageio.imwrite('<bytes>', image.data, extension='.png'),
+            file_name=image.name + '.png',
+            key=image.name,
         )
 
     with col2:
         image_comparison(
             img1=base_image.data,
             label1=base_image.name,
-            img2=image_d.data,
-            label2=image_d.name,
+            img2=image.data,
+            label2=image.name,
             width=450,
         )
 
@@ -236,15 +238,12 @@ def main():
         st.stop()
 
     st.subheader('Select base image')
-    base_name = show_images_widget(images, message='Select base image for alignment')
+    base_image = show_images_widget(images, message='Select base image for alignment')
 
-    if not base_name:
+    if not base_image:
         st.stop()
 
-    images = {name: ImageType(data=data, name=name) for name, data in images.items()}
-
-    base_image = images[base_name]
-    images = {name: image for name, image in images.items() if name != base_name}
+    images = [image for image in images if image.name != base_image.name]
 
     col1, col2 = st.columns(2)
 
