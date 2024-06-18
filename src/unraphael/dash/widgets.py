@@ -10,6 +10,7 @@ from config import (
 )
 from scipy.cluster.hierarchy import linkage
 from seaborn import clustermap
+from skimage import img_as_ubyte
 
 from unraphael.feature import (
     heatmap_to_condensed_distance_matrix,
@@ -87,7 +88,7 @@ def load_config_widget():
     )
 
 
-def load_images_widget(**loader_kwargs):
+def load_images_widget(as_ubyte: bool = False, **loader_kwargs):
     """Widget to load images."""
 
     load_example = st.sidebar.checkbox('Load example', value=False, key='load_example')
@@ -106,6 +107,9 @@ def load_images_widget(**loader_kwargs):
         raise ValueError('No images were loaded')
 
     images = equalize_width_widget(images)
+
+    if as_ubyte:
+        images = {name: img_as_ubyte(image) for name, image in images.items()}
 
     return images
 
