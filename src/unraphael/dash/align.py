@@ -17,8 +17,8 @@ from unraphael.types import ImageType
 
 
 def feature_align(
-    image_d: ImageType,
-    template_d: ImageType,
+    image: ImageType,
+    base_image: ImageType,
     *,
     method: str = 'ORB',
     maxFeatures: int = 50000,
@@ -30,9 +30,9 @@ def feature_align(
 
     Parameters
     ----------
-    image_d : ImageType
+    image : ImageType
         The input image to be aligned.
-    template_d : ImageType
+    base_image : ImageType
         The template image to align the input image with.
     method : str, optional
         The feature detection method to use ('SIFT', 'ORB', 'SURF').
@@ -48,11 +48,11 @@ def feature_align(
     out : ImageType
         The aligned image.
     """
-    image = image_d.data
-    template = template_d.data
+    target = image.data
+    template = base_image.data
 
     templateGray = cv2.cvtColor(template, cv2.COLOR_RGB2GRAY)
-    imageGray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+    imageGray = cv2.cvtColor(target, cv2.COLOR_RGB2GRAY)
 
     if method == 'SIFT':
         feature_detector = cv2.SIFT_create()
@@ -103,18 +103,18 @@ def feature_align(
     # apply the homography matrix to align the images, including the rotation
     h, w, c = template.shape
     aligned = cv2.warpPerspective(
-        image, H, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0, 0)
+        target, H, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0, 0)
     )
 
-    out = image_d.replace(data=aligned)
+    out = image.replace(data=aligned)
     out.metrics.update(angle=angle)
 
     return out
 
 
 def ecc_align(
-    image_d: ImageType,
-    template_d: ImageType,
+    image: ImageType,
+    base_image: ImageType,
     *,
     mode: None | str = None,
 ) -> ImageType:
@@ -125,9 +125,9 @@ def ecc_align(
 
     Parameters
     ----------
-    image_d : ImageType
+    image : ImageType
         The image to be warped to match the template
-    template_d : ImageType
+    base_image : ImageType
         The template image
     mode : str
         Warp mode, must be one of translation, euclidian, affine, homography (default)
@@ -137,11 +137,11 @@ def ecc_align(
     out : ImageType
         The aligned image.
     """
-    image = image_d.data
-    template = template_d.data
+    target = image.data
+    template = base_image.data
 
     target_size = (template.shape[1], template.shape[0])
-    image = cv2.resize(image, target_size)
+    target = cv2.resize(target, target_size)
 
     if not mode:
         warp_mode = cv2.MOTION_HOMOGRAPHY
@@ -158,15 +158,15 @@ def ecc_align(
 
     # Ensure both images are resized to the same dimensions
     target_size = (
-        min(template.shape[1], image.shape[1]),
-        min(template.shape[0], image.shape[0]),
+        min(template.shape[1], target.shape[1]),
+        min(template.shape[0], target.shape[0]),
     )
 
     template_resized = cv2.resize(template, target_size)
-    image_resized = cv2.resize(image, target_size)
+    target_resized = cv2.resize(target, target_size)
 
     template_gray = cv2.cvtColor(template_resized, cv2.COLOR_RGB2GRAY)  # template
-    image_gray = cv2.cvtColor(image_resized, cv2.COLOR_RGB2GRAY)  # image to be aligned
+    target_gray = cv2.cvtColor(target_resized, cv2.COLOR_RGB2GRAY)  # target to be aligned
 
     sz = template_resized.shape
 
@@ -192,7 +192,7 @@ def ecc_align(
     try:
         (cc, warp_matrix) = cv2.findTransformECC(
             template_gray,
-            image_gray,
+            target_gray,
             warp_matrix,
             warp_mode,
             criteria,
@@ -203,15 +203,15 @@ def ecc_align(
         raise RuntimeError(f'Error during ECC alignment: {e}')
 
     if warp_mode == cv2.MOTION_HOMOGRAPHY:
-        image_aligned = cv2.warpPerspective(
-            image_resized,
+        target_aligned = cv2.warpPerspective(
+            target_resized,
             warp_matrix,
             (sz[1], sz[0]),
             flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP,
         )
     else:
-        image_aligned = cv2.warpAffine(
-            image_resized,
+        target_aligned = cv2.warpAffine(
+            target_resized,
             warp_matrix,
             (sz[1], sz[0]),
             flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP,
@@ -222,15 +222,15 @@ def ecc_align(
     row1_col0 = warp_matrix[0, 1]
     angle = math.degrees(math.asin(row1_col0))
 
-    out = image_d.replace(data=image_aligned)
+    out = image.replace(data=target_aligned)
     out.metrics.update(angle=angle)
 
     return out
 
 
 def fourier_mellin_transform_match(
-    image_d: ImageType,
-    template_d: ImageType,
+    image: ImageType,
+    base_image: ImageType,
     *,
     corr_method: str | None = None,
 ) -> ImageType:
@@ -243,9 +243,9 @@ def fourier_mellin_transform_match(
 
     Parameters
     ----------
-    image_d : ImageType
+    image : ImageType
         The image to align.
-    template_d : ImageType
+    base_image : ImageType
         The template image.
 
     Returns
@@ -258,16 +258,16 @@ def fourier_mellin_transform_match(
     else:
         kwargs = {}
 
-    image = image_d.data
-    template = template_d.data
+    target = image.data
+    template = base_image.data
 
     target_size = (template.shape[1], template.shape[0])
-    image = cv2.resize(image, target_size)
+    target = cv2.resize(target, target_size)
 
-    img2 = dip.Image(image)
+    img2 = dip.Image(target)
 
     img1_gray = dip.Image(rgb2gray(template))
-    img2_gray = dip.Image(rgb2gray(image))
+    img2_gray = dip.Image(rgb2gray(target))
 
     out = dip.Image()
     matrix = dip.FourierMellinMatch2D(img1_gray, img2_gray, out=out, **kwargs)
@@ -304,7 +304,7 @@ def fourier_mellin_transform_match(
         dip.AffineTransform(img2, out=moved_img, matrix=matrix)
         aligned_image = np.asarray(moved_img)
 
-    out = image_d.replace(data=aligned_image)
+    out = image.replace(data=aligned_image)
     out.metrics.update(
         angle=angle,
         scaling_factor=scaling_factor,
@@ -313,15 +313,15 @@ def fourier_mellin_transform_match(
     return out
 
 
-def align_images_with_translation(image_d: ImageType, template_d: ImageType) -> ImageType:
+def align_images_with_translation(image: ImageType, base_image: ImageType) -> ImageType:
     """Aligns two images with FFT phase correlation by finding the translation
     offset that minimizes the difference between them.
 
     Parameters
     ----------
-    image_d : ImageType
+    image : ImageType
         Image to align (RGB or grayscale)
-    template_d : ImageType
+    base_image : ImageType
         Template image (RGB or grayscale)
 
     Returns
@@ -329,21 +329,21 @@ def align_images_with_translation(image_d: ImageType, template_d: ImageType) -> 
     out : ImageType
         The second image aligned with the template
     """
-    image = image_d.data
-    template = template_d.data
+    target = image.data
+    template = base_image.data
 
     target_size = (template.shape[1], template.shape[0])
-    image = cv2.resize(image, target_size)
+    target = cv2.resize(target, target_size)
 
     if len(template.shape) == 3:
         template = cv2.cvtColor(template, cv2.COLOR_RGB2GRAY)
-    if len(image.shape) == 3:
-        image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+    if len(target.shape) == 3:
+        target = cv2.cvtColor(target, cv2.COLOR_RGB2GRAY)
 
     # FFT phase correlation
     shape = template.shape
     f0 = fft2(template)
-    f1 = fft2(image)
+    f1 = fft2(target)
     ir = abs(ifft2((f0 * f1.conjugate()) / (abs(f0) * abs(f1))))
 
     # Find peak in cross-correlation
@@ -355,24 +355,24 @@ def align_images_with_translation(image_d: ImageType, template_d: ImageType) -> 
     if t1 > shape[1] // 2:
         t1 -= shape[1]
 
-    rows, cols = image.shape[:2]
+    rows, cols = target.shape[:2]
     translation_matrix = np.float32([[1, 0, t1], [0, 1, t0]])
-    aligned_image = cv2.warpAffine(image, translation_matrix, (cols, rows))
+    aligned_image = cv2.warpAffine(target, translation_matrix, (cols, rows))
 
-    out = image_d.replace(data=aligned_image)
+    out = image.replace(data=aligned_image)
 
     return out
 
 
-def rotation_align(image_d: ImageType, template_d: ImageType) -> ImageType:
+def rotation_align(image: ImageType, base_image: ImageType) -> ImageType:
     """Aligns two images by finding the rotation angle that minimizes the
     difference between them.
 
     Parameters
     ----------
-    image_d : ImageType
+    image : ImageType
         The image to be aligned
-    template_d : ImageType
+    base_image : ImageType
         The image template
 
     Returns
@@ -380,14 +380,14 @@ def rotation_align(image_d: ImageType, template_d: ImageType) -> ImageType:
     out : ImageType
         The rotated version of the second image, aligned with the first image
     """
-    image = image_d.data
-    template = template_d.data
+    target = image.data
+    template = base_image.data
 
     target_size = (template.shape[1], template.shape[0])
-    image = cv2.resize(image, target_size)
+    target = cv2.resize(target, target_size)
 
     template_gray = cv2.cvtColor(template, cv2.COLOR_RGB2GRAY)
-    image_gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+    image_gray = cv2.cvtColor(target, cv2.COLOR_RGB2GRAY)
     height, width = image_gray.shape[0:2]
 
     values = np.ones(360)
@@ -400,9 +400,9 @@ def rotation_align(image_d: ImageType, template_d: ImageType) -> ImageType:
 
     angle = np.argmin(values)
     rotationMatrix = cv2.getRotationMatrix2D((width / 2, height / 2), angle, 1)
-    rotated = cv2.warpAffine(image, rotationMatrix, (width, height))
+    rotated = cv2.warpAffine(target, rotationMatrix, (width, height))
 
-    out = image_d.replace(data=rotated)
+    out = image.replace(data=rotated)
     out.metrics.update(angle=angle)
 
     return out
@@ -410,7 +410,7 @@ def rotation_align(image_d: ImageType, template_d: ImageType) -> ImageType:
 
 def align_image_to_base(
     base_image: ImageType,
-    image_d: ImageType,
+    image: ImageType,
     *,
     align_method: str | None,
     motion_model: str,
@@ -423,7 +423,7 @@ def align_image_to_base(
     ----------
     base_image : ImageType
         The template image
-    image_d : ImageType
+    image : ImageType
         The image to align
     align_method : str
         The selected alignment method
@@ -440,7 +440,7 @@ def align_image_to_base(
     func: Callable
 
     if not align_method:
-        return image_d
+        return image
 
     elif align_method == 'Feature based alignment':
         func = feature_align
@@ -465,4 +465,4 @@ def align_image_to_base(
     else:
         raise ValueError(f'No such method: {align_method}')
 
-    return func(image_d=image_d, template_d=base_image, **kwargs)
+    return func(image=image, base_image=base_image, **kwargs)

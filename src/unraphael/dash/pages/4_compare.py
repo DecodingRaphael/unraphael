@@ -34,7 +34,9 @@ def equalize_images_widget(*, base_image: np.ndarray, images: dict[str, np.ndarr
     }
 
     return {
-        name: _equalize_image_with_base(base_image, image, **preprocess_options)
+        name: _equalize_image_with_base(
+            base_image=base_image, image=image, **preprocess_options
+        )
         for name, image in images.items()
     }
 
@@ -108,11 +110,11 @@ def align_images_widget(
 
     progress = st.progress(0, text='Aligning...')
 
-    for i, (name, image_d) in enumerate(images.items()):
-        progress.progress(i / len(images), f'Aligning {name}...')
+    for i, (name, image) in enumerate(images.items()):
+        progress.progress((i + 1) / len(images), f'Aligning {name}...')
         res[name] = _align_image_to_base(
             base_image=base_image,
-            image_d=image_d,
+            image=image,
             align_method=align_method,
             motion_model=motion_model,
         )

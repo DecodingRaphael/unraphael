@@ -11,8 +11,8 @@ from unraphael.types import ImageType
 
 
 def normalize_brightness(
-    template_d: ImageType,
-    image_d: ImageType,
+    base_image: ImageType,
+    image: ImageType,
 ) -> ImageType:
     """Normalizes the brightness of the target image based on the luminance of
     the template image. This refers to the process of bringing the brightness
@@ -27,9 +27,9 @@ def normalize_brightness(
 
     Parameters
     ----------
-    template_d : ImageType
+    base_image : ImageType
         Reference image (template) in RGB color format.
-    image_d : ImageType
+    image : ImageType
         Target image to be adjusted in RGB color format.
 
     Returns
@@ -37,8 +37,8 @@ def normalize_brightness(
     equalized_img : np.ndarray
         Adjusted target image with equalized brightness
     """
-    target = image_d.data
-    template = template_d.data
+    target = image.data
+    template = base_image.data
 
     # Convert the template image to LAB color space
     template_lab = cv2.cvtColor(template, cv2.COLOR_RGB2LAB)
@@ -91,7 +91,7 @@ def normalize_brightness(
     # Calculate the ratio of the brightness of the grayscale images
     ratio_gray = mean_template_gray / mean_eq_image_gray
 
-    out = image_d.replace(data=equalized_img)
+    out = image.replace(data=equalized_img)
     out.metrics.update(
         brightness_ratio_gray=ratio_gray,
         brightness_ratio_lab=ratio_lab,
@@ -102,17 +102,17 @@ def normalize_brightness(
 
 
 def normalize_contrast(
-    template_d: ImageType,
-    image_d: ImageType,
+    base_image: ImageType,
+    image: ImageType,
 ) -> ImageType:
     """Normalize the contrast of the target image to match the contrast of the
     template image.
 
     Parameters
     ----------
-    template_d : ImageType
+    base_image : ImageType
         Reference image (template) in RGB or grayscale format.
-    image_d : ImageType
+    image : ImageType
         Target image to be adjusted in RGB or grayscale format.
 
     Returns
@@ -120,8 +120,8 @@ def normalize_contrast(
     normalized_img : np.ndarray
         Target image with contrast normalized to match the template image.
     """
-    target = image_d.data
-    template = template_d.data
+    target = image.data
+    template = base_image.data
 
     if len(template.shape) == 3 and len(target.shape) == 3:  # Both images are color
         # Convert images to LAB color space
@@ -152,7 +152,7 @@ def normalize_contrast(
         normalized_img = (target * (std_template / std_target)).clip(0, 255).astype(np.uint8)
         adapted_value = np.std(normalized_img[:, :, 0])
 
-    out = image_d.replace(data=normalized_img)
+    out = image.replace(data=normalized_img)
     out.metrics.update(
         contrast_template=std_template,
         contrast_target=std_target,
@@ -164,17 +164,17 @@ def normalize_contrast(
 
 
 def normalize_sharpness(
-    template_d: ImageType,
-    image_d: ImageType,
+    base_image: ImageType,
+    image: ImageType,
 ) -> ImageType:
     """Normalize the sharpness of the target image to match the sharpness of
     the template image.
 
     Parameters
     ----------
-    template_d : ImageType
+    base_image : ImageType
         Reference image (template) in RGB or grayscale format.
-    image_d : ImageType
+    image : ImageType
         Target image to be adjusted in RGB or grayscale format.
 
     Returns
@@ -182,8 +182,8 @@ def normalize_sharpness(
     normalized_img : np.ndarray
         Target image with sharpness normalized to match the template image.
     """
-    target = image_d.data
-    template = template_d.data
+    target = image.data
+    template = base_image.data
 
     if len(template.shape) == 3 and len(target.shape) == 3:
         # Both images are color
@@ -221,7 +221,7 @@ def normalize_sharpness(
     grad_normalized = cv2.magnitude(grad_x_normalized, grad_y_normalized)
     mean_grad_normalized = np.mean(grad_normalized)
 
-    out = image_d.replace(data=normalized_img)
+    out = image.replace(data=normalized_img)
     out.metrics.update(
         sharpness_template=mean_grad_template,
         sharpness_target=mean_grad_target,
@@ -233,17 +233,17 @@ def normalize_sharpness(
 
 
 def normalize_colors(
-    template_d: ImageType,
-    image_d: ImageType,
+    base_image: ImageType,
+    image: ImageType,
 ) -> ImageType:
     """Normalize the colors of the target image to match the color distribution
     of the template image.
 
     Parameters
     ----------
-    template_d : ImageType
+    base_image : ImageType
         Reference image (template) in RGB color format.
-    image_d : ImageType
+    image : ImageType
         Target image to be adjusted in RGB color format.
 
     Returns
@@ -251,27 +251,27 @@ def normalize_colors(
     normalized_img : np.ndarray
         Target image with colors normalized to match the template image.
     """
-    target = image_d.data
-    template = template_d.data
+    target = image.data
+    template = base_image.data
 
     matched = match_histograms(target, template, channel_axis=-1)
 
-    out = image_d.replace(data=matched)
+    out = image.replace(data=matched)
     return out
 
 
 def reinhard_color_transfer(
-    template_d: ImageType,
-    image_d: ImageType,
+    base_image: ImageType,
+    image: ImageType,
 ) -> ImageType:
     """Perform Reinhard color transfer from the template image to the target
     image.
 
     Parameters
     ----------
-    template_d : ImageType
+    base_image : ImageType
         Reference image (template) in RGB color format.
-    image_d : ImageType
+    image : ImageType
         Target image to be adjusted in RGB color format.
 
     Returns
@@ -279,8 +279,8 @@ def reinhard_color_transfer(
     adjusted_img : np.ndarray
         Target image with colors adjusted using Reinhard color transfer.
     """
-    target = image_d.data
-    template = template_d.data
+    target = image.data
+    template = base_image.data
 
     # Convert images to LAB color space
     template_lab = cv2.cvtColor(template, cv2.COLOR_RGB2LAB)
@@ -299,13 +299,13 @@ def reinhard_color_transfer(
     # Convert back to RGB color space
     adjusted_img = cv2.cvtColor(target_lab.astype(np.uint8), cv2.COLOR_LAB2RGB)
 
-    out = image_d.replace(data=adjusted_img)
+    out = image.replace(data=adjusted_img)
     return out
 
 
 def equalize_image_with_base(
     base_image: ImageType,
-    image_d: ImageType,
+    image: ImageType,
     *,
     brightness: bool = False,
     contrast: bool = False,
@@ -317,9 +317,9 @@ def equalize_image_with_base(
 
     Parameters
     ----------
-    base_image : np.ndarray
+    base_image : ImageType
         The base image to equalize to
-    image : np.ndarray
+    image : ImageType
         The input image in RGB format.
     brightness : bool
         Whether to equalize brightness.
@@ -334,22 +334,22 @@ def equalize_image_with_base(
 
     Returns
     -------
-    preprocessed_image_d : ImageType
+    image : ImageType
         The equalized image
     """
     if brightness:
-        image_d = normalize_brightness(template_d=base_image, image_d=image_d)
+        image = normalize_brightness(base_image=base_image, image=image)
 
     if contrast:
-        image_d = normalize_contrast(template_d=base_image, image_d=image_d)
+        image = normalize_contrast(base_image=base_image, image=image)
 
     if sharpness:
-        image_d = normalize_sharpness(template_d=base_image, image_d=image_d)
+        image = normalize_sharpness(base_image=base_image, image=image)
 
     if color:
-        image_d = normalize_colors(template_d=base_image, image_d=image_d)
+        image = normalize_colors(base_image=base_image, image=image)
 
     if reinhard:
-        image_d = reinhard_color_transfer(template_d=base_image, image_d=image_d)
+        image = reinhard_color_transfer(base_image=base_image, image=image)
 
-    return image_d
+    return image
