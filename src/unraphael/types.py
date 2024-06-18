@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from typing import Any
+from typing import Any, Callable
 
 import numpy as np
 
@@ -14,3 +14,6 @@ class ImageType:
 
     def replace(self, **changes):
         return replace(self, **changes)
+
+    def apply(self, func: Callable, **kwargs):
+        return self.replace(data=func(self.data, **kwargs))
