@@ -45,7 +45,7 @@ def feature_align(
 
     Returns
     -------
-    np.ndarray
+    out : ImageType
         The aligned image.
     """
     image = image_d.data
@@ -134,7 +134,7 @@ def ecc_align(
 
     Returns
     -------
-    image_aligned : np.ndarray
+    out : ImageType
         The aligned image.
     """
     image = image_d.data
@@ -243,15 +243,15 @@ def fourier_mellin_transform_match(
 
     Parameters
     ----------
-    template : ndarray
+    image_d : ImageType
+        The image to align.
+    template_d : ImageType
         The template image.
-    image2 : ndarray
-        The the image to align.
 
     Returns
     -------
-    np.ndarray:
-        The aligned image as a numpy array.
+    out : ImageType
+        The aligned image.
     """
     if corr_method:
         kwargs = {'correlationMethod': corr_method}
@@ -324,8 +324,10 @@ def align_images_with_translation(image_d: ImageType, template_d: ImageType) -> 
     template_d : ImageType
         Template image (RGB or grayscale)
 
-    Returns:
-    - aligned_image: The second image aligned with the template
+    Returns
+    -------
+    out : ImageType
+        The second image aligned with the template
     """
     image = image_d.data
     template = template_d.data
@@ -375,7 +377,8 @@ def rotation_align(image_d: ImageType, template_d: ImageType) -> ImageType:
 
     Returns
     -------
-    The rotated version of the second image, aligned with the first image
+    out : ImageType
+        The rotated version of the second image, aligned with the first image
     """
     image = image_d.data
     template = template_d.data

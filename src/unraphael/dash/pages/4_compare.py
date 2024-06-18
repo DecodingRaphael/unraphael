@@ -239,8 +239,6 @@ def main():
     if not base_name:
         st.stop()
 
-    from unraphael.types import ImageType
-
     images = {name: ImageType(data=data, name=name) for name, data in images.items()}
 
     base_image = images[base_name]
