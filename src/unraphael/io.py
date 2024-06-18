@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import imageio.v3 as imageio
-from skimage import img_as_ubyte
 from skimage.color import gray2rgb, rgb2gray
 from skimage.transform import resize
 
@@ -34,7 +33,6 @@ def load_images(
     *,
     width: None | int = None,
     as_gray: bool = True,
-    as_ubyte: bool = False,
 ) -> dict[str, np.ndarray]:
     """Load images through `imageio.imread` and do some preprocessing."""
     images = {}
@@ -51,10 +49,7 @@ def load_images(
                 im = gray2rgb(im)
 
         if width:
-            resize_to_width(im, width=width)
-
-        if as_ubyte:
-            im = img_as_ubyte(im)
+            im = resize_to_width(im, width=width)
 
         images[name] = im
 
