@@ -13,15 +13,17 @@ import numpy as np
 from numpy.fft import fft2, ifft2
 from skimage.color import rgb2gray
 
+ImageType = dict[str, np.ndarray | dict[str, Any]]
+
 
 def feature_align(
-    image_d: dict[str, np.ndarray | dict[str, Any]],
+    image_d: ImageType,
     template: np.ndarray,
     *,
     method: str = 'ORB',
     maxFeatures: int = 50000,
     keepPercent: float = 0.15,
-) -> np.ndarray:
+) -> ImageType:
     """Aligns an input image with a template image using feature matching and
     homography transformation, rather than a correlation based method on the
     whole image to search for these values.
@@ -110,7 +112,12 @@ def feature_align(
     return out_d
 
 
-def ecc_align(image_d: np.ndarray, template: np.ndarray, *, mode: None | str = None):
+def ecc_align(
+    image_d: ImageType,
+    template: np.ndarray,
+    *,
+    mode: None | str = None,
+) -> ImageType:
     """Aligns two images using the ECC (Enhanced Correlation Coefficient)
     algorithm. the ECC methodology can compensate for both shifts, shifts +
     rotations (euclidean), shifts + rotation + shear (affine), or homographic
@@ -222,8 +229,11 @@ def ecc_align(image_d: np.ndarray, template: np.ndarray, *, mode: None | str = N
 
 
 def fourier_mellin_transform_match(
-    image_d: np.ndarray, template: np.ndarray, *, corr_method: str | None = None
-):
+    image_d: ImageType,
+    template: np.ndarray,
+    *,
+    corr_method: str | None = None,
+) -> ImageType:
     """Apply Fourier-Mellin transform to match one image to another.
 
     Notes:
@@ -301,7 +311,7 @@ def fourier_mellin_transform_match(
     return out_d
 
 
-def align_images_with_translation(image_d: np.ndarray, template: np.ndarray) -> np.ndarray:
+def align_images_with_translation(image_d: ImageType, template: np.ndarray) -> ImageType:
     """Aligns two images with FFT phase correlation by finding the translation
     offset that minimizes the difference between them.
 
@@ -350,7 +360,7 @@ def align_images_with_translation(image_d: np.ndarray, template: np.ndarray) -> 
     return out_d
 
 
-def rotation_align(image_d: np.ndarray, template: np.ndarray) -> np.ndarray:
+def rotation_align(image_d: ImageType, template: np.ndarray) -> ImageType:
     """Aligns two images by finding the rotation angle that minimizes the
     difference between them.
 
@@ -395,12 +405,12 @@ def rotation_align(image_d: np.ndarray, template: np.ndarray) -> np.ndarray:
 
 def align_image_to_base(
     base_image: np.ndarray,
-    image_d: dict[str, np.ndarray],
+    image_d: ImageType,
     *,
     align_method: str | None,
     motion_model: str,
     feature_method: str = 'ORB',
-) -> dict[str, Any]:
+) -> ImageType:
     """Aligns all images in a folder to a template image using the selected
     alignment method and preprocess options.
 

@@ -11,7 +11,8 @@ from skimage.exposure import match_histograms
 
 
 def normalize_brightness(
-    template: np.ndarray, image_d: np.ndarray
+    template: np.ndarray,
+    image_d: np.ndarray,
 ) -> dict[str, np.ndarray | dict[str, Any]]:
     """Normalizes the brightness of the target image based on the luminance of
     the template image. This refers to the process of bringing the brightness
@@ -102,7 +103,8 @@ def normalize_brightness(
 
 
 def normalize_contrast(
-    template: np.ndarray, image_d: np.ndarray
+    template: np.ndarray,
+    image_d: np.ndarray,
 ) -> dict[str, np.ndarray | dict[str, Any]]:
     """Normalize the contrast of the target image to match the contrast of the
     template image.
@@ -164,7 +166,8 @@ def normalize_contrast(
 
 
 def normalize_sharpness(
-    template: np.ndarray, image_d: np.ndarray
+    template: np.ndarray,
+    image_d: np.ndarray,
 ) -> dict[str, np.ndarray | dict[str, Any]]:
     """Normalize the sharpness of the target image to match the sharpness of
     the template image.
@@ -233,7 +236,8 @@ def normalize_sharpness(
 
 
 def normalize_colors(
-    template: np.ndarray, image_d: np.ndarray
+    template: np.ndarray,
+    image_d: np.ndarray,
 ) -> dict[str, np.ndarray | dict[str, Any]]:
     """Normalize the colors of the target image to match the color distribution
     of the template image.
@@ -259,7 +263,8 @@ def normalize_colors(
 
 
 def reinhard_color_transfer(
-    template: np.ndarray, image_d: np.ndarray
+    template: np.ndarray,
+    image_d: np.ndarray,
 ) -> dict[str, np.ndarray | dict[str, Any]]:
     """Perform Reinhard color transfer from the template image to the target
     image.
