@@ -120,6 +120,44 @@ def align_images_widget(*, base_image: ImageType, images: list[ImageType]) -> li
     return res
 
 
+def display_two(base_image, images):
+    col1, col2 = st.columns(2)
+    
+    if 'count' not in st.session_state:
+        st.session_state.count = 0
+
+    if 'images' not in st.session_state:
+        st.session_state.images = images  # Directly assign the list
+
+    def display_image():
+        try:
+            image = st.session_state.images[st.session_state.count].data
+            col1.image(base_image, caption="Base Image")
+            col2.image(image, caption=f"Image {st.session_state.count + 1}")
+        except IndexError as e:
+            st.error(f"Error displaying image: {e}")
+
+    def next_image():
+        if st.session_state.count + 1 >= len(st.session_state.images):
+            st.session_state.count = 0
+        else:
+            st.session_state.count += 1
+
+    def previous_image():
+        if st.session_state.count > 0:
+            st.session_state.count -= 1
+    
+    if col1.button("⏮️ Previous", on_click=previous_image):
+        pass
+
+    if col2.button("Next ⏭️", on_click=next_image):
+        pass
+
+    with col2:
+        display_image()
+            
+            
+
 def alignment_help_widget():
     st.write(
         (
@@ -224,7 +262,7 @@ def comparison_widget(
             width=450,
         )
 
-
+    
 def main():
     set_custom_css()
 
@@ -249,9 +287,16 @@ def main():
 
     with col1:
         images = equalize_images_widget(base_image=base_image, images=images)
+        print("----------------------")
+        print(type(images))        
 
     with col2:
         images = align_images_widget(base_image=base_image, images=images)
+        print("######################")
+        print(type(images))  
+    
+    # Update session state with the aligned images
+    st.session_state.images = images
 
     with st.expander('Help for parameters for aligning images', expanded=False):
         alignment_help_widget()
@@ -260,6 +305,8 @@ def main():
         base_image=base_image,
         images=images,
     )
+    
+    display_two(base_image=base_image.data, images=st.session_state.images)
 
 
 if __name__ == '__main__':
