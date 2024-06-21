@@ -11,6 +11,11 @@ from widgets import load_images_widget, show_images_widget
 
 from unraphael.types import ImageType
 
+# import streamlit.components.v1 as components
+# from matplotlib import pyplot as plt, animation
+# import matplotlib.pyplot as plt
+# import cv2
+
 _align_image_to_base = st.cache_data(align_image_to_base)
 _equalize_image_with_base = st.cache_data(equalize_image_with_base)
 
@@ -219,6 +224,21 @@ def alignment_help_widget():
     )
 
 
+# def animate_images(img_aligned, baseline, num_frames=100):
+#     fig, ax = plt.subplots()
+#     blended_image = cv2.addWeighted(img_aligned, 1, baseline, 0, 0)
+#     im = ax.imshow(cv2.cvtColor(blended_image, cv2.COLOR_BGR2RGB), extent=[0, blended_image.shape[1], 0, blended_image.shape[0]])
+
+#     def update(frame):
+#         alpha = frame / num_frames
+#         blended_image = cv2.addWeighted(img_aligned, 1 - alpha, baseline, alpha, 0)
+#         im.set_array(cv2.cvtColor(blended_image, cv2.COLOR_BGR2RGB))
+#         ax.set_title(f'Frame {frame + 1}/{num_frames}')
+                           
+#     ani = animation.FuncAnimation(fig, update, frames=num_frames, interval=25, repeat=True, repeat_delay=1000)
+#     return ani.to_jshtml()
+                
+
 def comparison_widget(
     base_image: ImageType,
     images: list[ImageType],
@@ -226,14 +246,7 @@ def comparison_widget(
     """Widget to compare processed images."""
     st.subheader('Comparison')
 
-    col1, col2 = st.columns((0.15, 0.85))
-
-    # options = [image.name for image in images]
-    # selected_name = col1.selectbox('Pick image', options=options)
-
-    # for image in images:
-    #     if image.name == selected_name:
-    #         break
+    col1, col2 = st.columns((0.20, 0.80))    
 
     if 'count_comp' not in st.session_state:
         st.session_state.count_comp = 0
@@ -265,6 +278,11 @@ def comparison_widget(
                 label2=image.name,
                 width=450,
             )
+            
+            # animate_images(
+            #     image.data,
+            #     base_image.data,
+            # )
 
         except IndexError as e:
             st.error(f"Error displaying image: {e}")
