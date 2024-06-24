@@ -21,7 +21,7 @@ def show_images_widget(
     # Ensure each number_input has a unique key
     n_cols_key = f'{key}_cols'
     n_cols = col1.number_input(
-        'Number of columns for display', value=8, min_value=1, step=1, key=n_cols_key
+        'Number of columns for display', value=4, min_value=1, step=1, key=n_cols_key
     )    
 
     cols = st.columns(n_cols)
@@ -156,27 +156,31 @@ def cluster_image_widget(images: dict[str, np.ndarray]):
     # Ensure images are 3D arrays (grayscale) before stacking
     image_list = [image if image.ndim == 2 else color.rgb2gray(image) for image in image_list]
 
-    with col1:
-        c = cluster_images(np.array(image_list), 
-                           algorithm=measure, 
-                           n_clusters=n_clusters, 
-                           method=cluster_method, 
-                           print_metrics=True, 
-                           labels_true=None)
+    
+    c = cluster_images(np.array(image_list), 
+                           algorithm     = measure, 
+                           n_clusters    = n_clusters, 
+                           method        = cluster_method, 
+                           print_metrics = True, 
+                           labels_true   = None)
 
     if c is None:
         st.error("Clustering failed. Please check the parameters and try again.")
         return
     
-    with col2:
-        num_clusters = len(set(c))
-        for n in range(num_clusters):
+    num_clusters = len(set(c))
+    for n in range(num_clusters):
             cluster_label = n + 1
             st.write(f"\n --- Images from cluster #{cluster_label} ---")
 
+            #cluster_indices = np.argwhere(c == n).flatten()
+            #for i in cluster_indices:
+            #    st.image(image_list[i], caption=f'Cluster #{cluster_label}, Image: {image_names[i]}', use_column_width=True, clamp=True)
+            
             cluster_indices = np.argwhere(c == n).flatten()
-            for i in cluster_indices:
-                st.image(image_list[i], caption=f'Cluster #{cluster_label}, Image: {image_names[i]}', use_column_width=True, clamp=True)
+            cluster_images_dict = {image_names[i]: image_list[i] for i in cluster_indices}
+            show_images_widget(cluster_images_dict, key=f'cluster_{cluster_label}_images', message=f'Images from Cluster #{cluster_label}')
+
             
 def main():
     set_custom_css()
