@@ -29,16 +29,17 @@ contrast, sharpness, and brightness."""
 # POSSIBILITY OF SUCH DAMAGE.
 
 from __future__ import annotations
-import os
 from concurrent.futures import ThreadPoolExecutor
 import cv2
 import numpy as np
-import matplotlib.pyplot as plt
+import ssim.ssimlib as pyssim
 from skimage.metrics import structural_similarity as ssim
 from sklearn.cluster import SpectralClustering, AffinityPropagation, KMeans, DBSCAN
 from sklearn import metrics
 from pystackreg import StackReg
-from skimage import io, color, transform
+from skimage import color, transform
+
+from PIL import Image
 
 SIM_IMAGE_SIZE = (640, 480)
 SIFT_RATIO = 0.7
@@ -46,79 +47,79 @@ MSE_NUMERATOR = 1000.0
 NUM_THREADS = 8
 
 def align_images_to_mean(
-    image: dict[str, np.ndarray],
+    images: dict[str, np.ndarray],
     *,
-    selected_option: str,
+    #selected_option: str,
     motion_model: str,
-    feature_method: str = 'mean',
-    #input_dir, 
-    target_size = SIM_IMAGE_SIZE
-) -> dict[str, dict[str, Any]]:
+    feature_method: str,
+    target_size: tuple = SIM_IMAGE_SIZE
+) -> dict[str, np.ndarray]:
    
     
     """
     Aligns a set of images to the mean image.
 
     Args:
-        input_dir (str): The directory containing the input images.
-        target_size (tuple, optional): The target size to resize the images to. 
-        Defaults to (640, 480).
+        images (dict[str, np.ndarray]): Dictionary of images.
+        selected_option (str): Selected alignment option.
+        motion_model (str): Motion model for alignment.
+        feature_method (str, optional): Feature method for alignment. Defaults to 'mean'.
+        target_size (tuple, optional): Target size to resize the images to. Defaults to (640, 480).
 
     Returns:
-        numpy.ndarray: The aligned images stack.
-
-    Raises:
-        None
-
-    """
+        dict[str, np.ndarray]: Dictionary of aligned images.
+    """        
     
-    #jpg_files = sorted([f for f in os.listdir(input_dir) if f.endswith('.jpg')])
-
-    # Resize images to predefined target size
     def resize_image(image, target_size):
         return transform.resize(image, target_size, anti_aliasing=True, preserve_range=True).astype(image.dtype)
     
-    resized_images = []
-
-    # Load each JPG file, convert to grayscale, resize it, and add it to the list
-    for file_name in image:
-        #image_path = os.path.join(input_dir, file_name)
-        image = io.imread(file_name)
-        gray_image = color.rgb2gray(image)
-        resized_image = resize_image(gray_image, target_size)
-        resized_images.append(resized_image)
-        
-    image_stack = np.stack(resized_images, axis=0)
-
-    if selected_option == 'pyStackReg':
-        
-        # Initialize StackReg and select the transformation type
-        if motion_model == 'translation':            
-            sr = StackReg(StackReg.TRANSLATION)
-        elif motion_model == 'rigid body (translation + rotation)':
-            sr = StackReg(StackReg.RIGID_BODY)
-        elif motion_model == 'scaled rotation (translation + rotation + scaling)':
-            sr = StackReg(StackReg.SCALED_ROTATION)
-        elif motion_model == 'affine (translation + rotation + scaling + shearing)':
-            sr = StackReg(StackReg.AFFINE)
-        elif motion_model == 'bilinear (non-linear transformation; does not preserve straight lines)':            
-            sr = StackReg(StackReg.BILINEAR)
-            
-    if feature_method == 'to first image':
-        # Registering the images to the first image
+    def ensure_grayscale(image):
+        if image.ndim == 3: # if in color, make grayscale
+            return color.rgb2gray(image)
+        return image
+    
+    resized_images = {name: resize_image(ensure_grayscale(image), target_size) for name, image in images.items()}
+    image_stack = np.stack(list(resized_images.values()), axis=0)
+    
+    if image_stack.ndim != 3:
+        raise ValueError("Image stack must have three dimensions (num_images, height, width).")
+    
+    #if selected_option == 'pyStackReg':
+    #    sr = None        
+    if motion_model == 'translation':            
+        sr = StackReg(StackReg.TRANSLATION)
+    elif motion_model == 'rigid body':
+        sr = StackReg(StackReg.RIGID_BODY)
+    elif motion_model == 'scaled rotation':
+        sr = StackReg(StackReg.SCALED_ROTATION)
+    elif motion_model == 'affine':
+        sr = StackReg(StackReg.AFFINE)
+    elif motion_model == 'bilinear':            
+        sr = StackReg(StackReg.BILINEAR)
+          
+    #if sr is None:
+    #        raise ValueError("Invalid motion model selected.")
+          
+    if feature_method == 'to first image':            
         aligned_images_stack = sr.register_transform_stack(image_stack, reference = "first")
-    elif feature_method == 'to mean image':
-        # Registering the images to the mean image
+    elif feature_method == 'to mean image':            
         aligned_images_stack = sr.register_transform_stack(image_stack, reference = 'mean')
     elif feature_method == 'each image to the previous (already registered) one':
         aligned_images_stack = sr.register_transform_stack(image_stack, reference = 'previous')
+    else:
+        raise ValueError("Invalid feature method selected.")
         
-    return aligned_images_stack #np.aray
+    aligned_images = {name: aligned_images_stack[i] for i, name in enumerate(images.keys())}
+        
+    return aligned_images
+    
+    #else:
+    #    raise ValueError("Invalid alignment option selected.")
+       
 
 def get_image_similarity(img1, img2, algorithm = 'SSIM'):
     
-    """ Returns the normalized similarity value (from 0.0 to 1.0) for the provided 
-    pair of images. """
+    """ Returns the normalized similarity value (from 0.0 to 1.0) for the provided pair of images. """
     
     if isinstance(img1, str):
         i1 = cv2.imread(img1, cv2.IMREAD_GRAYSCALE)
@@ -132,6 +133,8 @@ def get_image_similarity(img1, img2, algorithm = 'SSIM'):
 
     i1 = cv2.resize(i1, SIM_IMAGE_SIZE)
     i2 = cv2.resize(i2, SIM_IMAGE_SIZE)
+    
+    similarity = 0.0
 
     if algorithm == 'SIFT':
         sift = cv2.SIFT_create()
@@ -140,10 +143,29 @@ def get_image_similarity(img1, img2, algorithm = 'SSIM'):
 
         bf = cv2.BFMatcher()
         matches = bf.knnMatch(d1, d2, k=2)
+        
+        for m, n in matches:
+            if m.distance < SIFT_RATIO * n.distance:
+                similarity += 1.0
 
-        good_matches = [m for m, n in matches if m.distance < SIFT_RATIO * n.distance]
-        similarity = len(good_matches) / max(len(matches), 1)
+        # Custom normalization for better variance in the similarity matrix
+        if similarity == len(matches):
+            similarity = 1.0
+        elif similarity > 1.0:
+            similarity = 1.0 - 1.0/similarity
+        elif similarity == 1.0:
+            similarity = 0.1
+        else:
+            similarity = 0.0
+
+        #good_matches = [m for m, n in matches if m.distance < SIFT_RATIO * n.distance]
+        #similarity = len(good_matches) / max(len(matches), 1)
     
+    elif algorithm == 'CW-SSIM':
+        pil_img1 = Image.fromarray(i1)
+        pil_img2 = Image.fromarray(i2)
+        similarity = pyssim.SSIM(pil_img1).cw_ssim_value(pil_img2)
+        
     elif algorithm == 'SSIM':
         similarity, _ = ssim(i1, i2, full=True)
     
@@ -157,20 +179,19 @@ def get_image_similarity(img1, img2, algorithm = 'SSIM'):
 
     return similarity
 
-def build_similarity_matrix(images, algorithm='SSIM'):
+def build_similarity_matrix(images, algorithm = 'SSIM'):
     """
     Builds a similarity matrix for a given set of images.
 
     Args:
-        images (numpy.ndarray): An array of images
+        images (list of numpy.ndarray): A list of images
         algorithm (str, optional): The algorithm to use for computing image similarity. 
         Defaults to 'SSIM'.
 
     Returns:
         numpy.ndarray: The similarity matrix.
-
     """
-    num_images = images.shape[0]
+    num_images = len(images)
     sm = np.zeros((num_images, num_images), dtype=np.float64)
     np.fill_diagonal(sm, 1.0)
 
@@ -186,8 +207,7 @@ def build_similarity_matrix(images, algorithm='SSIM'):
             sm[i, j] = sm[j, i] = future.result()
     return sm
 
-
-def get_cluster_metrics(X, labels, labels_true = None):
+def get_cluster_metrics(X, labels, labels_true=None):
     """
     Calculate cluster evaluation metrics based on the given data and labels.
 
@@ -209,20 +229,19 @@ def get_cluster_metrics(X, labels, labels_true = None):
     - Completeness score: measures the completeness of the predicted clusters.
     - Homogeneity score: measures the homogeneity of the predicted clusters.
     """
-    
-    # Set diagonal elements of the matrix to zero
     np.fill_diagonal(X, 0)
     
-    metrics_dict = {
-        'Silhouette coefficient': metrics.silhouette_score(X, labels, metric='precomputed'),
-        'Davies-Bouldin index': metrics.davies_bouldin_score(X, labels)
-    }
+    metrics_dict = {}
+
+    if len(set(labels)) > 1:
+        metrics_dict['Silhouette coefficient'] = metrics.silhouette_score(X, labels, metric='precomputed')
+        metrics_dict['Davies-Bouldin index'] = metrics.davies_bouldin_score(1 - X, labels)
+    
     if labels_true is not None:
         metrics_dict['Completeness score'] = metrics.completeness_score(labels_true, labels)
-        metrics_dict['Homogeneity score'] = metrics.homogeneity_score(labels_true, labels)    
-    
-    return metrics_dict
+        metrics_dict['Homogeneity score'] = metrics.homogeneity_score(labels_true, labels)
 
+    return metrics_dict
 
 def determine_optimal_clusters(matrix):
     """
@@ -242,12 +261,12 @@ def determine_optimal_clusters(matrix):
         inertias.append(kmeans.inertia_)
     
     # Plot the inertia to visualize the elbow point
-    plt.figure()
-    plt.plot(range(2, max_clusters+1), inertias, 'bo-')
-    plt.xlabel('Number of clusters')
-    plt.ylabel('Inertia')
-    plt.title('Elbow Method For Optimal Clusters')
-    plt.show()
+    # plt.figure()
+    # plt.plot(range(2, max_clusters+1), inertias, 'bo-')
+    # plt.xlabel('Number of clusters')
+    # plt.ylabel('Inertia')
+    # plt.title('Elbow Method For Optimal Clusters')
+    # plt.show()
 
     # Identify the elbow point
     elbow_point = 2  # default value
@@ -257,12 +276,7 @@ def determine_optimal_clusters(matrix):
     return elbow_point
 
 
-def cluster_images(images, 
-                   algorithm     = 'SSIM', 
-                   n_clusters    = None,
-                   method        = 'spectral', 
-                   print_metrics = True, 
-                   labels_true   = None):
+def cluster_images(images, algorithm, n_clusters, method, print_metrics=True, labels_true=None):
     """
     Clusters a list of images using different clustering algorithms.
 
@@ -270,22 +284,21 @@ def cluster_images(images,
     - images (list): A list of images to be clustered.
     - algorithm (str): The algorithm used to calculate the similarity between images. Default is 'SSIM'.
     - n_clusters (int): The number of clusters to create. If None, the optimal number of clusters will be determined automatically. Default is None.
-    - method (str): The clustering method to use. Options are 'spectral', 'affinity', and 'dbscan'. Default is 'spectral'.
+    - method (str): The clustering method to use. Options are 'SpectralClustering', 'AffinityPropagation', and 'DBSCAN'. Default is 'SpectralClustering'.
     - print_metrics (bool): Whether to print performance metrics for each clustering method. Default is True.
     - labels_true (list): The true labels for the images, used for evaluating clustering performance. Default is None.
 
     Returns:
     - labels (list): The cluster labels assigned to each image.
-
     """
-    
+        
     matrix = build_similarity_matrix(images, algorithm = algorithm)
-
-    if n_clusters is None and method != 'dbscan':
+        
+    if n_clusters is None and method != 'DBSCAN':
         n_clusters = determine_optimal_clusters(matrix)
-    
-    if method == 'spectral':
-        sc = SpectralClustering(n_clusters = n_clusters, affinity='precomputed').fit(matrix)
+             
+    if method == 'SpectralClustering':
+        sc = SpectralClustering(n_clusters = n_clusters,  random_state=42, affinity = 'precomputed').fit(matrix)
         sc_metrics = get_cluster_metrics(matrix, sc.labels_, labels_true)
 
         if print_metrics:
@@ -295,8 +308,8 @@ def cluster_images(images,
                 print(f"{k}: {v:.2f}")
         return sc.labels_
         
-    elif method == 'affinity':
-        af = AffinityPropagation(affinity='precomputed').fit(matrix)
+    elif method == 'AffinityPropagation':
+        af = AffinityPropagation(affinity='precomputed',random_state=42).fit(matrix)
         af_metrics = get_cluster_metrics(matrix, af.labels_, labels_true)
 
         if print_metrics:
@@ -306,7 +319,7 @@ def cluster_images(images,
                 print(f"{k}: {v:.2f}")
         return af.labels_    
     
-    elif method == 'dbscan':
+    elif method == 'DBSCAN':
         db = DBSCAN(metric='precomputed', eps=0.5, min_samples=2).fit(matrix)
         db_labels = db.labels_
         db_metrics = get_cluster_metrics(matrix, db_labels, labels_true)
@@ -317,7 +330,6 @@ def cluster_images(images,
             for k, v in db_metrics.items():
                 print(f"{k}: {v:.2f}")
         return db_labels
-    
 
 
 #TODO: Implement equalize_images_widget by equalizing accross all images 

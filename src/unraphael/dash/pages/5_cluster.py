@@ -4,11 +4,38 @@ import numpy as np
 import streamlit as st
 from unraphael.dash.image_clustering import align_images_to_mean, equalize_images,cluster_images
 from styling import set_custom_css
-from widgets import load_images_widget, show_images_widget
+from widgets import load_images_widget #, show_images_widget
 from matplotlib import pyplot as plt
+from skimage import color
+
+def show_images_widget(
+    images: dict[str, np.ndarray],
+    *,
+    n_cols: int = 4,
+    key: str = 'show_images',
+    message: str = 'Select image',
+) -> None | str:
+    """Widget to show images with given number of columns."""
+    col1, col2 = st.columns(2)
+    
+    # Ensure each number_input has a unique key
+    n_cols_key = f'{key}_cols'
+    n_cols = col1.number_input(
+        'Number of columns for display', value=8, min_value=1, step=1, key=n_cols_key
+    )    
+
+    cols = st.columns(n_cols)
+
+    for i, (name, im) in enumerate(images.items()):
+        if i % n_cols == 0:
+            cols = st.columns(n_cols)
+        col = cols[i % n_cols]
+
+        col.image(im, use_column_width=True, caption=name,clamp=True)
+    
 
 #TODO: Implement equalize_images_widget by equalizing accross all images 
-def equalize_images_widget(*, images: dict[str, np.ndarray]):
+def equalize_images_widget(*, images: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
     """This widget helps with equalizing images."""
     st.subheader('Equalization parameters')
 
@@ -26,44 +53,44 @@ def equalize_images_widget(*, images: dict[str, np.ndarray]):
         'reinhard': reinhard,
     }
 
-    return {
-        name: equalize_images(image, **preprocess_options)
-        for name, image in images.items()
-    }
+    return {name: equalize_images(image, **preprocess_options) for name, image in images.items()}
+    
 
-def align_to_mean_image_widget(*, images: dict[str, np.ndarray]):
+def align_to_mean_image_widget(*, images: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
     """This widget helps with aligning all images to their mean value."""
     st.subheader('Alignment parameters')
 
-    options = [
-        None,
-        'pyStackReg',        
-    ]
+    # options = [
+    #     None,
+    #     'pyStackReg',        
+    # ]
 
-    selected_option = st.selectbox(
-        'Alignment procedure:',
-        options,
-        help=(
-            '**pyStackReg**: Aligns images'            
-            ),
-    )
+    # selected_option = st.selectbox(
+    #     'Alignment procedure:',
+    #     options,
+    #     help=(
+    #         '**pyStackReg**: Aligns images'            
+    #         ),
+    # )
 
-    if not selected_option:
-        st.stop()
+    # if not selected_option:
+    #     st.stop()
     
-    elif selected_option == 'pyStackReg':
-        motion_model = st.selectbox(
+    #elif selected_option == 'pyStackReg':
+    motion_model = st.selectbox(
             'Motion model:',
-            ['translation','rigid body (translation + rotation)',
-             'scaled rotation (translation + rotation + scaling)',
-             'affine (translation + rotation + scaling + shearing)',
-             'bilinear (non-linear transformation; does not preserve straight lines)'],
+            ['translation',
+             'rigid body',
+             'scaled rotation',
+             'affine',
+             'bilinear'],
             help=(
                 'The motion model defines the transformation one wants'
                 'to account for. '          
             ),
         )
-        feature_method = st.selectbox(
+    
+    feature_method = st.selectbox(
             'Register and transform a stack of images:',
             ['to first image',
              'to mean image',
@@ -73,14 +100,14 @@ def align_to_mean_image_widget(*, images: dict[str, np.ndarray]):
             ),
         )    
         
-    aligned_images_stack = align_images_to_mean(
-        image    = images,       
-        selected_option = selected_option,     
+    aligned_images = align_images_to_mean(
+        images    = images,       
+        #selected_option = selected_option,     
         motion_model = motion_model,
         feature_method  = feature_method,
         )
 
-    return aligned_images_stack
+    return aligned_images
 
 
 def alignment_help_widget():
@@ -95,131 +122,99 @@ def alignment_help_widget():
     )
     
 
-def cluster_image_widget(
-    images: dict[str, dict[str, Any]],
-):
+def cluster_image_widget(images: dict[str, np.ndarray]):    
     """Widget to cluster images."""
-    st.subheader('Clustering')    
-
-    options = [
-        None,
-        'pyStackReg',        
-    ]
-
-    selected_option = st.selectbox(
-        'Alignment procedure:',
-        options,
-        help=(
-            '**pyStackReg**: Aligns images based on detected features using '
-            'algorithms like SIFT, SURF, or ORB.'
-        ),
-    )
-
-    if not selected_option:
-        st.stop()
     
-    elif selected_option == 'pyStackReg':
-        cluster_method = st.selectbox(
-            'Unsupervised clustering algorithms:',
-            ['SpectralClustering',
-             'AffinityPropagation',
-             'KMeans',
-             'DBSCAN'],
-            help=(
-                'The cluster method defines the way in which the images are grouped.'                          
-            ),
-        )
-        measure = st.selectbox(
-            ['SIFT: Scale-invariant Feature Transform',
-             'SSIM: Structural Similarity Index',
-             'CW-SSIM: Complex Wavelet Structural Similarity Index',
-             'MSE: Mean Squared Error'],
-            help=(
-                'For more help, see .....'          
-            ),
-        )
-
-    col1, col2 = st.columns((0.3, 0.7))
-
-    image_name = col1.selectbox('Pick image', options=tuple(images.keys()))
-    data = images[image_name]
-
-    image = data['image']
-    angle_str = f"{data['angle']:.2f}°"
+    st.subheader('Clustering')       
+                
+    cluster_method = st.selectbox(
+        'Unsupervised clustering algorithms:',
+        ['SpectralClustering', 'AffinityPropagation', 'KMeans', 'DBSCAN'],
+        help='The cluster method defines the way in which the images are grouped.'
+    )
+    
+    # If SpectralClustering is selected, ask if the user wants to specify the number of clusters
+    if cluster_method == 'SpectralClustering':
+        specify_clusters = st.checkbox('Do you want to specify the number of clusters?', value=False)
+        if specify_clusters:
+            n_clusters = st.number_input('Number of clusters:', min_value=2, step=1, value=4)
+        else:
+            n_clusters = None
+    else:
+        n_clusters = None
+        
+    measure = st.selectbox(
+        'Similarity measure:',
+        ['SIFT', 'SSIM', 'CW-SSIM', 'MSE'],
+        help='Select a similarity measure used for clustering the images:')
+            
+    col1, col2 = st.columns((2))
+        
+    image_list = list(images.values())
+    image_names = list(images.keys()) 
+        
+    # Ensure images are 3D arrays (grayscale) before stacking
+    image_list = [image if image.ndim == 2 else color.rgb2gray(image) for image in image_list]
 
     with col1:
-         # Perform clustering on aligned images
-        c = cluster_images(images, 
-                          algorithm      = 'SSIM', # measure
-                          n_clusters     = None,
-                          method         = 'affinity', # cluster_method
-                          print_metrics  = True, 
-                          labels_true    = None)
+        c = cluster_images(np.array(image_list), 
+                           algorithm=measure, 
+                           n_clusters=n_clusters, 
+                           method=cluster_method, 
+                           print_metrics=True, 
+                           labels_true=None)
 
+    if c is None:
+        st.error("Clustering failed. Please check the parameters and try again.")
+        return
+    
     with col2:
-        # Post-clustering visualization
         num_clusters = len(set(c))
-        #images = os.listdir(input_dir)  
-        images = names #TODO
-       
         for n in range(num_clusters):
-            cluster_label = n + 1  #  cluster label starting from 1
-            print(f"\n --- Images from cluster #{cluster_label} ---")
+            cluster_label = n + 1
+            st.write(f"\n --- Images from cluster #{cluster_label} ---")
 
-            for i in np.argwhere(c == n).flatten():
-                print(f"Image {images[i]}")
-                img = images[i]
-                plt.figure()
-                plt.imshow(img, cmap='gray')
-                plt.title(f'Cluster #{cluster_label}, Image: {images[i]}')
-                plt.axis('off')
-                plt.show()
-
-
+            cluster_indices = np.argwhere(c == n).flatten()
+            for i in cluster_indices:
+                st.image(image_list[i], caption=f'Cluster #{cluster_label}, Image: {image_names[i]}', use_column_width=True, clamp=True)
+            
 def main():
     set_custom_css()
 
     st.title('Clustering of images')
-    st.write('For a set of images, group images based on their structural similarity.')
+    st.write('Group a set of images based on their structural similarity.')
 
     with st.sidebar:
         images = load_images_widget(as_gray=False, as_ubyte=True)
 
     if not images:
+        st.error("No images loaded. Please upload images.")
         st.stop()
 
     st.subheader('The images')
-    show = show_images_widget(images, message='Your sleected images')
+    show = show_images_widget(images, key='original_images', message='Your selected images')
 
-    if not show:
-        st.stop()
+    #if not show:
+    #    st.stop()
 
     images = {name: image for name, image in images.items() }
 
     col1, col2 = st.columns(2)
     
     #TODO: Implement equalize_images_widget by equalizing accross all images 
-    # with col1:
-    #     images = equalize_images_widget(base_image=base_image, images=images)
-
-    with col2:
-        aligned_images_stack = align_to_mean_image_widget(images = images)
+    #with col1:
+    #    images = equalize_images_widget(images=images)
 
     with st.expander('Help for parameters for aligning images to their mean', expanded=False):
         alignment_help_widget()
-    
-    input_dir = 'no_background'
-    
-    images = cluster_image_widget(aligned_images_stack)  
-       
-    # Perform clustering on aligned images
-    c = cluster_images(aligned_images_stack, 
-                              algorithm      = 'SSIM', 
-                              n_clusters     = None,
-                              method         = 'affinity', 
-                              print_metrics  = True, 
-                              labels_true    = None)
-    
+        
+    with col2:
+        aligned_images = align_to_mean_image_widget(images = images)
+
+    st.subheader('The aligned images')
+    show_images_widget(aligned_images, message='Your aligned images')
+     
+    cluster_image_widget(aligned_images)
     
 if __name__ == '__main__':
     main()
