@@ -110,30 +110,62 @@ def align_images_to_mean(
         raise ValueError("Invalid feature method selected.")
         
     aligned_images = {name: aligned_images_stack[i] for i, name in enumerate(images.keys())}
-        
-    return aligned_images
+    print("##") 
+    type(aligned_images)    
+    return aligned_images    
     
-    #else:
-    #    raise ValueError("Invalid alignment option selected.")
-       
+# Once the edge features are computed, the standard deviation is calculated for 
+# every individual edge feature obtained from an image. The standard deviation serves as
+# an effective metric to quantify the variability and intensity of edge features in the image.
 
-def get_image_similarity(img1, img2, algorithm = 'SSIM'):
+def calculate_canny_edges(img):
+    edges = cv2.Canny(img, 100, 200)
+    return np.std(edges)
+
+def calculate_sobel_edges(img):    
+    sobelx = cv2.Sobel(img, cv2.CV_64F, 1, 0, ksize=5)
+    sobely = cv2.Sobel(img, cv2.CV_64F, 0, 1, ksize=5)
+    return np.std(sobelx), np.std(sobely)
+
+def calculate_laplacian_edges(img):    
+    laplacian = cv2.Laplacian(img, cv2.CV_64F)    
+    return np.std(laplacian)
+
+def calculate_scharr_edges(img):
+    scharrx = cv2.Scharr(img, cv2.CV_64F, 1, 0)
+    scharry = cv2.Scharr(img, cv2.CV_64F, 0, 1)    
+    return np.std(scharrx), np.std(scharry)
+
+def calculate_features(img):
+    canny_edges                    = calculate_canny_edges(img)
+    sobel_edges_x, sobel_edges_y   = calculate_sobel_edges(img)
+    laplacian_edges                = calculate_laplacian_edges(img)
+    scharr_edges_x, scharr_edges_y = calculate_scharr_edges(img)
+          
+    # features = np.array([canny_edges, 
+    #                      sobel_edges_x, sobel_edges_y, 
+    #                      laplacian_edges, 
+    #                      scharr_edges_x, scharr_edges_y])
     
+    # Replace NaN values with 0 (or another appropriate value)
+    features = np.array([
+        np.nan_to_num(canny_edges),
+        np.nan_to_num(sobel_edges_x), 
+        np.nan_to_num(sobel_edges_y), 
+        np.nan_to_num(laplacian_edges),
+        np.nan_to_num(scharr_edges_x),
+        np.nan_to_num(scharr_edges_y)
+    ])
+    
+    print("Features calculated: ", features)
+    return features          
+
+def get_image_similarity(img1, img2, algorithm = 'SSIM'):    
     """ Returns the normalized similarity value (from 0.0 to 1.0) for the provided pair of images. """
-    
-    if isinstance(img1, str):
-        i1 = cv2.imread(img1, cv2.IMREAD_GRAYSCALE)
-    else:
-        i1 = img1.astype(np.uint8)
-    
-    if isinstance(img2, str):
-        i2 = cv2.imread(img2, cv2.IMREAD_GRAYSCALE)
-    else:
-        i2 = img2.astype(np.uint8)
-
-    i1 = cv2.resize(i1, SIM_IMAGE_SIZE)
-    i2 = cv2.resize(i2, SIM_IMAGE_SIZE)
-    
+        
+    i1 = img1.astype(np.uint8)
+    i2 = img2.astype(np.uint8)
+        
     similarity = 0.0
 
     if algorithm == 'SIFT':
@@ -144,22 +176,8 @@ def get_image_similarity(img1, img2, algorithm = 'SSIM'):
         bf = cv2.BFMatcher()
         matches = bf.knnMatch(d1, d2, k=2)
         
-        for m, n in matches:
-            if m.distance < SIFT_RATIO * n.distance:
-                similarity += 1.0
-
-        # Custom normalization for better variance in the similarity matrix
-        if similarity == len(matches):
-            similarity = 1.0
-        elif similarity > 1.0:
-            similarity = 1.0 - 1.0/similarity
-        elif similarity == 1.0:
-            similarity = 0.1
-        else:
-            similarity = 0.0
-
-        #good_matches = [m for m, n in matches if m.distance < SIFT_RATIO * n.distance]
-        #similarity = len(good_matches) / max(len(matches), 1)
+        good_matches = [m for m, n in matches if m.distance < SIFT_RATIO * n.distance]
+        similarity = len(good_matches) / max(len(matches), 1)
     
     elif algorithm == 'CW-SSIM':
         pil_img1 = Image.fromarray(i1)
@@ -174,6 +192,20 @@ def get_image_similarity(img1, img2, algorithm = 'SSIM'):
         err /= float(i1.shape[0] * i2.shape[1])
         similarity = MSE_NUMERATOR / err if err > 0 else 1.0
     
+    elif algorithm == 'Brushstrokes':
+        features_i1 = calculate_features(i1)
+        weights = features_i1 / np.sum(features_i1) # Normalize features to get weights              
+        features_i2 = calculate_features(i2)
+        
+        # Replace NaN values with 0 (or another appropriate value)
+        features_i2 = np.nan_to_num(features_i2 * weights)
+        
+        # Compare features between the two images
+        difference = np.abs(features_i1 - features_i2)
+        similarity = np.mean(difference)
+        
+        print("Brushstrokes similarity: ", similarity)
+                
     else:
         raise ValueError(f"Unsupported algorithm: {algorithm}")
 
@@ -196,7 +228,7 @@ def build_similarity_matrix(images, algorithm = 'SSIM'):
     np.fill_diagonal(sm, 1.0)
 
     def compute_similarity(i, j):
-        if i != j:
+        if i != j:            
             return get_image_similarity(images[i], images[j], algorithm)
         return 1.0
 
@@ -235,11 +267,15 @@ def get_cluster_metrics(X, labels, labels_true=None):
 
     if len(set(labels)) > 1:
         metrics_dict['Silhouette coefficient'] = metrics.silhouette_score(X, labels, metric='precomputed')
-        metrics_dict['Davies-Bouldin index'] = metrics.davies_bouldin_score(1 - X, labels)
-    
+        metrics_dict['Davies-Bouldin index'] = metrics.davies_bouldin_score(1 - X, labels)   
+        
     if labels_true is not None:
         metrics_dict['Completeness score'] = metrics.completeness_score(labels_true, labels)
         metrics_dict['Homogeneity score'] = metrics.homogeneity_score(labels_true, labels)
+        
+        metrics_dict['V-measure'] = metrics.v_measure_score(labels_true, labels)
+        metrics_dict['Adjusted Rand index'] = metrics.adjusted_rand_score(labels_true, labels)
+        metrics_dict['Adjusted mutual information'] = metrics.adjusted_mutual_info_score(labels_true, labels)
 
     return metrics_dict
 
@@ -293,6 +329,8 @@ def cluster_images(images, algorithm, n_clusters, method, print_metrics=True, la
     """
         
     matrix = build_similarity_matrix(images, algorithm = algorithm)
+    
+    print("Similarity matrix: ", matrix)
         
     if n_clusters is None and method != 'DBSCAN':
         n_clusters = determine_optimal_clusters(matrix)
