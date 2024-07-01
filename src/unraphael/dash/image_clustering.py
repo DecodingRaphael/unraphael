@@ -352,7 +352,7 @@ def cluster_images(images, algorithm, n_clusters, method, print_metrics=True, la
     - labels (list): The cluster labels assigned to each image.
     """
         
-    # input for the clustering algorithm
+    # main input for the clustering algorithm
     matrix = build_similarity_matrix(images, algorithm = algorithm)
     
     print("Similarity matrix: ", matrix)
@@ -407,6 +407,7 @@ def compute_mean_brightness(images):
         mean_brightness += np.mean(l_channel)
     return mean_brightness / len(images)
 
+
 def compute_mean_contrast(images):
     """Compute the mean contrast across a set of images."""
     mean_contrast = 0
@@ -419,6 +420,15 @@ def compute_mean_contrast(images):
         mean_contrast += np.std(l_channel)
     return mean_contrast / len(images)
 
+
+def compute_sharpness(img_gray):
+    """Compute the sharpness of a grayscale image using the Sobel operator."""
+    grad_x = cv2.Sobel(img_gray, cv2.CV_64F, 1, 0, ksize=3)
+    grad_y = cv2.Sobel(img_gray, cv2.CV_64F, 0, 1, ksize=3)
+    grad = cv2.magnitude(grad_x, grad_y)
+    return np.mean(grad)
+
+
 def compute_mean_sharpness(images):
     """Compute the mean sharpness across a set of images."""
     mean_sharpness = 0
@@ -427,13 +437,10 @@ def compute_mean_sharpness(images):
             img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         else:  # Grayscale image
             img_gray = img
-        grad_x = cv2.Sobel(img_gray, cv2.CV_64F, 1, 0, ksize=3)
-        grad_y = cv2.Sobel(img_gray, cv2.CV_64F, 0, 1, ksize=3)
-        grad = cv2.magnitude(grad_x, grad_y)
-        mean_sharpness += np.mean(grad)
+        mean_sharpness += compute_sharpness(img_gray)
     return mean_sharpness / len(images)
 
-# Normalize Brightness Function
+
 def normalize_brightness_set(images, mean_brightness):
     """Normalize brightness of all images in the set to the mean brightness."""
     normalized_images = []
@@ -447,16 +454,18 @@ def normalize_brightness_set(images, mean_brightness):
             normalized_img_lab = cv2.merge([l_channel, a_channel, b_channel])
             normalized_img = cv2.cvtColor(normalized_img_lab, cv2.COLOR_LAB2BGR)
             print(f"Normalized brightness: {np.mean(l_channel)}")
+        
         else:  # Grayscale image
             l_channel = img
             current_brightness = np.mean(l_channel)
             print(f"Original brightness: {current_brightness}")
             normalized_img = (l_channel * (mean_brightness / current_brightness)).clip(0, 255).astype(np.uint8)
             print(f"Normalized brightness: {np.mean(normalized_img)}")
+        
         normalized_images.append(normalized_img)
+    
     return normalized_images
 
-# Normalize Contrast Function
 def normalize_contrast_set(images, mean_contrast):
     """Normalize contrast of all images in the set to the mean contrast."""
     normalized_images = []
@@ -470,36 +479,57 @@ def normalize_contrast_set(images, mean_contrast):
             normalized_img_lab = cv2.merge([l_channel, a_channel, b_channel])
             normalized_img = cv2.cvtColor(normalized_img_lab, cv2.COLOR_LAB2BGR)
             print(f"Normalized contrast: {np.std(l_channel)}")
+        
         else:  # Grayscale image
             l_channel = img
             current_contrast = np.std(l_channel)
             print(f"Original contrast: {current_contrast}")
             normalized_img = (l_channel * (mean_contrast / current_contrast)).clip(0, 255).astype(np.uint8)
             print(f"Normalized contrast: {np.std(normalized_img)}")
+        
         normalized_images.append(normalized_img)
+    
     return normalized_images
 
-# Normalize Sharpness Function
-def normalize_sharpness_set(images, mean_sharpness):
-    """Normalize sharpness of all images in the set to the mean sharpness."""
+
+def normalize_sharpness_set(images, target_sharpness):
+    """Normalize sharpness of all images in the set to the target sharpness."""
     normalized_images = []
+    
     for img in images:
         if len(img.shape) == 3:  # Color image
             img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        
         else:  # Grayscale image
             img_gray = img
-        grad_x = cv2.Sobel(img_gray, cv2.CV_64F, 1, 0, ksize=3)
-        grad_y = cv2.Sobel(img_gray, cv2.CV_64F, 0, 1, ksize=3)
-        grad = cv2.magnitude(grad_x, grad_y)
-        current_sharpness = np.mean(grad)
-        print(f"Original sharpness: {current_sharpness}")
-        if len(img.shape) == 3:  # Color image
-            normalized_img = (img * (mean_sharpness / current_sharpness)).clip(0, 255).astype(np.uint8)
-            print(f"Normalized sharpness: {np.mean(normalized_img)}")
-        else:  # Grayscale image
-            normalized_img = (img * (mean_sharpness / current_sharpness)).clip(0, 255).astype(np.uint8)
-            print(f"Normalized sharpness: {np.mean(normalized_img)}")
+        
+        original_sharpness = compute_sharpness(img_gray)
+        print(f"Original sharpness: {original_sharpness}")
+
+        # Apply unsharp mask
+        blurred = cv2.GaussianBlur(img_gray, (0, 0), 3)
+        sharpened = cv2.addWeighted(img_gray, 1.5, blurred, -0.5, 0)
+        
+        # Compute the new sharpness after applying the unsharp mask
+        sharpened_sharpness = compute_sharpness(sharpened)
+        
+        # Scale to match the target sharpness
+        scaling_factor = target_sharpness / sharpened_sharpness
+        sharpened = (sharpened * scaling_factor).clip(0, 255).astype(np.uint8)
+        
+        # If the original image was in color, convert the sharpened grayscale back to color
+        if len(img.shape) == 3:
+            img_yuv = cv2.cvtColor(img, cv2.COLOR_BGR2YUV)
+            img_yuv[:,:,0] = sharpened
+            normalized_img = cv2.cvtColor(img_yuv, cv2.COLOR_YUV2BGR)
+        else:
+            normalized_img = sharpened
+        
+        normalized_sharpness = compute_sharpness(cv2.cvtColor(normalized_img, cv2.COLOR_BGR2GRAY) if len(img.shape) == 3 else normalized_img)
+        print(f"Normalized sharpness: {normalized_sharpness}")
+        
         normalized_images.append(normalized_img)
+    
     return normalized_images
 
 
@@ -510,8 +540,7 @@ def equalize_images(images, brightness=False, contrast=False, sharpness=False):
     - images: The input images in BGR or gray format.
     - brightness: Whether to equalize brightness.
     - contrast: Whether to equalize contrast.
-    - sharpness: Whether to equalize sharpness.
-    
+    - sharpness: Whether to equalize sharpness.    
 
     Returns:
     - images: the images with identical brightnes, cintrast and sharpness
@@ -529,3 +558,48 @@ def equalize_images(images, brightness=False, contrast=False, sharpness=False):
         images = normalize_sharpness_set(images, mean_sharpness)
 
     return images
+
+def compute_metrics(images):
+    """Computes metrics (mean and standard deviation) for normalized brightness, contrast, and sharpness.
+
+    Parameters:
+    - images: The input images in BGR or gray format.
+
+    Returns:
+    - metrics: Dictionary containing mean and standard deviation of normalized metrics.
+    """
+    normalized_brightness = []
+    normalized_contrast = []
+    normalized_sharpness = []
+    
+    for img in images:
+        img_lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+        l_channel, _, _ = cv2.split(img_lab)
+        
+        # Compute normalized brightness and contrast
+        normalized_brightness.append(np.mean(l_channel))
+        normalized_contrast.append(np.std(l_channel))
+        
+        # Compute normalized sharpness
+        img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        normalized_sharpness.append(compute_sharpness(img_gray))
+    
+    # Compute means and standard deviations, rounded to 2 decimal places
+    mean_normalized_brightness = np.round(np.mean(normalized_brightness), 2)
+    mean_normalized_contrast = np.round(np.mean(normalized_contrast), 2)
+    mean_normalized_sharpness = np.round(np.mean(normalized_sharpness), 2)
+    
+    sd_normalized_brightness = np.round(np.std(normalized_brightness), 2)
+    sd_normalized_contrast = np.round(np.std(normalized_contrast), 2)
+    sd_normalized_sharpness = np.round(np.std(normalized_sharpness), 2)
+    
+    metrics = {
+        'mean_normalized_brightness': mean_normalized_brightness,
+        'mean_normalized_contrast': mean_normalized_contrast,
+        'mean_normalized_sharpness': mean_normalized_sharpness,
+        'sd_normalized_brightness': sd_normalized_brightness,
+        'sd_normalized_contrast': sd_normalized_contrast,
+        'sd_normalized_sharpness': sd_normalized_sharpness
+    }
+    
+    return metrics

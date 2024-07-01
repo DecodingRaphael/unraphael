@@ -2,7 +2,7 @@ from __future__ import annotations
 #from typing import Any
 import numpy as np
 import streamlit as st
-from unraphael.dash.image_clustering import align_images_to_mean, equalize_images, cluster_images
+from unraphael.dash.image_clustering import align_images_to_mean, equalize_images, cluster_images, compute_metrics
 from styling import set_custom_css
 from widgets import load_images_widget
 from matplotlib import pyplot as plt
@@ -34,29 +34,49 @@ def show_images_widget(
         col.image(im, use_column_width=True, caption=name,clamp=True)
     
 
-#TODO: Implement equalize_images_widget by equalizing accross all images 
+
 def equalize_images_widget(*, images: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
     """This widget helps with equalizing images."""
-    st.subheader('Equalization parameters')
-
-    brightness = st.checkbox('Equalize brightness', value=False)
-    contrast = st.checkbox('Equalize contrast', value=False)
-    sharpness = st.checkbox('Equalize sharpness', value=False)
-
-    preprocess_options = {
-        'brightness': brightness,
-        'contrast': contrast,
-        'sharpness': sharpness,        
-    }
     
-    # Collect all images into a list
-    all_images = [img for name, img in images.items()]
-    
-    # Equalize the entire set of images
-    equalized_images = equalize_images(all_images, **preprocess_options)
+    col1, col2 = st.columns(2)
 
-    #return {name: equalize_images(image, **preprocess_options) for name, image in images.items()}
-    #return {name: equalize_images(images, **preprocess_options) for name, images in images.items()}
+    with col1:
+        col1.subheader('Equalization parameters')
+
+        brightness = st.checkbox('Equalize brightness', value=False)
+        contrast = st.checkbox('Equalize contrast', value=False)
+        sharpness = st.checkbox('Equalize sharpness', value=False)
+
+        preprocess_options = {
+            'brightness': brightness,
+            'contrast': contrast,
+            'sharpness': sharpness,        
+        }
+        
+        # Collect all images into a list
+        all_images = [img for name, img in images.items()]
+        
+        # Equalize the entire set of images
+        equalized_images = equalize_images(all_images, **preprocess_options)
+        
+        # Compute metrics on the equalized images
+        metrics = compute_metrics(equalized_images)
+
+    # Display metrics in Streamlit app
+    with col2:
+        col2.subheader('Metrics after equalization')
+
+        col3, col4 = st.columns((2))   
+                    
+        col3.metric('Mean Normalized Brightness', metrics['mean_normalized_brightness'])
+        col4.metric('SD Normalized Brightness', metrics['sd_normalized_brightness'])
+        
+        col3.metric('Mean Normalized Contrast', metrics['mean_normalized_contrast'])
+        col4.metric('SD Normalized Contrast', metrics['sd_normalized_contrast'])
+        
+        col3.metric('Mean Normalized Sharpness', metrics['mean_normalized_sharpness'])
+        col4.metric('SD Normalized Sharpness', metrics['sd_normalized_sharpness'])
+    
     
     # Map the equalized images back to their original names
     return {name: equalized_images[i] for i, name in enumerate(images.keys())}
@@ -183,23 +203,22 @@ def main():
     #if not show:
     #    st.stop()
 
-    images = {name: image for name, image in images.items() }
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        images = equalize_images_widget(images = images)    
+    images = {name: image for name, image in images.items() }  
+   
+    st.markdown('---')
+    images = equalize_images_widget(images = images)    
     
-    with st.expander('Help for parameters for aligning images to their mean', expanded=False):
-        alignment_help_widget()
-        
-    with col2:
-        aligned_images = align_to_mean_image_widget(images = images) # creates aligned images, similar size and gray scale        
+    st.markdown('---')
+    with st.expander('Help for aligning images', expanded=False):
+        alignment_help_widget()            
+    aligned_images = align_to_mean_image_widget(images = images) # creates aligned images, similar size and gray scale        
 
+    st.markdown('---')
     st.subheader('The aligned images (with equalized brightness, contrast, and sharpness)')
     show_images_widget(aligned_images, message='Your aligned images')
     
     #TODO: Necessary to work with transparant images so that uniform background color is not included in the clustering process? 
+    st.markdown('---')
     cluster_image_widget(aligned_images)
     
     # add heatmap of similarity matrix
