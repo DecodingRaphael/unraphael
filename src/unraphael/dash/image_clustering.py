@@ -38,7 +38,6 @@ from sklearn.cluster import SpectralClustering, AffinityPropagation, KMeans, DBS
 from sklearn import metrics
 from pystackreg import StackReg
 from skimage import color, transform
-
 from PIL import Image
 
 SIM_IMAGE_SIZE = (640, 480)
@@ -136,11 +135,16 @@ def calculate_scharr_edges(img):
     scharry = cv2.Scharr(img, cv2.CV_64F, 0, 1)    
     return np.std(scharrx), np.std(scharry)
 
+def calculate_histogram_features(img):
+    hist = cv2.calcHist([img], [0], None, [256], [0, 256])
+    return hist.flatten()
+
 def calculate_features(img):
     canny_edges                    = calculate_canny_edges(img)
     sobel_edges_x, sobel_edges_y   = calculate_sobel_edges(img)
     laplacian_edges                = calculate_laplacian_edges(img)
     scharr_edges_x, scharr_edges_y = calculate_scharr_edges(img)
+    histogram_features             = calculate_histogram_features(img)
           
     # features = np.array([canny_edges, 
     #                      sobel_edges_x, sobel_edges_y, 
@@ -148,23 +152,39 @@ def calculate_features(img):
     #                      scharr_edges_x, scharr_edges_y])
     
     # Replace NaN values with 0 (or another appropriate value)
-    features = np.array([
-        np.nan_to_num(canny_edges),
-        np.nan_to_num(sobel_edges_x), 
-        np.nan_to_num(sobel_edges_y), 
-        np.nan_to_num(laplacian_edges),
-        np.nan_to_num(scharr_edges_x),
-        np.nan_to_num(scharr_edges_y)
+    features = np.concatenate([
+        np.array([
+            np.nan_to_num(canny_edges),
+            np.nan_to_num(sobel_edges_x),
+            np.nan_to_num(sobel_edges_y),
+            np.nan_to_num(laplacian_edges),
+            np.nan_to_num(scharr_edges_x),
+            np.nan_to_num(scharr_edges_y)
+        ]),
+        histogram_features
     ])
     
     print("Features calculated: ", features)
     return features          
 
 def get_image_similarity(img1, img2, algorithm = 'SSIM'):    
-    """ Returns the normalized similarity value (from 0.0 to 1.0) for the provided pair of images. """
-        
-    i1 = img1.astype(np.uint8)
-    i2 = img2.astype(np.uint8)
+    """ Returns the normalized similarity value (from 0.0 to 1.0) for the provided pair of images. """          
+    
+    # Ensure the images are of type np.uint8
+    img1_gray = img1.astype(np.uint8)
+    img2_gray = img2.astype(np.uint8)
+
+    # Create masks to isolate the foreground
+    _, mask1 = cv2.threshold(img1_gray, 1, 255, cv2.THRESH_BINARY)
+    _, mask2 = cv2.threshold(img2_gray, 1, 255, cv2.THRESH_BINARY)
+
+    # Ensure the masks are of type np.uint8
+    mask1 = mask1.astype(np.uint8)
+    mask2 = mask2.astype(np.uint8)
+
+    # Apply the masks to isolate the foreground
+    i1 = cv2.bitwise_and(img1_gray, img1_gray, mask=mask1)
+    i2 = cv2.bitwise_and(img2_gray, img2_gray, mask=mask2)
         
     similarity = 0.0
 
@@ -209,6 +229,9 @@ def get_image_similarity(img1, img2, algorithm = 'SSIM'):
     else:
         raise ValueError(f"Unsupported algorithm: {algorithm}")
 
+    # Ensure similarity is a valid number
+    similarity = np.nan_to_num(similarity)
+    
     return similarity
 
 def build_similarity_matrix(images, algorithm = 'SSIM'):
@@ -231,6 +254,7 @@ def build_similarity_matrix(images, algorithm = 'SSIM'):
         if i != j:            
             return get_image_similarity(images[i], images[j], algorithm)
         return 1.0
+    
 
     with ThreadPoolExecutor(max_workers=NUM_THREADS) as executor:
         futures = [(i, j, executor.submit(compute_similarity, i, j))
@@ -317,17 +341,18 @@ def cluster_images(images, algorithm, n_clusters, method, print_metrics=True, la
     Clusters a list of images using different clustering algorithms.
 
     Parameters:
-    - images (list): A list of images to be clustered.
-    - algorithm (str): The algorithm used to calculate the similarity between images. Default is 'SSIM'.
-    - n_clusters (int): The number of clusters to create. If None, the optimal number of clusters will be determined automatically. Default is None.
-    - method (str): The clustering method to use. Options are 'SpectralClustering', 'AffinityPropagation', and 'DBSCAN'. Default is 'SpectralClustering'.
-    - print_metrics (bool): Whether to print performance metrics for each clustering method. Default is True.
-    - labels_true (list): The true labels for the images, used for evaluating clustering performance. Default is None.
+    - images (list): A list of images to be clustered
+    - algorithm (str): The algorithm used to calculate the similarity between images. Default is 'SSIM'
+    - n_clusters (int): The number of clusters to create. If None, the optimal number of clusters will be determined automatically. Default is None
+    - method (str): The clustering method to use. Options are 'SpectralClustering', 'AffinityPropagation', and 'DBSCAN'. Default is 'SpectralClustering'
+    - print_metrics (bool): Whether to print performance metrics for each clustering method. Default is True
+    - labels_true (list): The true labels for the images, used for evaluating clustering performance. Default is None
 
     Returns:
     - labels (list): The cluster labels assigned to each image.
     """
         
+    # input for the clustering algorithm
     matrix = build_similarity_matrix(images, algorithm = algorithm)
     
     print("Similarity matrix: ", matrix)
@@ -336,7 +361,7 @@ def cluster_images(images, algorithm, n_clusters, method, print_metrics=True, la
         n_clusters = determine_optimal_clusters(matrix)
              
     if method == 'SpectralClustering':
-        sc = SpectralClustering(n_clusters = n_clusters,  random_state=42, affinity = 'precomputed').fit(matrix)
+        sc = SpectralClustering(n_clusters = n_clusters, random_state=42, affinity = 'precomputed').fit(matrix)
         sc_metrics = get_cluster_metrics(matrix, sc.labels_, labels_true)
 
         if print_metrics:

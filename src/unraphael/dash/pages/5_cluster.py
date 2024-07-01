@@ -190,11 +190,15 @@ def main():
         
     with col2:
         aligned_images = align_to_mean_image_widget(images = images) # creates aligned images, similar size and gray scale
+        
 
     st.subheader('The aligned images')
     show_images_widget(aligned_images, message='Your aligned images')
-     
+    
+    #TODO: Necessary to work with transparant images so that uniform background color is not included in the clustering process? 
     cluster_image_widget(aligned_images)
+    
+    # add heatmap of similarity matrix
     
 if __name__ == '__main__':
     main()
