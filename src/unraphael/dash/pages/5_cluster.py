@@ -2,7 +2,7 @@ from __future__ import annotations
 #from typing import Any
 import numpy as np
 import streamlit as st
-from unraphael.dash.image_clustering import align_images_to_mean, equalize_images,cluster_images
+from unraphael.dash.image_clustering import align_images_to_mean, equalize_images, cluster_images
 from styling import set_custom_css
 from widgets import load_images_widget
 from matplotlib import pyplot as plt
@@ -42,18 +42,24 @@ def equalize_images_widget(*, images: dict[str, np.ndarray]) -> dict[str, np.nda
     brightness = st.checkbox('Equalize brightness', value=False)
     contrast = st.checkbox('Equalize contrast', value=False)
     sharpness = st.checkbox('Equalize sharpness', value=False)
-    color = st.checkbox('Equalize colors', value=False)
-    reinhard = st.checkbox('Reinhard color transfer', value=False)
 
     preprocess_options = {
         'brightness': brightness,
         'contrast': contrast,
-        'sharpness': sharpness,
-        'color': color,
-        'reinhard': reinhard,
+        'sharpness': sharpness,        
     }
+    
+    # Collect all images into a list
+    all_images = [img for name, img in images.items()]
+    
+    # Equalize the entire set of images
+    equalized_images = equalize_images(all_images, **preprocess_options)
 
-    return {name: equalize_images(image, **preprocess_options) for name, image in images.items()}
+    #return {name: equalize_images(image, **preprocess_options) for name, image in images.items()}
+    #return {name: equalize_images(images, **preprocess_options) for name, images in images.items()}
+    
+    # Map the equalized images back to their original names
+    return {name: equalized_images[i] for i, name in enumerate(images.keys())}
     
 
 def align_to_mean_image_widget(*, images: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
@@ -180,19 +186,17 @@ def main():
     images = {name: image for name, image in images.items() }
 
     col1, col2 = st.columns(2)
-    
-    #TODO: Implement equalize_images_widget by equalizing accross all images 
-    #with col1:
-    #    images = equalize_images_widget(images=images)
 
+    with col1:
+        images = equalize_images_widget(images = images)    
+    
     with st.expander('Help for parameters for aligning images to their mean', expanded=False):
         alignment_help_widget()
         
     with col2:
-        aligned_images = align_to_mean_image_widget(images = images) # creates aligned images, similar size and gray scale
-        
+        aligned_images = align_to_mean_image_widget(images = images) # creates aligned images, similar size and gray scale        
 
-    st.subheader('The aligned images')
+    st.subheader('The aligned images (with equalized brightness, contrast, and sharpness)')
     show_images_widget(aligned_images, message='Your aligned images')
     
     #TODO: Necessary to work with transparant images so that uniform background color is not included in the clustering process? 

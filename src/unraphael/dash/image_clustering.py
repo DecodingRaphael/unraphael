@@ -395,293 +395,137 @@ def cluster_images(images, algorithm, n_clusters, method, print_metrics=True, la
         return db_labels
 
 
-#TODO: Implement equalize_images_widget by equalizing accross all images 
-def normalize_brightness(template, target):
-    """Normalizes the brightness of the target image based on the luminance of
-    the template image. This refers to the process of bringing the brightness
-    of the target image into alignment with the brightness of the template
-    image. This can help ensure consistency in brightness perception between
-    the two images, which is particularly useful in applications such as image
-    comparison, enhancement, or blending.
+def compute_mean_brightness(images):
+    """Compute the mean brightness across a set of images."""
+    mean_brightness = 0
+    for img in images:
+        if len(img.shape) == 3:  # Color image
+            img_lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+            l_channel, _, _ = cv2.split(img_lab)
+        else:  # Grayscale image
+            l_channel = img
+        mean_brightness += np.mean(l_channel)
+    return mean_brightness / len(images)
+
+def compute_mean_contrast(images):
+    """Compute the mean contrast across a set of images."""
+    mean_contrast = 0
+    for img in images:
+        if len(img.shape) == 3:  # Color image
+            img_lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+            l_channel, _, _ = cv2.split(img_lab)
+        else:  # Grayscale image
+            l_channel = img
+        mean_contrast += np.std(l_channel)
+    return mean_contrast / len(images)
+
+def compute_mean_sharpness(images):
+    """Compute the mean sharpness across a set of images."""
+    mean_sharpness = 0
+    for img in images:
+        if len(img.shape) == 3:  # Color image
+            img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        else:  # Grayscale image
+            img_gray = img
+        grad_x = cv2.Sobel(img_gray, cv2.CV_64F, 1, 0, ksize=3)
+        grad_y = cv2.Sobel(img_gray, cv2.CV_64F, 0, 1, ksize=3)
+        grad = cv2.magnitude(grad_x, grad_y)
+        mean_sharpness += np.mean(grad)
+    return mean_sharpness / len(images)
+
+# Normalize Brightness Function
+def normalize_brightness_set(images, mean_brightness):
+    """Normalize brightness of all images in the set to the mean brightness."""
+    normalized_images = []
+    for img in images:
+        if len(img.shape) == 3:  # Color image
+            img_lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+            l_channel, a_channel, b_channel = cv2.split(img_lab)
+            current_brightness = np.mean(l_channel)
+            print(f"Original brightness: {current_brightness}")
+            l_channel = (l_channel * (mean_brightness / current_brightness)).clip(0, 255).astype(np.uint8)
+            normalized_img_lab = cv2.merge([l_channel, a_channel, b_channel])
+            normalized_img = cv2.cvtColor(normalized_img_lab, cv2.COLOR_LAB2BGR)
+            print(f"Normalized brightness: {np.mean(l_channel)}")
+        else:  # Grayscale image
+            l_channel = img
+            current_brightness = np.mean(l_channel)
+            print(f"Original brightness: {current_brightness}")
+            normalized_img = (l_channel * (mean_brightness / current_brightness)).clip(0, 255).astype(np.uint8)
+            print(f"Normalized brightness: {np.mean(normalized_img)}")
+        normalized_images.append(normalized_img)
+    return normalized_images
+
+# Normalize Contrast Function
+def normalize_contrast_set(images, mean_contrast):
+    """Normalize contrast of all images in the set to the mean contrast."""
+    normalized_images = []
+    for img in images:
+        if len(img.shape) == 3:  # Color image
+            img_lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+            l_channel, a_channel, b_channel = cv2.split(img_lab)
+            current_contrast = np.std(l_channel)
+            print(f"Original contrast: {current_contrast}")
+            l_channel = (l_channel * (mean_contrast / current_contrast)).clip(0, 255).astype(np.uint8)
+            normalized_img_lab = cv2.merge([l_channel, a_channel, b_channel])
+            normalized_img = cv2.cvtColor(normalized_img_lab, cv2.COLOR_LAB2BGR)
+            print(f"Normalized contrast: {np.std(l_channel)}")
+        else:  # Grayscale image
+            l_channel = img
+            current_contrast = np.std(l_channel)
+            print(f"Original contrast: {current_contrast}")
+            normalized_img = (l_channel * (mean_contrast / current_contrast)).clip(0, 255).astype(np.uint8)
+            print(f"Normalized contrast: {np.std(normalized_img)}")
+        normalized_images.append(normalized_img)
+    return normalized_images
+
+# Normalize Sharpness Function
+def normalize_sharpness_set(images, mean_sharpness):
+    """Normalize sharpness of all images in the set to the mean sharpness."""
+    normalized_images = []
+    for img in images:
+        if len(img.shape) == 3:  # Color image
+            img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        else:  # Grayscale image
+            img_gray = img
+        grad_x = cv2.Sobel(img_gray, cv2.CV_64F, 1, 0, ksize=3)
+        grad_y = cv2.Sobel(img_gray, cv2.CV_64F, 0, 1, ksize=3)
+        grad = cv2.magnitude(grad_x, grad_y)
+        current_sharpness = np.mean(grad)
+        print(f"Original sharpness: {current_sharpness}")
+        if len(img.shape) == 3:  # Color image
+            normalized_img = (img * (mean_sharpness / current_sharpness)).clip(0, 255).astype(np.uint8)
+            print(f"Normalized sharpness: {np.mean(normalized_img)}")
+        else:  # Grayscale image
+            normalized_img = (img * (mean_sharpness / current_sharpness)).clip(0, 255).astype(np.uint8)
+            print(f"Normalized sharpness: {np.mean(normalized_img)}")
+        normalized_images.append(normalized_img)
+    return normalized_images
+
+
+def equalize_images(images, brightness=False, contrast=False, sharpness=False):
+    """Preprocesses the input images based on the selected enhancement options.
 
     Parameters:
-    - template: Reference image (template) in BGR color format.
-    - target: Target image to be adjusted in BGR color format.
-    .
-
-    Returns:
-    - equalized_img: Adjusted target image with equalized brightness
-
-    The function converts both the template and target images to the LAB color space,
-    adjusts the L channel of the target image based on the mean brightness of the template,
-    and then converts the adjusted LAB image back to BGR.
-    """
-
-    # Convert the template image to LAB color space
-    template_lab = cv2.cvtColor(template, cv2.COLOR_BGR2LAB)
-
-    # Split LAB channels of the template image
-    l_template, a_template, b_template = cv2.split(template_lab)
-
-    # Convert the target image to LAB color space
-    target_lab = cv2.cvtColor(target, cv2.COLOR_BGR2LAB)
-
-    # Split LAB channels of the target image
-    l_target, a_target, b_target = cv2.split(target_lab)
-
-    # Adjust the L channel (brightness) of the target image based
-    # on the mean brightness of the template
-    l_target = (
-        (l_target * (np.mean(l_template) / np.mean(l_target))).clip(0, 255).astype(np.uint8)
-    )
-
-    # Merge LAB channels back for the adjusted target image
-    equalized_img_lab = cv2.merge([l_target, a_target, b_target])
-
-    # Convert the adjusted LAB image back to BGR
-    equalized_img = cv2.cvtColor(equalized_img_lab, cv2.COLOR_LAB2BGR)
-
-    ## Using LAB color space
-    # we convert the images (template and eq_image) to the LAB color space and calculate
-    # the mean brightness from the luminance channel (L) only
-
-    # Calculate the mean of the color images from the luminance channel
-    mean_template_lab = np.mean(cv2.split(template_lab)[0])
-    mean_eq_image_lab = np.mean(cv2.split(cv2.cvtColor(equalized_img, cv2.COLOR_BGR2LAB))[0])
-
-    # The ratio is computed based on the mean brightness of the L channel for both color images
-    ratio_lab = mean_template_lab / mean_eq_image_lab
-
-    ## Using RGB color space
-    # We calculate the mean intensity across all color channels (R, G, B) for both images
-    # (template and equalized_image), i.e., the ratio is computed based on the mean intensity
-    # across all color channels for both images
-    mean_template_rgb = np.mean(template)
-    mean_eq_image_rgb = np.mean(equalized_img)
-
-    # ratio of the brightness of the images
-    ratio_rgb = mean_template_rgb / mean_eq_image_rgb
-
-    # Calculate the mean of the grayscale images
-    mean_template_gray = np.mean(cv2.cvtColor(template, cv2.COLOR_BGR2GRAY))
-    mean_eq_image_gray = np.mean(cv2.cvtColor(equalized_img, cv2.COLOR_BGR2GRAY))
-    # Calculate the ratio of the brightness of the grayscale images
-    ratio_gray = mean_template_gray / mean_eq_image_gray
-
-    print(f'Brightness ratio (LAB): {ratio_lab}')
-    print(f'Brightness ratio (RGB): {ratio_rgb}')
-    print(f'Brightness ratio (Grayscale): {ratio_gray}')
-
-    return equalized_img
-
-
-def normalize_contrast(template, target):
-    """Normalize the contrast of the target image to match the contrast of the
-    template image.
-
-    Parameters:
-    - template: Reference image (template) in BGR or grayscale format.
-    - target: Target image to be adjusted in BGR or grayscale format.
-
-    Returns:
-    - normalized_img: Target image with contrast normalized to match the template image.
-    """
-    if len(template.shape) == 3 and len(target.shape) == 3:  # Both images are color
-        # Convert images to LAB color space
-        template_lab = cv2.cvtColor(template, cv2.COLOR_BGR2LAB)
-        target_lab = cv2.cvtColor(target, cv2.COLOR_BGR2LAB)
-
-        # Calculate contrast metric (standard deviation) for L channel of both images
-        std_template = np.std(template_lab[:, :, 0])
-        std_target = np.std(target_lab[:, :, 0])
-
-        # Adjust contrast of target image to match template image
-        l_target = (
-            (target_lab[:, :, 0] * (std_template / std_target)).clip(0, 255).astype(np.uint8)
-        )
-        normalized_img_lab = cv2.merge([l_target, target_lab[:, :, 1], target_lab[:, :, 2]])
-
-        # Convert the adjusted LAB image back to BGR
-        normalized_img = cv2.cvtColor(normalized_img_lab, cv2.COLOR_LAB2BGR)
-
-        print(f'Contrast value (template): {std_template}')
-        print(f'Contrast value (target): {std_target}')
-        print(f'Contrast ratio: {std_template / std_target}')
-        print(f'Adapted value (target): {np.std(normalized_img_lab[:, :, 0])}')
-
-    else:
-        # Both images are grayscale
-        # Calculate contrast metric (standard deviation) for grayscale intensity of both images
-        std_template = np.std(template)
-        std_target = np.std(target)
-
-        # Adjust contrast of target image to match template image
-        normalized_img = (target * (std_template / std_target)).clip(0, 255).astype(np.uint8)
-
-        print(f'Contrast value (template): {std_template}')
-        print(f'Contrast value (target): {std_target}')
-        print(f'Contrast ratio: {std_template / std_target}')
-        print(f'Adapted value (target): {np.std(normalized_img_lab[:, :, 0])}')
-
-    return normalized_img
-
-
-def normalize_sharpness(template, target):
-    """Normalize the sharpness of the target image to match the sharpness of
-    the template image.
-
-    Parameters
-    ----------
-    template : ...
-        Reference image (template) in BGR or grayscale format.
-    target : ...
-        Target image to be adjusted in BGR or grayscale format.
-
-    Returns
-    -------
-    normalized_img : ...
-        Target image with sharpness normalized to match the template image.
-    """
-    if len(template.shape) == 3 and len(target.shape) == 3:
-        # Both images are color
-        # Convert images to grayscale
-        template_gray = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
-        target_gray = cv2.cvtColor(target, cv2.COLOR_BGR2GRAY)
-    else:
-        template_gray = template
-        target_gray = target
-
-    # Calculate image gradients for both images
-    grad_x_template = cv2.Sobel(template_gray, cv2.CV_64F, 1, 0, ksize=3)
-    grad_y_template = cv2.Sobel(template_gray, cv2.CV_64F, 0, 1, ksize=3)
-    grad_template = cv2.magnitude(grad_x_template, grad_y_template)
-    grad_x_target = cv2.Sobel(target_gray, cv2.CV_64F, 1, 0, ksize=3)
-    grad_y_target = cv2.Sobel(target_gray, cv2.CV_64F, 0, 1, ksize=3)
-    grad_target = cv2.magnitude(grad_x_target, grad_y_target)
-
-    # Calculate sharpness metric (mean gradient magnitude) for both images
-    mean_grad_template = np.mean(grad_template)
-    mean_grad_target = np.mean(grad_target)
-
-    # Adjust sharpness of target image to match template image
-    normalized_img = (
-        (target * (mean_grad_template / mean_grad_target)).clip(0, 255).astype(np.uint8)
-    )
-
-    # Print sharpness values
-    print(f'Sharpness value (template): {mean_grad_template}')
-    print(f'Sharpness value (target): {mean_grad_target}')
-    print(f'Sharpness ratio: {mean_grad_template / mean_grad_target}')
-
-    # Calculate sharpness value for the normalized image
-    grad_x_normalized = cv2.Sobel(
-        cv2.cvtColor(normalized_img, cv2.COLOR_BGR2GRAY), cv2.CV_64F, 1, 0, ksize=3
-    )
-    grad_y_normalized = cv2.Sobel(
-        cv2.cvtColor(normalized_img, cv2.COLOR_BGR2GRAY), cv2.CV_64F, 0, 1, ksize=3
-    )
-    grad_normalized = cv2.magnitude(grad_x_normalized, grad_y_normalized)
-    mean_grad_normalized = np.mean(grad_normalized)
-    print(f'Sharpness value (normalized): {mean_grad_normalized}')
-
-    return normalized_img
-
-
-def normalize_colors(template, target):
-    """Normalize the colors of the target image to match the color distribution
-    of the template image.
-
-    Parameters:
-    - template: Reference image (template) in BGR color format.
-    - target: Target image to be adjusted in BGR color format.
-
-    Returns:
-    - normalized_img: Target image with colors normalized to match the template image.
-    """
-
-    matched = match_histograms(target, template, channel_axis=-1)
-    return matched
-
-
-def get_mean_and_std(x):
-    """Calculate the mean and standard deviation of each channel in an image.
-
-    Parameters:
-    - x: Input image in BGR color format.
-
-    Returns:
-    - mean: Mean values of each channel.
-    - std: Standard deviation of each channel.
-    """
-    mean, std = cv2.meanStdDev(x)
-    mean = np.around(mean.flatten(), 2)
-    std = np.around(std.flatten(), 2)
-    return mean, std
-
-
-def reinhard_color_transfer(template, target):
-    """Perform Reinhard color transfer from the template image to the target
-    image.
-
-    Parameters:
-    - template: Reference image (template) in BGR color format.
-    - target: Target image to be adjusted in BGR color format.
-
-    Returns:
-    - adjusted_img: Target image with colors adjusted using Reinhard color transfer.
-    """
-    # Convert images to LAB color space
-    template_lab = cv2.cvtColor(template, cv2.COLOR_BGR2LAB)
-    target_lab = cv2.cvtColor(target, cv2.COLOR_BGR2LAB)
-
-    # Compute mean and standard deviation of each channel in LAB color space
-    template_mean, template_std = get_mean_and_std(template_lab)
-    target_mean, target_std = get_mean_and_std(target_lab)
-
-    # Apply color transfer
-    target_lab = ((target_lab - target_mean) * (template_std / target_std)) + template_mean
-    target_lab = np.clip(target_lab, 0, 255)
-
-    # Convert back to BGR color space
-    adjusted_img = cv2.cvtColor(target_lab.astype(np.uint8), cv2.COLOR_LAB2BGR)
-
-    return adjusted_img
-
-def equalize_images(
-    template: np.ndarray,
-    image: np.ndarray,
-    *,
-    brightness=False,
-    contrast=False,
-    sharpness=False,
-    color=False,
-    reinhard=False,
-    ):
-    """Preprocesses the input image based on the selected enhancement options.
-
-    Parameters:
-    - image: The input image in BGR format.
+    - images: The input images in BGR or gray format.
     - brightness: Whether to equalize brightness.
     - contrast: Whether to equalize contrast.
     - sharpness: Whether to equalize sharpness.
-    - color: Whether to equalize colors.
+    
 
     Returns:
-    - preprocessed_image: The preprocessed image.
+    - images: the images with identical brightnes, cintrast and sharpness
     """
     if brightness:
-        image = normalize_brightness(template, image)
+        mean_brightness = compute_mean_brightness(images)
+        images = normalize_brightness_set(images, mean_brightness)
 
     if contrast:
-        image = normalize_contrast(template, image)
+        mean_contrast = compute_mean_contrast(images)
+        images = normalize_contrast_set(images, mean_contrast)
 
     if sharpness:
-        image = normalize_sharpness(template, image)
+        mean_sharpness = compute_mean_sharpness(images)
+        images = normalize_sharpness_set(images, mean_sharpness)
 
-    if color:
-        image = normalize_colors(template, image)
-
-    if reinhard:
-        image = reinhard_color_transfer(template, image)
-
-    return image
+    return images
