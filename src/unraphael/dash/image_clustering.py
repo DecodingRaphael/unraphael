@@ -34,6 +34,7 @@ import cv2
 from PIL import Image
 import matplotlib.pyplot as plt
 import numpy as np
+from clusteval import clusteval
 
 import ssim.ssimlib as pyssim
 from skimage.metrics import structural_similarity as ssim
@@ -200,9 +201,9 @@ def get_image_similarity(img1, img2, algorithm = 'SSIM'):
     img1_gray = img1.astype(np.uint8)
     img2_gray = img2.astype(np.uint8)
     
-    print("Initial images")
-    print("Image 1 shape:", img1_gray.shape, "dtype:", img1_gray.dtype)
-    print("Image 2 shape:", img2_gray.shape, "dtype:", img2_gray.dtype)
+    # print("Initial images")
+    # print("Image 1 shape:", img1_gray.shape, "dtype:", img1_gray.dtype)
+    # print("Image 2 shape:", img2_gray.shape, "dtype:", img2_gray.dtype)
 
     # Create masks to isolate the foreground
     _, mask1 = cv2.threshold(img1_gray, 1, 255, cv2.THRESH_BINARY)
@@ -216,9 +217,9 @@ def get_image_similarity(img1, img2, algorithm = 'SSIM'):
     i1 = cv2.bitwise_and(img1_gray, img1_gray, mask=mask1)
     i2 = cv2.bitwise_and(img2_gray, img2_gray, mask=mask2)
     
-    print("After masking")
-    print("Masked Image 1 shape:", i1.shape, "dtype:", i1.dtype)
-    print("Masked Image 2 shape:", i2.shape, "dtype:", i2.dtype)
+    # print("After masking")
+    # print("Masked Image 1 shape:", i1.shape, "dtype:", i1.dtype)
+    # print("Masked Image 2 shape:", i2.shape, "dtype:", i2.dtype)
         
     similarity = 0.000
 
@@ -269,7 +270,7 @@ def get_image_similarity(img1, img2, algorithm = 'SSIM'):
     similarity = np.nan_to_num(similarity)
     
     # Debug prints
-    print(f"Algorithm: {algorithm}, Similarity: {similarity}")
+    # print(f"Algorithm: {algorithm}, Similarity: {similarity}")
     
     return similarity
 
@@ -292,7 +293,7 @@ def build_similarity_matrix(images, algorithm = 'SSIM'):
 
     def compute_similarity(i, j):
         if i != j:
-            print(f"Similarity between images {i} and {j} computed.")
+            # print(f"Similarity between images {i} and {j} computed.")
             return get_image_similarity(images[i], images[j], algorithm)
         return 1.0
     
@@ -347,38 +348,95 @@ def get_cluster_metrics(X, labels, labels_true = None):
 
     return metrics_dict
 
-def determine_optimal_clusters(matrix):
+# def determine_optimal_clusters(matrix):
+#     """
+#     Determines the optimal number of clusters using the elbow method.
+
+#     Args:
+#         matrix (numpy.ndarray): The input matrix for clustering.
+
+#     Returns:
+#         int: The optimal number of clusters.
+
+#     """
+#     max_clusters = min(len(matrix), 10)
+#     inertias = []
+    
+#     for k in range(2, max_clusters+1):
+#         kmeans = KMeans(n_clusters = k, random_state = 42).fit(matrix)
+#         inertias.append(kmeans.inertia_)
+    
+#     # Plot the inertia to visualize the elbow point
+#     # plt.figure()
+#     # plt.plot(range(2, max_clusters+1), inertias, 'bo-')
+#     # plt.xlabel('Number of clusters')
+#     # plt.ylabel('Inertia')
+#     # plt.title('Elbow Method For Optimal Clusters')
+#     # plt.show()
+
+#     # Identify the elbow point
+#     elbow_point = 2  # default
+#     if len(inertias) > 1:
+#         diffs = np.diff(inertias)
+#         elbow_point = np.argmin(diffs) + 2  # +2 because the range starts from 2
+    
+#     return elbow_point
+
+def determine_optimal_clusters(matrix, method='elbow', cluster_method='kmeans', metric='euclidean', linkage='ward', min_clust=2, max_clust=10):
     """
-    Determines the optimal number of clusters using the elbow method.
+    Determines the optimal number of clusters using various evaluation methods.
 
     Args:
         matrix (numpy.ndarray): The input matrix for clustering.
+        method (str): The cluster evaluation method. Options: 'elbow', 'silhouette', 'dbindex', 'derivative'.
+        cluster_method (str): The clustering method to use. Options: 'kmeans', 'agglomerative', 'dbscan', 'hdbscan'.
+        metric (str): The distance metric to use.
+        linkage (str): The linkage method for agglomerative clustering.
+        min_clust (int): The minimum number of clusters to evaluate.
+        max_clust (int): The maximum number of clusters to evaluate.
 
     Returns:
         int: The optimal number of clusters.
-
     """
-    max_clusters = min(len(matrix), 10)
-    inertias = []
-    
-    for k in range(2, max_clusters+1):
-        kmeans = KMeans(n_clusters = k, random_state = 42).fit(matrix)
-        inertias.append(kmeans.inertia_)
-    
-    # Plot the inertia to visualize the elbow point
-    # plt.figure()
-    # plt.plot(range(2, max_clusters+1), inertias, 'bo-')
-    # plt.xlabel('Number of clusters')
-    # plt.ylabel('Inertia')
-    # plt.title('Elbow Method For Optimal Clusters')
-    # plt.show()
+    if method == 'elbow':
+        inertias = []
+        for k in range(min_clust, max_clust + 1):
+            kmeans = KMeans(n_clusters=k, random_state = 42).fit(matrix)
+            inertias.append(kmeans.inertia_)
 
-    # Identify the elbow point
-    elbow_point = 2  # default
-    if len(inertias) > 1:
-        diffs = np.diff(inertias)
-        elbow_point = np.argmin(diffs) + 2  # +2 because the range starts from 2
-    return elbow_point
+        # Plot the inertia to visualize the elbow point
+        # plt.figure()
+        # plt.plot(range(min_clust, max_clust + 1), inertias, 'bo-')
+        # plt.xlabel('Number of clusters')
+        # plt.ylabel('Inertia')
+        # plt.title('Elbow Method For Optimal Clusters')
+        # plt.show()
+
+        # Calculate the second derivative to find the elbow point
+        if len(inertias) > 2:
+            diffs = np.diff(inertias, 2)
+            optimal_clusters = np.argmin(diffs) + min_clust + 1  # +1 due to the way np.diff works
+        else:
+            optimal_clusters = min_clust + 1  # Fallback if not enough points for second derivative
+    else:
+        ce = clusteval(cluster=cluster_method, evaluate=method, metric=metric, linkage=linkage, min_clust=min_clust, max_clust=max_clust)
+        results = ce.fit(matrix)
+        print(f"ClustEval results: {results}")
+        
+        if method == 'silhouette':
+            # Access silhouette scores and corresponding cluster numbers
+            silhouette_scores = results['score']['score']
+            cluster_numbers = results['score']['clusters']
+
+            # Find the index of the maximum silhouette score
+            optimal_index = np.argmax(silhouette_scores)
+            optimal_clusters = cluster_numbers[optimal_index]
+            
+            print(f"Optimal_clusters: {optimal_clusters}")
+            
+        #TODO: implement DBindex and Derivative method
+                        
+    return optimal_clusters
 
 
 def plot_clusters(images, labels, n_clusters, title = "Clustering Results"):

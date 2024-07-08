@@ -136,7 +136,7 @@ def cluster_image_widget(images: dict[str, np.ndarray]):
     )    
     
     if cluster_method == 'SpectralClustering':
-        specify_clusters = st.checkbox('Do you want to specify the number of clusters?', value=False)
+        specify_clusters = st.checkbox('Do you want to specify the number of clusters beforehand?', value=False)
         if specify_clusters:
             n_clusters = st.number_input('Number of clusters:', min_value=2, step=1, value=4)
         else:
