@@ -1,11 +1,9 @@
 from __future__ import annotations
-#from typing import Any
 import numpy as np
 import streamlit as st
-from unraphael.dash.image_clustering import align_images_to_mean, equalize_images, cluster_images, compute_metrics
+from unraphael.dash.image_clustering import align_images_to_mean, equalize_images, cluster_images, compute_metrics, clustimage_clustering, plot_clusters
 from styling import set_custom_css
-from widgets import load_images_widget
-from matplotlib import pyplot as plt
+from widgets import load_images_widget, show_heatmaps_widget
 from skimage import color
 
 def show_images_widget(
@@ -57,17 +55,15 @@ def equalize_images_widget(*, images: dict[str, np.ndarray]) -> dict[str, np.nda
         all_images = [img for name, img in images.items()]
         
         # Equalize the entire set of images
-        equalized_images = equalize_images(all_images, **preprocess_options)
+        equalized_images = equalize_images(all_images, **preprocess_options)              
+    
+    with col2:                
         
-        # Compute metrics on the equalized images
         metrics = compute_metrics(equalized_images)
-
-    # Display metrics in Streamlit app
-    with col2:
+        
         col2.subheader('Metrics after equalization')
 
-        col3, col4 = st.columns((2))   
-                    
+        col3, col4 = st.columns((2))          
         col3.metric('Mean Normalized Brightness', metrics['mean_normalized_brightness'])
         col4.metric('SD Normalized Brightness', metrics['sd_normalized_brightness'])
         
@@ -75,8 +71,7 @@ def equalize_images_widget(*, images: dict[str, np.ndarray]) -> dict[str, np.nda
         col4.metric('SD Normalized Contrast', metrics['sd_normalized_contrast'])
         
         col3.metric('Mean Normalized Sharpness', metrics['mean_normalized_sharpness'])
-        col4.metric('SD Normalized Sharpness', metrics['sd_normalized_sharpness'])
-    
+        col4.metric('SD Normalized Sharpness', metrics['sd_normalized_sharpness'])    
     
     # Map the equalized images back to their original names
     return {name: equalized_images[i] for i, name in enumerate(images.keys())}
@@ -94,8 +89,7 @@ def align_to_mean_image_widget(*, images: dict[str, np.ndarray]) -> dict[str, np
              'affine',
              'bilinear'],
             help=(
-                'The motion model defines the transformation one wants'
-                'to account for. '          
+                'The motion model defines the specific transformation one wants to apply.'          
             ),
         )
     
@@ -137,8 +131,8 @@ def cluster_image_widget(images: dict[str, np.ndarray]):
                 
     cluster_method = st.selectbox(
         'Unsupervised clustering algorithms:',
-        ['SpectralClustering', 'AffinityPropagation', 'KMeans', 'DBSCAN'],
-        help='The cluster method defines the way in which the images are grouped.'
+        ['SpectralClustering', 'AffinityPropagation', 'DBSCAN'],
+        help = 'The cluster method defines the way in which the images are grouped.'
     )    
     
     if cluster_method == 'SpectralClustering':
@@ -153,9 +147,8 @@ def cluster_image_widget(images: dict[str, np.ndarray]):
     measure = st.selectbox(
         'Select the similarity measure to cluster on:',
         ['SIFT', 'SSIM', 'CW-SSIM', 'MSE','Brushstrokes'],
-        help='Select a similarity measure used for clustering the images:')
-            
-    col1, col2 = st.columns((2))
+        help='Select a similarity measure used as the basis for clustering the images:')            
+    
         
     image_list = list(images.values())
     image_names = list(images.keys()) 
@@ -163,7 +156,7 @@ def cluster_image_widget(images: dict[str, np.ndarray]):
     # Ensure images are 3D arrays (grayscale) before stacking
     image_list = [image if image.ndim == 2 else color.rgb2gray(image) for image in image_list]
     
-    c = cluster_images(np.array(image_list), 
+    c,n_clusters = cluster_images(np.array(image_list), 
                            algorithm     = measure, 
                            n_clusters    = n_clusters, 
                            method        = cluster_method, 
@@ -172,8 +165,8 @@ def cluster_image_widget(images: dict[str, np.ndarray]):
 
     if c is None:
         st.error("Clustering failed. Please check the parameters and try again.")
-        return
-    
+        return        
+        
     num_clusters = len(set(c))
     for n in range(num_clusters):
             cluster_label = n + 1
@@ -183,6 +176,28 @@ def cluster_image_widget(images: dict[str, np.ndarray]):
             cluster_images_dict = {image_names[i]: image_list[i] for i in cluster_indices}
             show_images_widget(cluster_images_dict, key=f'cluster_{cluster_label}_images', message=f'Images from Cluster #{cluster_label}')
 
+    fig = plot_clusters(images, c, n_clusters, title=f"{cluster_method} Clustering Results")
+    st.pyplot(fig)
+    
+    figures = clustimage_clustering(image_list)
+    
+    col1, col2 = st.columns(2)
+     
+    with col1:
+        st.header("Scatter Plot")
+        if isinstance(figures['scatter_plot'], tuple):
+            # Select the figure part of the tuple
+            st.pyplot(figures['scatter_plot'][0])
+        else:
+            st.pyplot(figures['scatter_plot'])
+
+    with col2:
+        st.header("Dendrogram Plot")
+        if isinstance(figures['dendrogram_plot'], dict):
+            # Select the figure part from 'ax'
+            st.pyplot(figures['dendrogram_plot']['ax'])
+        else:
+            st.pyplot(figures['dendrogram_plot'])
             
 def main():
     set_custom_css()
@@ -210,9 +225,11 @@ def main():
     
     st.markdown('---')
     with st.expander('Help for aligning images', expanded=False):
-        alignment_help_widget()            
-    aligned_images = align_to_mean_image_widget(images = images) # creates aligned images, similar size and gray scale        
-
+        alignment_help_widget()   
+                 
+    # creates aligned images, similar size and gray scale
+    aligned_images = align_to_mean_image_widget(images = images)
+    
     st.markdown('---')
     st.subheader('The aligned images (with equalized brightness, contrast, and sharpness)')
     show_images_widget(aligned_images, message='Your aligned images')
@@ -222,6 +239,7 @@ def main():
     cluster_image_widget(aligned_images)
     
     # add heatmap of similarity matrix
+    #show_heatmaps_widget(heatmaps=heatmaps, labels=tuple(features.keys()))
     
 if __name__ == '__main__':
     main()
