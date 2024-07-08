@@ -362,7 +362,7 @@ def determine_optimal_clusters(matrix):
     inertias = []
     
     for k in range(2, max_clusters+1):
-        kmeans = KMeans(n_clusters=k).fit(matrix)
+        kmeans = KMeans(n_clusters = k, random_state = 42).fit(matrix)
         inertias.append(kmeans.inertia_)
     
     # Plot the inertia to visualize the elbow point
@@ -431,8 +431,8 @@ def cluster_images(images, algorithm, n_clusters, method, print_metrics = True, 
     if n_clusters is None and method != 'DBSCAN':
         n_clusters = determine_optimal_clusters(matrix)
     
-    # SpectralClustering requires the number of clusters to be specified in advance. It works well 
-    # for a small number of clusters, but is not advised for many clusters.         
+    # SpectralClustering requires the number of clusters to be specified in advance. It works well for a small 
+    # number of clusters, but is not advised for many clusters
     if method == 'SpectralClustering':
         sc = SpectralClustering(n_clusters = n_clusters, random_state = 42, affinity = 'precomputed').fit(matrix)
         sc_metrics = get_cluster_metrics(matrix, sc.labels_, labels_true)
@@ -444,7 +444,7 @@ def cluster_images(images, algorithm, n_clusters, method, print_metrics = True, 
                 print(f"{k}: {v:.2f}")
         return sc.labels_, n_clusters
        
-    # Affinity Propagation is most appropriate for small to medium sized datasets
+    # Affinity propagation is most appropriate for small to medium sized datasets
     elif method == 'AffinityPropagation':
         af = AffinityPropagation(affinity = 'precomputed', random_state = 42).fit(matrix)
         af_metrics = get_cluster_metrics(matrix, af.labels_, labels_true)
@@ -455,7 +455,7 @@ def cluster_images(images, algorithm, n_clusters, method, print_metrics = True, 
             for k, v in af_metrics.items():
                 print(f"{k}: {v:.2f}")
         return af.labels_, len(set(af.labels_))
-    
+        
     elif method == 'DBSCAN':
         db = DBSCAN(metric='precomputed', eps=0.5, min_samples=2).fit(matrix)
         db_labels = db.labels_
