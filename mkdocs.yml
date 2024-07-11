@@ -9,6 +9,11 @@ nav:
   - Code of Conduct: CODE_OF_CONDUCT.md
   - 🔗 Source code: https://github.com/DecodingRaphael/unraphael
   - 🔗 Issues: https://github.com/DecodingRaphael/unraphael/issues
+  - About: 
+    - How to Cite: About/CITE.md
+    - Contact: About/CONTACT.md
+    - In action: About/ACTION.md
+    - FAQ's: About/FAQS.md
 
 theme:
   name: material
