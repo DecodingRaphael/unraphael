@@ -119,13 +119,14 @@ def align_images_to_mean(
         raise ValueError("Invalid feature method selected.")
         
     aligned_images = {name: aligned_images_stack[i] for i, name in enumerate(images.keys())}
-    print("##") 
-    type(aligned_images)    
-    return aligned_images    
     
-# Once the edge features are computed, the standard deviation is calculated for
-# every individual edge feature obtained from an image. The standard deviation serves as
-# an effective metric to quantify the variability and intensity of edge features in the image.
+    return aligned_images
+    
+# Once the edge features are computed, the standard deviation is
+# calculated for every individual edge feature obtained from an
+# image. The standard deviation serves as an effective metric to
+# quantify the variability and intensity of edge features in the
+# image.
 
 def calculate_canny_edges(img):
     edges = cv2.Canny(img, 100, 200)
@@ -154,13 +155,8 @@ def calculate_features(img):
     sobel_edges_x, sobel_edges_y   = calculate_sobel_edges(img)
     laplacian_edges                = calculate_laplacian_edges(img)
     scharr_edges_x, scharr_edges_y = calculate_scharr_edges(img)
-    histogram_features             = calculate_histogram_features(img)
-          
-    # features = np.array([canny_edges, 
-    #                      sobel_edges_x, sobel_edges_y, 
-    #                      laplacian_edges, 
-    #                      scharr_edges_x, scharr_edges_y])
-    
+    histogram_features             = calculate_histogram_features(img)         
+        
     # Replace NaN values with 0 (or another appropriate value)
     features = np.concatenate([
         np.array([
@@ -172,39 +168,18 @@ def calculate_features(img):
             np.nan_to_num(scharr_edges_y)
         ]),
         histogram_features
-    ])
-    
-    print("Features calculated: ", features)
-    return features          
-
-# # Read images in gray
-# img1 = cv2.imread('../../../data/interim/aligned_072024/output_0.png')
-# img2 = cv2.imread('../../../data/interim/aligned_072024/output_2.png')
-
-# # # Resize the images to the same size
-# img1 = cv2.resize(img1, SIM_IMAGE_SIZE)
-# img2 = cv2.resize(img2, SIM_IMAGE_SIZE)
-
-# # Convert images to grayscale
-# img1 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
-# img2 = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
-
-# cv2.imshow('Image', img2)
-# cv2.waitKey(0)
-# cv2.destroyAllWindows()
-
+    ])    
+    return features
 
 def get_image_similarity(img1, img2, algorithm = 'SSIM'):
-    """ Returns the normalized similarity value (from 0.0 to 1.0) for the provided pair of images. """          
+    """ Returns the normalized similarity value (from 0.0 to 1.0) for 
+    the provided pair of images. The similarity is calculated using the
+    specified algorithm."""          
     
     # Ensure the images are of type np.uint8
     img1_gray = img1.astype(np.uint8)
     img2_gray = img2.astype(np.uint8)
     
-    # print("Initial images")
-    # print("Image 1 shape:", img1_gray.shape, "dtype:", img1_gray.dtype)
-    # print("Image 2 shape:", img2_gray.shape, "dtype:", img2_gray.dtype)
-
     # Create masks to isolate the foreground
     _, mask1 = cv2.threshold(img1_gray, 1, 255, cv2.THRESH_BINARY)
     _, mask2 = cv2.threshold(img2_gray, 1, 255, cv2.THRESH_BINARY)
@@ -216,12 +191,8 @@ def get_image_similarity(img1, img2, algorithm = 'SSIM'):
     # Apply the masks to isolate the foreground
     i1 = cv2.bitwise_and(img1_gray, img1_gray, mask=mask1)
     i2 = cv2.bitwise_and(img2_gray, img2_gray, mask=mask2)
-    
-    # print("After masking")
-    # print("Masked Image 1 shape:", i1.shape, "dtype:", i1.dtype)
-    # print("Masked Image 2 shape:", i2.shape, "dtype:", i2.dtype)
         
-    similarity = 0.000
+    similarity = 0.0
 
     if algorithm == 'SIFT':
         sift = cv2.SIFT_create()
@@ -260,18 +231,15 @@ def get_image_similarity(img1, img2, algorithm = 'SSIM'):
         # Compare features between the two images
         difference = np.abs(features_i1 - features_i2)
         similarity = np.mean(difference)
-        
-        print("Brushstrokes similarity: ", similarity)
+    
+    #TODO: implement other similarity algorithms form PIQ package
+    # convert tensor to numpy arrays         
                 
     else:
         raise ValueError(f"Unsupported algorithm: {algorithm}")
-
-    # Ensure similarity is a valid number
-    similarity = np.nan_to_num(similarity)
     
-    # Debug prints
-    # print(f"Algorithm: {algorithm}, Similarity: {similarity}")
-    
+    similarity = np.nan_to_num(similarity)    
+        
     return similarity
 
 def build_similarity_matrix(images, algorithm = 'SSIM'):
@@ -287,13 +255,13 @@ def build_similarity_matrix(images, algorithm = 'SSIM'):
     Returns:
         numpy.ndarray: The similarity matrix.
     """
+    
     num_images = len(images)
     sm = np.zeros((num_images, num_images), dtype=np.float64)
     np.fill_diagonal(sm, 1.0)
 
     def compute_similarity(i, j):
-        if i != j:
-            # print(f"Similarity between images {i} and {j} computed.")
+        if i != j:            
             return get_image_similarity(images[i], images[j], algorithm)
         return 1.0
     
@@ -302,8 +270,7 @@ def build_similarity_matrix(images, algorithm = 'SSIM'):
                    for i in range(num_images) for j in range(i + 1, num_images)]
         for i, j, future in futures:
             sm[i, j] = sm[j, i] = future.result()
-            
-    # Print the similarity matrix with two decimals #TODO: replace with heatmap widget
+    
     for row in sm:
         print(' '.join(f'{val:.2f}' for val in row))        
     return sm
@@ -382,7 +349,13 @@ def get_cluster_metrics(X, labels, labels_true = None):
     
 #     return elbow_point
 
-def determine_optimal_clusters(matrix, method='elbow', cluster_method='kmeans', metric='euclidean', linkage='ward', min_clust=2, max_clust=10):
+def determine_optimal_clusters(matrix, 
+                               method         = 'elbow',
+                               cluster_method = 'kmeans',
+                               metric         = 'euclidean',
+                               linkage        = 'ward',
+                               min_clust      = 2,
+                               max_clust      = 10):
     """
     Determines the optimal number of clusters using various evaluation methods.
 
@@ -398,6 +371,7 @@ def determine_optimal_clusters(matrix, method='elbow', cluster_method='kmeans', 
     Returns:
         int: The optimal number of clusters.
     """
+    
     if method == 'elbow':
         inertias = []
         for k in range(min_clust, max_clust + 1):
@@ -419,7 +393,13 @@ def determine_optimal_clusters(matrix, method='elbow', cluster_method='kmeans', 
         else:
             optimal_clusters = min_clust + 1  # Fallback if not enough points for second derivative
     else:
-        ce = clusteval(cluster=cluster_method, evaluate=method, metric=metric, linkage=linkage, min_clust=min_clust, max_clust=max_clust)
+        ce = clusteval(cluster   = cluster_method, 
+                       evaluate  = method, 
+                       metric    = metric, 
+                       linkage   = linkage, 
+                       min_clust = min_clust, 
+                       max_clust = max_clust)
+        
         results = ce.fit(matrix)
         print(f"ClustEval results: {results}")
         
@@ -439,7 +419,7 @@ def determine_optimal_clusters(matrix, method='elbow', cluster_method='kmeans', 
     return optimal_clusters
 
 
-def plot_clusters(images, labels, n_clusters, title = "Clustering Results"):
+def plot_clusters(images, labels, n_clusters, title = "Clustering results"):
     """
     Plots the clustering results in 2D space using PCA for dimensionality reduction.
 
@@ -465,7 +445,12 @@ def plot_clusters(images, labels, n_clusters, title = "Clustering Results"):
     ax.legend()
     
     return fig
-    
+
+
+def matrix_of_similarities(images, algorithm):
+    matrix = build_similarity_matrix(images, algorithm = algorithm)
+    return matrix
+        
 
 def cluster_images(images, algorithm, n_clusters, method, print_metrics = True, labels_true = None):
     """
@@ -484,13 +469,13 @@ def cluster_images(images, algorithm, n_clusters, method, print_metrics = True, 
     """
         
     # main input for the clustering algorithm
-    matrix = build_similarity_matrix(images, algorithm = algorithm)        
-        
+    matrix = build_similarity_matrix(images, algorithm = algorithm)
+           
     if n_clusters is None and method != 'DBSCAN':
         n_clusters = determine_optimal_clusters(matrix)
     
-    # SpectralClustering requires the number of clusters to be specified in advance. It works well for a small 
-    # number of clusters, but is not advised for many clusters
+    # SpectralClustering requires the number of clusters to be specified in advance. It
+    # works well for a small number of clusters, but is not advised for many clusters
     if method == 'SpectralClustering':
         sc = SpectralClustering(n_clusters = n_clusters, random_state = 42, affinity = 'precomputed').fit(matrix)
         sc_metrics = get_cluster_metrics(matrix, sc.labels_, labels_true)
@@ -502,7 +487,7 @@ def cluster_images(images, algorithm, n_clusters, method, print_metrics = True, 
                 print(f"{k}: {v:.2f}")
         return sc.labels_, n_clusters
        
-    # Affinity propagation is most appropriate for small to medium sized datasets
+    # Affinity propagation is also  appropriate for small to medium sized datasets
     elif method == 'AffinityPropagation':
         af = AffinityPropagation(affinity = 'precomputed', random_state = 42).fit(matrix)
         af_metrics = get_cluster_metrics(matrix, af.labels_, labels_true)
@@ -534,7 +519,7 @@ def preprocess_images(images, target_shape=(128, 128)):
         preprocessed_images.append(resized_image)
     return np.array(preprocessed_images)
 
-# using the clustimage functionality 
+# using the clustimage functionality
 def clustimage_clustering(images):
     """
     Perform image clustering using the clustimage library, aiming to detect natural groups or clusters of 
@@ -554,7 +539,8 @@ def clustimage_clustering(images):
     flattened_imgs = np.array([img.flatten() for img in imgs])         
     
     # HOG is most likely not the best feature extraction method for this task; see
-    # https://erdogant.github.io/clustimage/pages/html/Feature%20Extraction.html
+    # https://erdogant.github.io/clustimage/pages/html/Feature%20Extraction.html.
+    # Therefore, we use PCA for dimensionality reduction
     cl = Clustimage(method = 'pca', params_pca={'n_components':0.95})
             
     imported = cl.import_data(flattened_imgs)
@@ -586,6 +572,7 @@ def clustimage_clustering(images):
     
 def compute_mean_brightness(images):
     """Compute the mean brightness across a set of images."""
+    
     mean_brightness = 0
     for img in images:
         if len(img.shape) == 3:  # color image
@@ -599,6 +586,7 @@ def compute_mean_brightness(images):
 
 def compute_mean_contrast(images):
     """Compute the mean contrast across a set of images."""
+    
     mean_contrast = 0
     for img in images:
         if len(img.shape) == 3:  
@@ -612,6 +600,7 @@ def compute_mean_contrast(images):
 
 def compute_sharpness(img_gray):
     """Compute the sharpness of a grayscale image using the Sobel operator."""
+    
     grad_x = cv2.Sobel(img_gray, cv2.CV_64F, 1, 0, ksize=3)
     grad_y = cv2.Sobel(img_gray, cv2.CV_64F, 0, 1, ksize=3)
     grad = cv2.magnitude(grad_x, grad_y)
@@ -620,6 +609,7 @@ def compute_sharpness(img_gray):
     
 def compute_mean_sharpness(images):
     """Compute the mean sharpness across a set of images."""
+    
     mean_sharpness = 0
     for img in images:
         if len(img.shape) == 3: 
@@ -632,6 +622,7 @@ def compute_mean_sharpness(images):
 
 def normalize_brightness_set(images, mean_brightness):
     """Normalize brightness of all images in the set to the mean brightness."""
+    
     normalized_images = []
     for img in images:
         if len(img.shape) == 3:  # color image
@@ -657,6 +648,7 @@ def normalize_brightness_set(images, mean_brightness):
 
 def normalize_contrast_set(images, mean_contrast):
     """Normalize contrast of all images in the set to the mean contrast."""
+    
     normalized_images = []
     for img in images:
         if len(img.shape) == 3: # color
@@ -683,6 +675,7 @@ def normalize_contrast_set(images, mean_contrast):
 
 def normalize_sharpness_set(images, target_sharpness):
     """Normalize sharpness of all images in the set to the target sharpness."""
+    
     normalized_images = []
     
     for img in images:
@@ -749,17 +742,19 @@ def equalize_images(images, brightness=False, contrast=False, sharpness=False):
     return images
 
 def compute_metrics(images):
-    """Computes metrics (mean and standard deviation) for normalized brightness, contrast, and sharpness.
+    """Computes metrics (mean and standard deviation) for normalized brightness,
+    contrast, and sharpness.
 
     Parameters:
     - images: The input images in BGR or gray format.
 
     Returns:
-    - metrics: Dictionary containing mean and standard deviation of normalized metrics.
+    - metrics: Dictionary containing mean and standard deviation of 
+    normalized metrics.
     """
     normalized_brightness = []
-    normalized_contrast = []
-    normalized_sharpness = []
+    normalized_contrast   = []
+    normalized_sharpness  = []
     
     for img in images:
         img_lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
@@ -775,12 +770,12 @@ def compute_metrics(images):
     
     # Compute means and standard deviations, rounded to 2 decimal places
     mean_normalized_brightness = np.round(np.mean(normalized_brightness), 2)
-    mean_normalized_contrast = np.round(np.mean(normalized_contrast), 2)
-    mean_normalized_sharpness = np.round(np.mean(normalized_sharpness), 2)
+    mean_normalized_contrast   = np.round(np.mean(normalized_contrast), 2)
+    mean_normalized_sharpness  = np.round(np.mean(normalized_sharpness), 2)
     
-    sd_normalized_brightness = np.round(np.std(normalized_brightness), 2)
-    sd_normalized_contrast = np.round(np.std(normalized_contrast), 2)
-    sd_normalized_sharpness = np.round(np.std(normalized_sharpness), 2)
+    sd_normalized_brightness   = np.round(np.std(normalized_brightness), 2)
+    sd_normalized_contrast     = np.round(np.std(normalized_contrast), 2)
+    sd_normalized_sharpness    = np.round(np.std(normalized_sharpness), 2)
     
     metrics = {
         'mean_normalized_brightness': mean_normalized_brightness,
