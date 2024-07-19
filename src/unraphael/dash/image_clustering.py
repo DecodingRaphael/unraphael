@@ -540,6 +540,17 @@ def cluster_images(images, algorithm, n_clusters, method, print_metrics = True, 
 
 
 def preprocess_images(images, target_shape=(128, 128)):
+    """
+    Preprocesses a list of images by resizing them to a target shape.
+
+    Args:
+        images (list): A list of input images.
+        target_shape (tuple, optional): The target shape to resize the images to. Defaults to (128, 128).
+
+    Returns:
+        numpy.ndarray: An array of preprocessed images.
+
+    """
     preprocessed_images = []
     for image in images:        
         resized_image = resize(image, target_shape, anti_aliasing=True)
@@ -547,17 +558,23 @@ def preprocess_images(images, target_shape=(128, 128)):
     return np.array(preprocessed_images)
 
 # using the clustimage functionality
-def clustimage_clustering(images):
+def clustimage_clustering(images, method, evaluation,linkage_type):
     """
-    Perform image clustering using the clustimage library, aiming to detect natural groups or clusters of 
-    images. It uses a multi-step proces of pre-processing the images, extracting the features, and 
-    evaluating the optimal number of clusters across the feature space.
+    Perform image clustering using the clustimage library, aiming to detect natural groups
+    or clusters of images. It uses a multi-step proces of pre-processing the images, 
+    extracting the features, and evaluating the optimal number of clusters across the feature
+    space. 
+    - clustering approaches can be set to agglomerative, kmeans, dbscan and hdbscan.
+    - cluster evaluation can be performed based on Silhouette scores, Davies–Bouldin index, or 
+      Derivative method
+      
 
     Args:
         images (list): A list of input images.
 
     Returns:
-        dict: A dictionary containing the clustering results. The dictionary has the following keys:
+        dict: A dictionary containing the clustering results. The dictionary has the 
+        following keys:
             - 'scatter_plot': The scatter plot of the clustered images.
             - 'dendrogram_plot': The dendrogram plot of the clustering hierarchy.
 
@@ -574,9 +591,10 @@ def clustimage_clustering(images):
         
     # Preprocessing, feature extraction, embedding and detection of the optimal number of clusters
     results = cl.fit_transform(imported,
-                               cluster       = 'agglomerative', # The clustering approaches can be set to agglomerative, kmeans, dbscan and hdbscan
-                               evaluate      = 'silhouette',    # Cluster evaluation can be performed based on: Silhouette scores, Davies–Bouldin index, or Derivative method                               metric        = 'euclidean',
-                               linkage       = 'ward',
+                               cluster       = method, 
+                               evaluate      = evaluation, 
+                               metric        = 'euclidean', 
+                               linkage       = linkage_type,
                                min_clust     = 1,
                                max_clust     = 25,
                                cluster_space = 'low') # cluster on the 2-D embedded space

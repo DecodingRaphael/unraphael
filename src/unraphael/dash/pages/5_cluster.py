@@ -8,9 +8,9 @@ from unraphael.dash.image_clustering import (align_images_to_mean, equalize_imag
                                              plot_dendrogram, matrix_of_similarities)
 from styling import set_custom_css
 from widgets import load_images_widget, show_heatmaps_widget
-import matplotlib.pyplot as plt
-import seaborn as sns
-import io
+#import matplotlib.pyplot as plt
+#import seaborn as sns
+#import io
 
 def show_images_widget(
     images: dict[str, np.ndarray],
@@ -136,103 +136,122 @@ def cluster_image_widget(images: dict[str, np.ndarray]):
     which is computed using the selected similarity measure"""
     
     st.subheader('Clustering')
-                
-    cluster_method = st.selectbox(
-        'Unsupervised clustering algorithms:',
-        ['SpectralClustering', 'AffinityPropagation', 'DBSCAN'],
-        help = 'The cluster method defines the way in which the images are grouped.'
-    )    
     
-    if cluster_method == 'SpectralClustering':
-        specify_clusters = st.checkbox('Do you want to specify the number of clusters beforehand?', value=False)
-        if specify_clusters:
-            n_clusters = st.number_input('Number of clusters:', min_value = 2, step = 1, value= 4)
-        else:
-            n_clusters = None
-    else:
-        n_clusters = None
-        
-    measure = st.selectbox(
-        'Select the similarity measure to cluster on:',
-        ['SIFT', 'SSIM', 'CW-SSIM', 'MSE','Brushstrokes'],
-        help = 'Select a similarity measure used as the basis for clustering the images:')
-        
     image_list = list(images.values())
     image_names = list(images.keys())
-        
+            
     # Ensure images are grayscale before stacking
     #image_list = [image if image.ndim == 2 else color.rgb2gray(image) for image in image_list]
+                
+    cluster_method = st.selectbox(
+        'clustering algorithms:',
+        ['SpectralClustering', 'AffinityPropagation',    # similarity based
+         'agglomerative','kmeans', 'dbscan', 'hdbscan'], # clustimage
+        help = 'The cluster method defines the way in which the images are grouped.'
+    )
     
-    matrix = matrix_of_similarities(np.array(image_list), algorithm = measure)
-    st.subheader(f'Similarity matrix based on pairwise {measure} indices')
-    st.write(np.round(matrix, decimals = 3))
+    # clustering based on similarity measures
+    if cluster_method in ['SpectralClustering', 'AffinityPropagation']:
         
-    fig, ax = plt.subplots(figsize=(10, 10))
-    sns.heatmap(matrix, annot=True, fmt=".2f",annot_kws={"size": 8})          
-    
-    buf = io.BytesIO()
-    plt.savefig(buf, format='png')
-    plt.close(fig)
-    
-    st.image(buf, use_column_width = True)
-        
-    c,n_clusters = cluster_images(np.array(image_list),
-                           algorithm     = measure,
-                           n_clusters    = n_clusters,
-                           method        = cluster_method,
-                           print_metrics = True,
-                           labels_true   = None)
-
-    if c is None:
-        st.error("Clustering failed. Please check the parameters and try again.")
-        return        
-    
-    st.subheader('Cluster results')
-    
-    num_clusters = len(set(c))
-    
-    for n in range(num_clusters):
-            cluster_label = n + 1
-            st.write(f"\n --- Images from cluster #{cluster_label} ---")
-                        
-            cluster_indices = np.argwhere(c == n).flatten()
-            cluster_images_dict = {image_names[i]: image_list[i] for i in cluster_indices}
-            show_images_widget(cluster_images_dict, 
-                               key = f'cluster_{cluster_label}_images', 
-                               message = f'Images from Cluster #{cluster_label}')
-
-    col1, col2 = st.columns(2)
-    
-    # Plot scatterplot
-    pca_clusters = plot_clusters(images, c, n_clusters, title = f"{cluster_method} Clustering results")
-    col1.subheader('Scatterplot')
-    col1.pyplot(pca_clusters)
-    
-    # Plot dendrogram
-    dendrogram = plot_dendrogram(images, title = f"{cluster_method} Dendrogram")
-    col2.subheader('Dendrogram')
-    col2.pyplot(dendrogram)
-    
-    
-    #TODO: integrate working clustimage functionality with cluster methods above
-    figures = clustimage_clustering(image_list)
-         
-    with col1:
-        st.header("Scatter Plot")
-        if isinstance(figures['scatter_plot'], tuple):
-            # Select the figure part of the tuple
-            st.pyplot(figures['scatter_plot'][0])
+        if cluster_method == 'SpectralClustering':
+            specify_clusters = st.checkbox('Do you want to specify the number of clusters beforehand?', value=False)
+            if specify_clusters:
+                n_clusters = st.number_input('Number of clusters:', min_value = 2, step = 1, value= 4)
+            else:
+                n_clusters = None
         else:
-            st.pyplot(figures['scatter_plot'])
-
-    with col2:
-        st.header("Dendrogram Plot")
-        if isinstance(figures['dendrogram_plot'], dict):
-            # Select the figure part from 'ax'
-            st.pyplot(figures['dendrogram_plot']['ax'])
-        else:
-            st.pyplot(figures['dendrogram_plot'])
+            n_clusters = None
             
+        measure = st.selectbox(
+            'Select the similarity measure to cluster on:',
+            ['SIFT', 'SSIM', 'CW-SSIM', 'MSE','Brushstrokes'],
+            help = 'Select a similarity measure used as the basis for clustering the images:')            
+                
+        matrix = matrix_of_similarities(np.array(image_list), algorithm = measure)
+        st.subheader(f'Similarity matrix based on pairwise {measure} indices')
+        st.write(np.round(matrix, decimals = 3))
+            
+        #fig, ax = plt.subplots(figsize=(10, 10))
+        #sns.heatmap(matrix, annot=True, fmt=".2f",annot_kws={"size": 8})          
+        #buf = io.BytesIO()
+        #plt.savefig(buf, format='png')
+        #plt.close(fig)
+        
+        #st.image(buf, use_column_width = True)
+            
+        c,n_clusters = cluster_images(np.array(image_list),
+                            algorithm     = measure,
+                            n_clusters    = n_clusters,
+                            method        = cluster_method,
+                            print_metrics = True,
+                            labels_true   = None)
+
+        if c is None:
+            st.error("Clustering failed. Please check the parameters and try again.")
+            return        
+        
+        st.subheader('Cluster results')
+        
+        num_clusters = len(set(c))
+        
+        for n in range(num_clusters):
+                cluster_label = n + 1
+                st.write(f"\n --- Images from cluster #{cluster_label} ---")
+                            
+                cluster_indices = np.argwhere(c == n).flatten()
+                cluster_images_dict = {image_names[i]: image_list[i] for i in cluster_indices}
+                show_images_widget(cluster_images_dict, 
+                                key = f'cluster_{cluster_label}_images', 
+                                message = f'Images from Cluster #{cluster_label}')
+
+        col1, col2 = st.columns(2)
+            
+        pca_clusters = plot_clusters(images, c, n_clusters, title = f"{cluster_method} Clustering results")
+        col1.subheader('Scatterplot')
+        col1.pyplot(pca_clusters)
+            
+        dendrogram = plot_dendrogram(images, title = f"{cluster_method} Dendrogram")
+        col2.subheader('Dendrogram')
+        col2.pyplot(dendrogram)
+    
+    # clustering based on the image features
+    if cluster_method in ['agglomerative', 'kmeans', 'dbscan', 'hdbscan']:
+        
+        cluster_evaluation = st.selectbox(
+            'Select the cluster evaluation method:',
+            ['silhouette', 'dbindex', 'derivatives'],
+            help = 'Select the methos used as the basis for clustering the images:')
+        
+        cluster_linkage = st.selectbox(
+            'Select the cluster evaluation method:',
+            ['ward', 'single','complete','average','weighted','centroid','median'],
+            help = 'Select the methos used as the basis for clustering the images:')
+        
+        figures = clustimage_clustering(image_list, 
+                                        method       = cluster_method,
+                                        evaluation   = cluster_evaluation,
+                                        linkage_type = cluster_linkage
+                                        )
+        
+        col1, col2 = st.columns(2)
+         
+        with col1:
+            st.header("Scatter Plot")
+            if isinstance(figures['scatter_plot'], tuple):
+                # Select the figure part of the tuple
+                st.pyplot(figures['scatter_plot'][0])
+            else:
+                st.pyplot(figures['scatter_plot'])
+
+        with col2:
+            st.header("Dendrogram Plot")
+            if isinstance(figures['dendrogram_plot'], dict):
+                # Select the figure part from 'ax'
+                st.pyplot(figures['dendrogram_plot']['ax'])
+            else:
+                st.pyplot(figures['dendrogram_plot'])
+
+
 def main():
     set_custom_css()
 
@@ -247,15 +266,10 @@ def main():
         st.stop()
 
     st.subheader('The images')
-    show = show_images_widget(images, key = 'original_images', message = 'Your selected images')
+    show_images_widget(images, key = 'original_images', message = 'Your selected images')
 
-    images = {name: image for name, image in images.items() }  
-    
-    # Debugging: Print image properties after loading
-    # for name, img in images.items():
-    #     print("---------------------")
-    #     print(f"Loaded image {name}: shape={img.shape}, dtype={img.dtype}")
-   
+    images = {name: image for name, image in images.items() }
+       
     st.markdown('---')
     images = equalize_images_widget(images = images)    
         
@@ -270,18 +284,13 @@ def main():
     images = {
         name: (image * 255).astype(np.uint8) if image.dtype == np.float64 else image.astype(np.uint8)
         for name, image in images.items()
-    }
-    
-    # Debugging: Print image properties after loading
-    # for name, img in images.items():
-    #     print("***************")
-    #     print(f"Loaded image {name}: shape={img.shape}, dtype={img.dtype}")    
-    
+    }   
+       
     st.markdown('---')
     st.subheader('The aligned images')
     st.write('If selected, these aligned images are equalized in brightness, contrast, and sharpness')
     show_images_widget(images, message = 'The aligned images')
-    
+
     st.markdown('---')
     cluster_image_widget(images)
         
