@@ -47,7 +47,9 @@ from sklearn.decomposition import PCA
 
 from pystackreg import StackReg
 
+from scipy.cluster.hierarchy import linkage, dendrogram
 from clustimage import Clustimage
+
 
 
 SIM_IMAGE_SIZE = (640, 480)
@@ -421,7 +423,7 @@ def determine_optimal_clusters(matrix,
 
 def plot_clusters(images, labels, n_clusters, title = "Clustering results"):
     """
-    Plots the clustering results in 2D space using PCA for dimensionality reduction.
+    Plots the clustering results in 2D space using PCA.
 
     Parameters:
     - images (list): A list of images to be clustered.
@@ -446,6 +448,31 @@ def plot_clusters(images, labels, n_clusters, title = "Clustering results"):
     
     return fig
 
+def plot_dendrogram(images, method = 'ward', title = "Dendrogram"):
+    """
+    Plots a dendrogram for the clustering results.
+
+    Parameters:
+    - images (list): A list of images to be clustered.
+    - method (str): The linkage method to be used for the hierarchical clustering. Default is 'ward'.
+    - title (str): The title of the plot.
+    """
+    # Flatten the images for clustering
+    flattened_images = np.array([img.flatten() for img in images.values()])
+
+    # Compute the linkage matrix
+    linked = linkage(flattened_images, method = method)
+
+    # Plot the dendrogram
+    fig, ax = plt.subplots(figsize=(10, 8))
+    dendrogram(linked, ax=ax)
+    
+    ax.set_title(title)
+    ax.set_xlabel('Sample index')
+    ax.set_ylabel('Distance')
+
+    return fig
+    
 
 def matrix_of_similarities(images, algorithm):
     matrix = build_similarity_matrix(images, algorithm = algorithm)

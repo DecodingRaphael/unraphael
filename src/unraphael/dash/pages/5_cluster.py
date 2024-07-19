@@ -1,11 +1,11 @@
 from __future__ import annotations
 import numpy as np
 import streamlit as st
-from skimage import color
+#from skimage import color
 from unraphael.dash.image_clustering import (align_images_to_mean, equalize_images,
                                              cluster_images, compute_metrics,
                                              clustimage_clustering, plot_clusters,
-                                             matrix_of_similarities)
+                                             plot_dendrogram, matrix_of_similarities)
 from styling import set_custom_css
 from widgets import load_images_widget, show_heatmaps_widget
 import matplotlib.pyplot as plt
@@ -166,8 +166,7 @@ def cluster_image_widget(images: dict[str, np.ndarray]):
     matrix = matrix_of_similarities(np.array(image_list), algorithm = measure)
     st.subheader(f'Similarity matrix based on pairwise {measure} indices')
     st.write(np.round(matrix, decimals = 3))
-    
-    #TODO: Create heatmap-version of matrix using seaborn
+        
     fig, ax = plt.subplots(figsize=(10, 10))
     sns.heatmap(matrix, annot=True, fmt=".2f",annot_kws={"size": 8})          
     
@@ -205,11 +204,15 @@ def cluster_image_widget(images: dict[str, np.ndarray]):
     col1, col2 = st.columns(2)
     
     # Plot scatterplot
-    fig = plot_clusters(images, c, n_clusters, title = f"{cluster_method} Clustering results")
+    pca_clusters = plot_clusters(images, c, n_clusters, title = f"{cluster_method} Clustering results")
     col1.subheader('Scatterplot')
-    col1.pyplot(fig)
+    col1.pyplot(pca_clusters)
     
-    #TODO: Create dendrogram plot of clustering results
+    # Plot dendrogram
+    dendrogram = plot_dendrogram(images, title = f"{cluster_method} Dendrogram")
+    col2.subheader('Dendrogram')
+    col2.pyplot(dendrogram)
+    
     
     #TODO: integrate working clustimage functionality with cluster methods above
     figures = clustimage_clustering(image_list)
