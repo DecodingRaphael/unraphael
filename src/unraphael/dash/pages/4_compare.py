@@ -132,12 +132,13 @@ def display_two(base_image: np.ndarray, images: np.ndarray):
     def display_image():
         try:
             image = st.session_state.images[st.session_state.count].data
+        except IndexError as e:
+            st.error(f'Error displaying image: {e}')
+        else:
             col1.image(base_image, caption='Base Image', use_column_width=True)
             col2.image(
                 image, caption=f'Image {st.session_state.count + 1}', use_column_width=True
             )
-        except IndexError as e:
-            st.error(f'Error displaying image: {e}')
 
     def next_image():
         if st.session_state.count + 1 >= len(st.session_state.images):
@@ -149,11 +150,8 @@ def display_two(base_image: np.ndarray, images: np.ndarray):
         if st.session_state.count > 0:
             st.session_state.count -= 1
 
-    if col1.button('⏮️ Previous', on_click=previous_image):
-        pass
-
-    if col2.button('Next ⏭️', on_click=next_image):
-        pass
+    col1.button('⏮️ Previous', on_click=previous_image)
+    col2.button('Next ⏭️', on_click=next_image)
 
     with col2:
         display_image()
@@ -220,23 +218,6 @@ def alignment_help_widget():
     )
 
 
-# def animate_images(img_aligned, baseline, num_frames=100):
-#     fig, ax = plt.subplots()
-#     blended_image = cv2.addWeighted(img_aligned, 1, baseline, 0, 0)
-#     im = ax.imshow(cv2.cvtColor(blended_image, cv2.COLOR_BGR2RGB),
-#       extent=[0, blended_image.shape[1], 0, blended_image.shape[0]])
-
-#     def update(frame):
-#         alpha = frame / num_frames
-#         blended_image = cv2.addWeighted(img_aligned, 1 - alpha, baseline, alpha, 0)
-#         im.set_array(cv2.cvtColor(blended_image, cv2.COLOR_BGR2RGB))
-#         ax.set_title(f'Frame {frame + 1}/{num_frames}')
-
-#     ani = animation.FuncAnimation(fig, update, frames=num_frames,
-#           interval=25, repeat=True, repeat_delay=1000)
-#     return ani.to_jshtml()
-
-
 def comparison_widget(
     base_image: ImageType,
     images: list[ImageType],
@@ -277,11 +258,6 @@ def comparison_widget(
                 width=450,
             )
 
-            # animate_images(
-            #     image.data,
-            #     base_image.data,
-            # )
-
         except IndexError as e:
             st.error(f'Error displaying image: {e}')
 
@@ -295,11 +271,8 @@ def comparison_widget(
         if st.session_state.count_comp > 0:
             st.session_state.count_comp -= 1
 
-    if col1.button('⏮️ Previous', on_click=previous_image):
-        pass
-
-    if col2.button('Next ⏭️', on_click=next_image):
-        pass
+    col1.button('⏮️ Previous', on_click=previous_image)
+    col2.button('Next ⏭️', on_click=next_image)
 
     with col2:
         display_image()
