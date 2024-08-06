@@ -11,11 +11,6 @@ from widgets import load_images_widget, show_images_widget
 
 from unraphael.types import ImageType
 
-# import streamlit.components.v1 as components
-# from matplotlib import pyplot as plt, animation
-# import matplotlib.pyplot as plt
-# import cv2
-
 _align_image_to_base = st.cache_data(align_image_to_base)
 _equalize_image_with_base = st.cache_data(equalize_image_with_base)
 
