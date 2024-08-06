@@ -120,6 +120,43 @@ def align_images_widget(*, base_image: ImageType, images: list[ImageType]) -> li
     return res
 
 
+def display_two(base_image: np.ndarray, images: np.ndarray):
+    col1, col2 = st.columns(2)
+
+    if 'count' not in st.session_state:
+        st.session_state.count = 0
+
+    if 'images' not in st.session_state:
+        st.session_state.images = images  # Directly assign the list
+
+    def display_image():
+        try:
+            image = st.session_state.images[st.session_state.count].data
+        except IndexError as e:
+            st.error(f'Error displaying image: {e}')
+        else:
+            col1.image(base_image, caption='Base Image', use_column_width=True)
+            col2.image(
+                image, caption=f'Image {st.session_state.count + 1}', use_column_width=True
+            )
+
+    def next_image():
+        if st.session_state.count + 1 >= len(st.session_state.images):
+            st.session_state.count = 0
+        else:
+            st.session_state.count += 1
+
+    def previous_image():
+        if st.session_state.count > 0:
+            st.session_state.count -= 1
+
+    col1.button('⏮️ Previous', on_click=previous_image)
+    col2.button('Next ⏭️', on_click=next_image)
+
+    with col2:
+        display_image()
+
+
 def alignment_help_widget():
     st.write(
         (
@@ -188,41 +225,57 @@ def comparison_widget(
     """Widget to compare processed images."""
     st.subheader('Comparison')
 
-    col1, col2 = st.columns((0.3, 0.7))
+    col1, col2 = st.columns((0.20, 0.80))
 
-    options = [image.name for image in images]
-    selected_name = col1.selectbox('Pick image', options=options)
+    if 'count_comp' not in st.session_state:
+        st.session_state.count_comp = 0
 
-    for image in images:
-        if image.name == selected_name:
-            break
+    def display_image():
+        try:
+            image = images[st.session_state.count_comp]
+        except IndexError as e:
+            st.error(f'Error displaying image: {e}')
+        else:
+            for key, value in image.metrics.items():
+                col1.metric(key, f'{value:.2f}')
 
-    with col1:
-        for key, value in image.metrics.items():
-            st.metric(key, f'{value:.2f}')
+            col1.download_button(
+                label='Download left',
+                data=imageio.imwrite('<bytes>', base_image.data, extension='.png'),
+                file_name=base_image.name + '.png',
+                key=base_image.name,
+            )
 
-        st.download_button(
-            label='Download left',
-            data=imageio.imwrite('<bytes>', base_image.data, extension='.png'),
-            file_name=base_image.name + '.png',
-            key=base_image.name,
-        )
+            col1.download_button(
+                label='Download right',
+                data=imageio.imwrite('<bytes>', image.data, extension='.png'),
+                file_name=image.name + '.png',
+                key=image.name,
+            )
 
-        st.download_button(
-            label='Download right',
-            data=imageio.imwrite('<bytes>', image.data, extension='.png'),
-            file_name=image.name + '.png',
-            key=image.name,
-        )
+            image_comparison(
+                img1=base_image.data,
+                label1=base_image.name,
+                img2=image.data,
+                label2=image.name,
+                width=450,
+            )
+
+    def next_image():
+        if st.session_state.count_comp + 1 >= len(images):
+            st.session_state.count_comp = 0
+        else:
+            st.session_state.count_comp += 1
+
+    def previous_image():
+        if st.session_state.count_comp > 0:
+            st.session_state.count_comp -= 1
+
+    col1.button('⏮️ Previous', on_click=previous_image)
+    col2.button('Next ⏭️', on_click=next_image)
 
     with col2:
-        image_comparison(
-            img1=base_image.data,
-            label1=base_image.name,
-            img2=image.data,
-            label2=image.name,
-            width=450,
-        )
+        display_image()
 
 
 def main():
@@ -256,10 +309,15 @@ def main():
     with st.expander('Help for parameters for aligning images', expanded=False):
         alignment_help_widget()
 
-    comparison_widget(
-        base_image=base_image,
-        images=images,
-    )
+    # Add a radio button to select the widget to display
+    option = st.radio('Select Display Option', ('Compare with slider', 'Alongside each other'))
+
+    if option == 'Compare with slider':
+        comparison_widget(base_image=base_image, images=images)
+    else:
+        # Update session state with the aligned images
+        st.session_state.images = images
+        display_two(base_image=base_image.data, images=st.session_state.images)
 
 
 if __name__ == '__main__':
