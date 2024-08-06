@@ -233,6 +233,9 @@ def comparison_widget(
     def display_image():
         try:
             image = images[st.session_state.count_comp]
+        except IndexError as e:
+            st.error(f'Error displaying image: {e}')
+        else:
             for key, value in image.metrics.items():
                 col1.metric(key, f'{value:.2f}')
 
@@ -257,9 +260,6 @@ def comparison_widget(
                 label2=image.name,
                 width=450,
             )
-
-        except IndexError as e:
-            st.error(f'Error displaying image: {e}')
 
     def next_image():
         if st.session_state.count_comp + 1 >= len(images):
@@ -306,9 +306,6 @@ def main():
     with col2:
         images = align_images_widget(base_image=base_image, images=images)
 
-    # Update session state with the aligned images
-    st.session_state.images = images
-
     with st.expander('Help for parameters for aligning images', expanded=False):
         alignment_help_widget()
 
@@ -318,6 +315,8 @@ def main():
     if option == 'Compare with slider':
         comparison_widget(base_image=base_image, images=images)
     else:
+        # Update session state with the aligned images
+        st.session_state.images = images
         display_two(base_image=base_image.data, images=st.session_state.images)
 
 
