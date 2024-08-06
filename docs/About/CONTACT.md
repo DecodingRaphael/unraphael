@@ -1,1 +1,3 @@
-Contact information for the project.
+**CONTACT INFORMATION**
+
+More coming soon!

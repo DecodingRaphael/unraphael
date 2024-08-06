@@ -4,11 +4,25 @@ repo_url: https://github.com/DecodingRaphael/unraphael
 repo_name: GitHub
 
 nav:
-  - Home: index.md
-  - Contributing: CONTRIBUTING.md
-  - Code of Conduct: CODE_OF_CONDUCT.md
+  - Home: index.md  
   - 🔗 Source code: https://github.com/DecodingRaphael/unraphael
   - 🔗 Issues: https://github.com/DecodingRaphael/unraphael/issues
+  - Getting Started: 
+    - Installation: Started/INSTALLATION.md
+    - Usage: Started/USAGE.md
+    - Tutorials: Started/TUTORIALS.md
+    - Known issues: Started/ISSUES.md    
+  - Image Processing Steps: 
+    - Introduction: Processing/INTRODUCTION.md
+    - Preprocessing: Processing/PREPROCESSING.md
+    - Segmentation: Processing/SEGMENTATION.md
+    - Alignment: Processing/ALIGNMENT.md
+    - Clustering: Processing/CLUSTERING.md
+  - Developers: 
+    - Code of Conduct: CODE_OF_CONDUCT.md
+    - Building from source: Developers/SOURCE.md    
+    - Contributing guidelines: CONTRIBUTING.md
+    - Changelog: Developers/CHANGELOG.md
   - About: 
     - How to Cite: About/CITE.md
     - Contact: About/CONTACT.md
@@ -16,7 +30,8 @@ nav:
     - FAQ's: About/FAQS.md
 
 theme:
-  name: material
+  name: readthedocs
+  color_mode: dark
   palette:
     scheme: default
     primary: deep purple

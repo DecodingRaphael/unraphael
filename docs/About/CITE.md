@@ -1,1 +1,3 @@
-How to cite this work
+**HOW TO CITE**
+
+How to cite this work correctly:
