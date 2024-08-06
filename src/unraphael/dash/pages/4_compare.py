@@ -120,7 +120,7 @@ def align_images_widget(*, base_image: ImageType, images: list[ImageType]) -> li
     return res
 
 
-def display_two(base_image, images):
+def display_two(base_image: np.ndarray, images: np.ndarray):
     col1, col2 = st.columns(2)
 
     if 'count' not in st.session_state:
