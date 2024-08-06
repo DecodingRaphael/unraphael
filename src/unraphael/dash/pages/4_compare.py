@@ -127,7 +127,7 @@ def align_images_widget(*, base_image: ImageType, images: list[ImageType]) -> li
 
 def display_two(base_image, images):
     col1, col2 = st.columns(2)
-    
+
     if 'count' not in st.session_state:
         st.session_state.count = 0
 
@@ -137,10 +137,12 @@ def display_two(base_image, images):
     def display_image():
         try:
             image = st.session_state.images[st.session_state.count].data
-            col1.image(base_image, caption="Base Image", use_column_width=True)
-            col2.image(image, caption=f"Image {st.session_state.count + 1}", use_column_width=True)
+            col1.image(base_image, caption='Base Image', use_column_width=True)
+            col2.image(
+                image, caption=f'Image {st.session_state.count + 1}', use_column_width=True
+            )
         except IndexError as e:
-            st.error(f"Error displaying image: {e}")
+            st.error(f'Error displaying image: {e}')
 
     def next_image():
         if st.session_state.count + 1 >= len(st.session_state.images):
@@ -151,17 +153,16 @@ def display_two(base_image, images):
     def previous_image():
         if st.session_state.count > 0:
             st.session_state.count -= 1
-    
-    if col1.button("⏮️ Previous", on_click=previous_image):
+
+    if col1.button('⏮️ Previous', on_click=previous_image):
         pass
 
-    if col2.button("Next ⏭️", on_click=next_image):
+    if col2.button('Next ⏭️', on_click=next_image):
         pass
 
     with col2:
         display_image()
-            
-            
+
 
 def alignment_help_widget():
     st.write(
@@ -227,17 +228,19 @@ def alignment_help_widget():
 # def animate_images(img_aligned, baseline, num_frames=100):
 #     fig, ax = plt.subplots()
 #     blended_image = cv2.addWeighted(img_aligned, 1, baseline, 0, 0)
-#     im = ax.imshow(cv2.cvtColor(blended_image, cv2.COLOR_BGR2RGB), extent=[0, blended_image.shape[1], 0, blended_image.shape[0]])
+#     im = ax.imshow(cv2.cvtColor(blended_image, cv2.COLOR_BGR2RGB),
+#       extent=[0, blended_image.shape[1], 0, blended_image.shape[0]])
 
 #     def update(frame):
 #         alpha = frame / num_frames
 #         blended_image = cv2.addWeighted(img_aligned, 1 - alpha, baseline, alpha, 0)
 #         im.set_array(cv2.cvtColor(blended_image, cv2.COLOR_BGR2RGB))
 #         ax.set_title(f'Frame {frame + 1}/{num_frames}')
-                           
-#     ani = animation.FuncAnimation(fig, update, frames=num_frames, interval=25, repeat=True, repeat_delay=1000)
+
+#     ani = animation.FuncAnimation(fig, update, frames=num_frames,
+#           interval=25, repeat=True, repeat_delay=1000)
 #     return ani.to_jshtml()
-                
+
 
 def comparison_widget(
     base_image: ImageType,
@@ -246,7 +249,7 @@ def comparison_widget(
     """Widget to compare processed images."""
     st.subheader('Comparison')
 
-    col1, col2 = st.columns((0.20, 0.80))    
+    col1, col2 = st.columns((0.20, 0.80))
 
     if 'count_comp' not in st.session_state:
         st.session_state.count_comp = 0
@@ -256,7 +259,7 @@ def comparison_widget(
             image = images[st.session_state.count_comp]
             for key, value in image.metrics.items():
                 col1.metric(key, f'{value:.2f}')
-            
+
             col1.download_button(
                 label='Download left',
                 data=imageio.imwrite('<bytes>', base_image.data, extension='.png'),
@@ -278,14 +281,14 @@ def comparison_widget(
                 label2=image.name,
                 width=450,
             )
-            
+
             # animate_images(
             #     image.data,
             #     base_image.data,
             # )
 
         except IndexError as e:
-            st.error(f"Error displaying image: {e}")
+            st.error(f'Error displaying image: {e}')
 
     def next_image():
         if st.session_state.count_comp + 1 >= len(images):
@@ -297,16 +300,16 @@ def comparison_widget(
         if st.session_state.count_comp > 0:
             st.session_state.count_comp -= 1
 
-    if col1.button("⏮️ Previous", on_click=previous_image):
+    if col1.button('⏮️ Previous', on_click=previous_image):
         pass
 
-    if col2.button("Next ⏭️", on_click=next_image):
+    if col2.button('Next ⏭️', on_click=next_image):
         pass
 
     with col2:
         display_image()
 
-    
+
 def main():
     set_custom_css()
 
@@ -334,14 +337,13 @@ def main():
 
     with col2:
         images = align_images_widget(base_image=base_image, images=images)
-        
-    
+
     # Update session state with the aligned images
     st.session_state.images = images
 
     with st.expander('Help for parameters for aligning images', expanded=False):
         alignment_help_widget()
-        
+
     # Add a radio button to select the widget to display
     option = st.radio('Select Display Option', ('Compare with slider', 'Alongside each other'))
 
@@ -349,6 +351,7 @@ def main():
         comparison_widget(base_image=base_image, images=images)
     else:
         display_two(base_image=base_image.data, images=st.session_state.images)
+
 
 if __name__ == '__main__':
     main()
