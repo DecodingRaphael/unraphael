@@ -21,7 +21,8 @@ _equalize_image_with_base = st.cache_data(equalize_image_with_base)
 # Helper functions
 
 
-def pixels_to_cm(pixels, dpi):
+def compute_size_in_cm(pixels, dpi):
+    """Compute the size in centimeters based on pixels and DPI."""
     if dpi != 0:
         inches = pixels / dpi
         cm = inches * 2.54
@@ -36,15 +37,8 @@ def create_mask(image):
 
 
 def calculate_corrected_area(image, real_size_cm, photo_size_cm, dpi):
-    # Get image size and DPI
-    # height_pixels, width_pixels, (dpi_x, dpi_y) = get_image_size_resolution(image)
-
-    # if dpi_x == 0 or dpi_y == 0:
-    #     st.error("DPI information is missing in the image metadata.")
-    #     return None
-
-    # Calculate photo size in cm
-    # photo_size_cm = [pixels_to_cm(width_pixels, dpi_x), pixels_to_cm(height_pixels, dpi_y)]
+    """Calculate the corrected area of an image based on the real and photo
+    sizes."""
 
     photo_size_cm = photo_size_cm
 
@@ -187,7 +181,7 @@ def main():
     st.title('Ratio analysis')
 
     with st.sidebar:
-        # images = load_images_widget(as_gray=False, as_ubyte=True)
+        # The load_images_widget function now returns both images and image_metrics.
         images, image_metrics = load_images_widget(as_gray=False, as_ubyte=True)
         # images = load_image_widget2()
 
@@ -204,6 +198,7 @@ def main():
         size_cm = metrics.get('height_cm'), metrics.get('width_cm')
 
         st.write(f'**Image Name**: {image.name}')
+
         st.write(f'**Size (Height x Width)**: {size_pixels[0]} x {size_pixels[1]} pixels')
         st.write(f'**Size (Height x Width)**: {size_cm[0]:.2f} x {size_cm[1]:.2f} cm')
         st.write(f'**DPI**: {dpi[0]} x {dpi[1]}')
@@ -249,13 +244,28 @@ def main():
 
         for i, uploaded_file in enumerate(images):
             image_data = uploaded_file.data
+            image_name = uploaded_file.name
 
-            # Retrieve real sizes from Excel
+            # Retrieve sizes from the paintings from xxcel
             real_size_cm = real_sizes_df.iloc[i, 1:3].tolist()
-            photo_size_cm = real_sizes_df.iloc[i, [3, 4]].tolist()
-            dpi = int(real_sizes_df.iloc[i, 5])
+            # photo_size_cm = real_sizes_df.iloc[i, [3, 4]].tolist()
+            # dpi = int(real_sizes_df.iloc[i, 5])
 
-            # Calculate corrected area using numpy array
+            # Retrieve the stored DPI from image_metrics
+            dpi = image_metrics[image_name]['dpi'][0]  # Assuming square DPI, use dpi[0]
+
+            # Compute the size of the aligned image in cm
+            height_pixels, width_pixels = image_data.shape[:2]
+            photo_size_cm = [
+                compute_size_in_cm(height_pixels, dpi),
+                compute_size_in_cm(width_pixels, dpi),
+            ]
+
+            if None in photo_size_cm:
+                st.error(f'Could not compute size for image {image_name}.')
+                continue
+
+            # Calculate corrected area
             corrected_area = calculate_corrected_area(
                 image_data, real_size_cm, photo_size_cm, dpi
             )

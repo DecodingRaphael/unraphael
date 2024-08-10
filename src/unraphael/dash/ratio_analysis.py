@@ -101,7 +101,25 @@ def load_images_widget(as_ubyte: bool = False, **loader_kwargs) -> tuple[list[Im
     image_metrics = {}
 
     if load_example:
-        images = _load_images_from_drc(image_directory, **loader_kwargs)
+        loaded_images = _load_images_from_drc(image_directory, **loader_kwargs)
+
+        for name, data in loaded_images.items():
+            # Assuming data is image data and name is the image name
+            image = ImageType(name=name, data=data)
+            images.append(image)
+
+            # Extract metrics
+            height, width, resolution = get_image_size_resolution(io.BytesIO(data))
+            height_cm = pixels_to_cm(height, resolution[1])
+            width_cm = pixels_to_cm(width, resolution[0])
+            metrics = {
+                'height': height,
+                'width': width,
+                'dpi': resolution,
+                'height_cm': height_cm,
+                'width_cm': width_cm,
+            }
+            image_metrics[name] = metrics
     else:
         if not uploaded_files:
             st.info('Upload images to continue')
