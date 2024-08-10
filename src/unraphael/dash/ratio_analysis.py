@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Tuple
 import imageio.v3 as imageio
 import streamlit as st
 from PIL import Image
+from rembg import remove
 from skimage import img_as_ubyte
 
 from unraphael.io import load_images, load_images_from_drc, resize_to_width
@@ -157,3 +158,48 @@ def equalize_width_widget(images: list[ImageType]) -> list[ImageType]:
         return [image.apply(resize_to_width, width=width) for image in images]
 
     return images
+
+
+def create_mask(image):
+    binary_mask = remove(image, only_mask=True)
+    return binary_mask
+
+
+def show_aligned_masks_widget(
+    images: list[ImageType],
+    *,
+    n_cols: int = 4,
+    key: str = 'show_images',
+    message: str = 'Select image',
+    display_masks: bool = True,  # Add parameter to choose between showing images or masks
+) -> None | ImageType:
+    """Widget to show images or their masks with a given number of columns."""
+    col1, col2 = st.columns(2)
+    n_cols = col1.number_input(
+        'Number of columns for display', value=8, min_value=1, step=1, key=f'{key}_cols'
+    )
+    options = [None] + [image.name for image in images]
+    selected = col2.selectbox(message, options=options, key=f'{key}_sel')
+    selected_image = None
+
+    cols = st.columns(n_cols)
+
+    for i, image in enumerate(images):
+        if i % n_cols == 0:
+            cols = st.columns(n_cols)
+        col = cols[i % n_cols]
+
+        if image.name == selected:
+            selected_image = image
+
+        if display_masks:
+            # Create and display the mask
+            mask = create_mask(image.data)
+            col.image(
+                mask, use_column_width=True, caption=f'Mask of {image.name}', channels='GRAY'
+            )
+        else:
+            # Display the image itself
+            col.image(image.data, use_column_width=True, caption=image.name)
+
+    return selected_image

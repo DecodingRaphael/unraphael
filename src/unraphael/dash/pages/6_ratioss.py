@@ -7,7 +7,7 @@ import pandas as pd
 import streamlit as st
 from align import align_image_to_base
 from equalize import equalize_image_with_base
-from ratio_analysis import load_images_widget
+from ratio_analysis import load_images_widget, show_aligned_masks_widget
 from rembg import remove
 from skimage import measure
 from styling import set_custom_css
@@ -181,9 +181,7 @@ def main():
     st.title('Ratio analysis')
 
     with st.sidebar:
-        # The load_images_widget function now returns both images and image_metrics.
         images, image_metrics = load_images_widget(as_gray=False, as_ubyte=True)
-        # images = load_image_widget2()
 
     if not images:
         st.stop()
@@ -222,39 +220,37 @@ def main():
     with col2:
         images = align_images_widget(base_image=base_image, images=images)
 
-    show_images_widget(images, message='The aligned images')
+    # show_images_widget(images, message='The aligned images')
+    # Display the masks of the aligned images
+    show_aligned_masks_widget(
+        images, message='The masks of the aligned images', display_masks=True
+    )
 
     # Upload excel file containing real sizes of paintings
     st.header('Upload Real Sizes Excel File')
     uploaded_excel = st.file_uploader('Choose an Excel file', type=['xlsx'])
 
     if images and uploaded_excel:
-        # Load Excel file
         real_sizes_df = pd.read_excel(uploaded_excel, header=0)
 
-        st.write('Information on painting and photo sizes:')
+        st.write('Information on painting sizes:')
         st.write(real_sizes_df)
 
         if len(images) != len(real_sizes_df):
             st.error('The number of images and rows in the Excel file must match.')
             st.stop()
 
-        # Store corrected areas for each image
         corrected_areas = []
 
         for i, uploaded_file in enumerate(images):
             image_data = uploaded_file.data
             image_name = uploaded_file.name
 
-            # Retrieve sizes from the paintings from xxcel
+            # Retrieve sizes from the paintings
             real_size_cm = real_sizes_df.iloc[i, 1:3].tolist()
-            # photo_size_cm = real_sizes_df.iloc[i, [3, 4]].tolist()
-            # dpi = int(real_sizes_df.iloc[i, 5])
-
-            # Retrieve the stored DPI from image_metrics
             dpi = image_metrics[image_name]['dpi'][0]  # Assuming square DPI, use dpi[0]
 
-            # Compute the size of the aligned image in cm
+            # Compute the new size of the aligned image in cm
             height_pixels, width_pixels = image_data.shape[:2]
             photo_size_cm = [
                 compute_size_in_cm(height_pixels, dpi),
@@ -265,13 +261,12 @@ def main():
                 st.error(f'Could not compute size for image {image_name}.')
                 continue
 
-            # Calculate corrected area
             corrected_area = calculate_corrected_area(
                 image_data, real_size_cm, photo_size_cm, dpi
             )
             corrected_areas.append((uploaded_file.name, corrected_area))
 
-        # Generate all possible pairs for comparison
+        # Generate all possible pairs between two paintings for comparison
         combinations = list(itertools.combinations(corrected_areas, 2))
 
         st.subheader('Results')
