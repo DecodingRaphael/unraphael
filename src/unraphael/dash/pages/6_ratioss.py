@@ -7,10 +7,11 @@ import pandas as pd
 import streamlit as st
 from align import align_image_to_base
 from equalize import equalize_image_with_base
+from ratio_analysis import load_images_widget
 from rembg import remove
 from skimage import measure
 from styling import set_custom_css
-from widgets import load_images_widget, show_images_widget
+from widgets import show_images_widget
 
 from unraphael.types import ImageType
 
@@ -186,25 +187,27 @@ def main():
     st.title('Ratio analysis')
 
     with st.sidebar:
-        images = load_images_widget(as_gray=False, as_ubyte=True)
+        # images = load_images_widget(as_gray=False, as_ubyte=True)
+        images, image_metrics = load_images_widget(as_gray=False, as_ubyte=True)
         # images = load_image_widget2()
 
     if not images:
         st.stop()
 
-    # # Overview of image sizes and DPI
-    # st.subheader("Overview of Imported Images")
+    # Overview of image sizes and DPI
+    st.subheader('Overview of Imported Images')
 
-    # for image in images:
-    #     size_pixels = image.metrics.get("height"), image.metrics.get("width")
-    #     dpi = image.metrics.get("dpi")
-    #     size_cm = image.metrics.get("height_cm"), image.metrics.get("width_cm")
+    for image in images:
+        metrics = image_metrics[image.name]
+        size_pixels = metrics.get('height'), metrics.get('width')
+        dpi = metrics.get('dpi')
+        size_cm = metrics.get('height_cm'), metrics.get('width_cm')
 
-    #     st.write(f"**Image Name**: {image.name}")
-    #     st.write(f"**Size (Height x Width)**: {size_pixels[0]} x {size_pixels[1]} pixels")
-    #     st.write(f"**Size (Height x Width)**: {size_cm[0]:.2f} x {size_cm[1]:.2f} cm")
-    #     st.write(f"**DPI**: {dpi[0]} x {dpi[1]}")
-    #     st.write("---")
+        st.write(f'**Image Name**: {image.name}')
+        st.write(f'**Size (Height x Width)**: {size_pixels[0]} x {size_pixels[1]} pixels')
+        st.write(f'**Size (Height x Width)**: {size_cm[0]:.2f} x {size_cm[1]:.2f} cm')
+        st.write(f'**DPI**: {dpi[0]} x {dpi[1]}')
+        st.write('---')
 
     st.subheader('Select base image')
     base_image = show_images_widget(
