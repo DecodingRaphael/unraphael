@@ -44,7 +44,7 @@ def get_image_size_resolution(image_file, name=None) -> Tuple[int, int, Tuple[fl
                     st.warning(
                         f'DPI information not found or default value detected for image {name}.'
                     )
-                dpi = (72.0, 72.0)  # Common fallback DPI
+                dpi = (96.0, 96.0)  # Common fallback DPI
 
             return width_pixels, height_pixels, dpi
     except Exception as e:

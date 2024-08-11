@@ -58,6 +58,9 @@ def calculate_corrected_area(image, real_size_cm, photo_size_cm, dpi):
     real_area_inches = (real_size_cm[0] / 2.54) * (real_size_cm[1] / 2.54)
     photo_area_inches = (photo_size_cm[0] / 2.54) * (photo_size_cm[1] / 2.54)
 
+    # The scaling factor is the ratio of the real-world painting area to
+    # the photo area, which adjusts for any size differences between
+    # the photo and the actual painting
     scaling_factor = real_area_inches / photo_area_inches
 
     # Debug: Print sizes and ratios
@@ -65,6 +68,10 @@ def calculate_corrected_area(image, real_size_cm, photo_size_cm, dpi):
     print(f'Photo area (inches^2): {photo_area_inches}')
     print(f'Scaling factor: {scaling_factor}')
 
+    # The corrected_area calculated by this function is intended
+    # to represent the area of the region of interest (the largest
+    # connected component) in the original painting, but it is
+    # derived from the corresponding area in the digital photo
     corrected_area = area_pixels / (dpi**2) * scaling_factor
 
     return corrected_area
@@ -240,6 +247,16 @@ def main():
             st.error('The number of images and rows in the Excel file must match.')
             st.stop()
 
+        # Add a slider to select the atol value
+        atol_value = st.sidebar.slider(
+            'Set absolute tolerance (atol) for area comparison:',
+            min_value=0.01,
+            max_value=0.10,
+            value=0.05,
+            step=0.01,
+            help='Adjust the tolerance level for comparing the corrected areas.',
+        )
+
         corrected_areas = []
 
         for i, uploaded_file in enumerate(images):
@@ -248,6 +265,8 @@ def main():
 
             # Retrieve sizes from the paintings
             real_size_cm = real_sizes_df.iloc[i, 1:3].tolist()
+
+            # Retrieve dpi's from the photos
             dpi = image_metrics[image_name]['dpi'][0]  # Assuming square DPI, use dpi[0]
 
             # Compute the new size of the aligned image in cm
@@ -256,6 +275,8 @@ def main():
                 compute_size_in_cm(height_pixels, dpi),
                 compute_size_in_cm(width_pixels, dpi),
             ]
+
+            print(f'Photo size (cm): {photo_size_cm}')
 
             if None in photo_size_cm:
                 st.error(f'Could not compute size for image {image_name}.')
@@ -280,7 +301,8 @@ def main():
                 st.write(f'Corrected Area 2: {area2}')
                 st.write(f'Ratio of Corrected Areas: {area_ratio}')
 
-                if np.isclose(area_ratio, 1.0, atol=0.05):
+                # absolute tolerance of 5% for area ratio
+                if np.isclose(area_ratio, 1.0, atol=atol_value):
                     st.success('The areas are very close to being equal.')
                 else:
                     st.warning('The areas are not equal.')
