@@ -7,9 +7,11 @@ nav:
   - Home: index.md
   - 🔗 Source code: https://github.com/DecodingRaphael/unraphael
   - 🔗 Issues: https://github.com/DecodingRaphael/unraphael/issues
+  - Background:
+    - Abstract: Background/ABSTRACT.md
+    - Data-analytical pipeline: Background/PIPELINE.md
   - Getting Started:
     - Installation: Started/INSTALLATION.md
-    - Usage: Started/USAGE.md
     - Tutorials: Started/TUTORIALS.md
     - Known issues: Started/ISSUES.md
   - Image Processing Steps:

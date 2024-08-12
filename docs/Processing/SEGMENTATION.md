@@ -1,4 +1,4 @@
-## Image Segmentation and Analysis
+## Image Segmentation
 
 Segmentation is a critical step in the image analysis pipeline, particularly when analyzing paintings. After loading and preprocessing raw images (e.g., photographs of paintings), segmentation can help in further isolating specific figures or objects within the image. In case one is interested in the combined group of figures, the process of segmentation can be skipped. The segmentation process can be further divided into three main tasks: object detection, segmentation, and pose estimation.
 

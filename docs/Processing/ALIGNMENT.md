@@ -1,4 +1,4 @@
-# Image Alignment Page Documentation
+# Image Alignment
 
 ## Overview
 

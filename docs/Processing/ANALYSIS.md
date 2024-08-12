@@ -1,7 +1,26 @@
-## Estimating the Absolute Area in Paintings Based on Photos
+## Estimating the absolute area in the paintings based on photos
 
 ### Background
-To verify if the same template was used to produce shapes in different paintings, we need to compare the areas of connected components in the paintings using their photos. Since we only have digital photos and not the physical paintings themselves, we estimate the areas of these components from the photos.
+From images/ photos of a set of paintings (i.e., original and copies), the outlines of the figures can be overlaid with information about the actual size of the paintings. Here, we offer a precise way of computing the size of the outlines and of analysing the degree in variations between the original and later copies. This allows us to verify if the same template was used to produce the outlines of figures in different paintings. Since we only have digital photos and not the physical paintings themselves, we need to estimate the areas of connected components (i.e., the grouped figures, or else the main figure when there is only one) from the photos.
+
+### Procedure
+Lets denote two paintings as *P1* and *P2* and their corresponding photos as *F1* and *F2*. We would like to verify whether the same template *T* has been used to produce the same "connected component" shape *S*. That shape consists of several touching figures in the painting and is represented by shape *S1* in *P1* and *S2* in *P2*, respectively. If the same *T* is used, then the area of *S1* should be the same as the area of *S2*, or the ratio of their areas should be 1.
+
+![painting areas](pa_areas.jpg)
+
+However, we do not have access to *P1* and *P2*; hence, we cannot measure the areas of *S1* and *S2*, but we do have access to *F1* and *F2* and we do have the dimensions of both painting and photos in cm. We also have the size of the photos in pixels and the dpi (which relates the sizes in cm and in pixels). Lets denote the shapes in the digital photos as *SF1* and *SF2*.
+
+![photo areas](im_areas.jpg)
+We need to check how close the ratio is of corrected areas (calculated in number of pixels with the DPI and scaling correction) of SF1 and SF2 to 1. The areas in number of pixels for the shapes (connected components after the image segmentation) can be calculated by using any standard image processing library, e.g. using skimage. The correction/normalization of the areas with the pixel size can de done by dividing the physical dimension to the pixel dimension. That is the dpi.
+
+The scaling factor is a bit more tricky to calculate precisely, not knowing if the digital image has undergone some geometric post-processing such as cropping. (The real painting dimension and the photo ratios indicate some discrepancies, though not so big). One way is to use the scale factor from the homography derived from SIFT or other feature matching method. However, we are not matching exactly the same images hence, we cannot rely to a perfect precision. So, alternatively, we can use the average between the ratios as an estimation of the scaling factor. Then the corrected areas would be:
+
+Â = A x (pixel size/ dpi) x scaling factor
+
+(with A in amount of pixels)
+
+This then allows us to answer how similar the areas of the main outlines in two paintings are, after accounting for differences in the sizes of the paintings and their corresponding photos.
+
 
 ### Steps to Follow
 
