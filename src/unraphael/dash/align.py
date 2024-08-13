@@ -9,9 +9,12 @@ from typing import Callable
 
 import cv2
 import diplib as dip
+import matplotlib.pyplot as plt
 import numpy as np
+import streamlit as st
 from numpy.fft import fft2, ifft2
 from skimage.color import rgb2gray
+from skimage.feature import ORB, SIFT, match_descriptors, plot_matches
 
 from unraphael.types import ImageType
 
@@ -466,3 +469,99 @@ def align_image_to_base(
         raise ValueError(f'No such method: {align_method}')
 
     return func(image=image, base_image=base_image, **kwargs)
+
+
+def feature_based_alignment_visual(
+    base_image: np.ndarray, target_image: np.ndarray, method: str
+):
+    """Visualize feature-based alignment between two images using a specified
+    feature detection method.
+
+    This function applies a feature detection method to align and visualize
+    keypoints between a base image and a target image. Supported methods
+    include SIFT and ORB.
+
+    Parameters
+    ----------
+    base_image : np.ndarray
+        The base image to be used as a reference for alignment. Should be a
+        grayscale or RGB image.
+    target_image : np.ndarray
+        The target image to be aligned with the base image. Should be a
+        grayscale or RGB image.
+    method : str
+        The feature detection method to use for alignment. Options are
+        'SIFT' and 'ORB'.
+
+    Returns
+    -------
+    None
+        This function does not return a value. It displays a plot showing
+        the feature-based alignment.
+
+    Notes
+    -----
+    - If the input images are RGB, they will be converted to grayscale before
+    feature detection.
+    - Keypoints and descriptors are computed for both images using the specified
+    method.
+    - The function handles errors for unsupported methods, lack of detected
+    keypoints, and no matches found.
+
+    Examples
+    --------
+    feature_based_alignment_visual(base_image, target_image, 'SIFT')
+    """
+
+    if method == 'SIFT':
+        descriptor_extractor = SIFT()
+    # elif method == 'SURF':
+    #     descriptor_extractor = SURF()
+    elif method == 'ORB':
+        descriptor_extractor = ORB()
+    else:
+        st.error('Unsupported method selected.')
+        return
+
+    # Convert images to grayscale if not already grayscale
+    if base_image.ndim == 3 and base_image.shape[2] == 3:
+        base_image_gray = rgb2gray(base_image)
+    else:
+        base_image_gray = base_image
+
+    if target_image.ndim == 3 and target_image.shape[2] == 3:
+        target_image_gray = rgb2gray(target_image)
+    else:
+        target_image_gray = target_image
+
+    descriptor_extractor.detect_and_extract(base_image_gray)
+    keypoints1 = descriptor_extractor.keypoints
+    descriptors1 = descriptor_extractor.descriptors
+
+    descriptor_extractor.detect_and_extract(target_image_gray)
+    keypoints2 = descriptor_extractor.keypoints
+    descriptors2 = descriptor_extractor.descriptors
+
+    print(f'Base image keypoints: {keypoints1.shape}, descriptors: {descriptors1.shape}')
+    print(f'Target image keypoints: {keypoints2.shape}, descriptors: {descriptors2.shape}')
+
+    if keypoints1.shape[0] == 0 or keypoints2.shape[0] == 0:
+        st.error('No keypoints detected in one of the images.')
+        return
+
+    # Match descriptors
+    matches = match_descriptors(descriptors1, descriptors2, max_ratio=0.6, cross_check=True)
+
+    if len(matches) == 0:
+        st.error('No matches found between images.')
+        return
+
+    print(f'Plotting {len(matches)} matches between images.')
+
+    # plot matches
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 6))
+    plot_matches(ax, base_image_gray, target_image_gray, keypoints1, keypoints2, matches)
+    ax.axis('off')
+    ax.set_title(f'Feature-based alignment using {method}')
+
+    st.pyplot(fig)

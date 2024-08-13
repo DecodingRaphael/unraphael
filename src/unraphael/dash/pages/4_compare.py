@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from typing import Any, List, Tuple
+
 import imageio.v3 as imageio
 import numpy as np
 import streamlit as st
-from align import align_image_to_base
+from align import align_image_to_base, feature_based_alignment_visual
 from equalize import equalize_image_with_base
 from streamlit_image_comparison import image_comparison
 from styling import set_custom_css
@@ -39,7 +41,9 @@ def equalize_images_widget(*, base_image: np.ndarray, images: dict[str, np.ndarr
     ]
 
 
-def align_images_widget(*, base_image: ImageType, images: list[ImageType]) -> list[ImageType]:
+def align_images_widget(
+    *, base_image: ImageType, images: List[ImageType]
+) -> Tuple[List[ImageType], Any, Any]:
     """This widget helps with aligning images."""
     st.subheader('Alignment parameters')
 
@@ -117,7 +121,7 @@ def align_images_widget(*, base_image: ImageType, images: list[ImageType]) -> li
             )
         )
 
-    return res
+    return res, align_method, motion_model
 
 
 def alignment_help_widget():
@@ -251,7 +255,17 @@ def main():
         images = equalize_images_widget(base_image=base_image, images=images)
 
     with col2:
-        images = align_images_widget(base_image=base_image, images=images)
+        images, align_method, motion_model = align_images_widget(
+            base_image=base_image, images=images
+        )
+
+    # scikit-image icludes SIFT and ORB but not SURF
+    if align_method == 'Feature based alignment' and motion_model in ['SIFT', 'ORB']:
+        st.subheader('Feature-based alignment visualization')
+        for i, image in enumerate(images):
+            feature_based_alignment_visual(
+                base_image=base_image.data, target_image=image.data, method=motion_model
+            )
 
     with st.expander('Help for parameters for aligning images', expanded=False):
         alignment_help_widget()
