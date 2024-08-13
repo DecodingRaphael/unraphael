@@ -34,14 +34,14 @@ The **Image Alignment** page in this Streamlit app allows you to align multiple 
 - **Action**: Align the selected images to the base image using one of several methods.
 - **Instructions**:
   - In the right column, under "Alignment parameters," choose an alignment method from the dropdown menu labeled **Alignment procedure**.
-  - The currently available alignment methods - explained in more detail below - include:
+  - The currently available alignment methods - explained in more detail below in 4a - include:
     - **Feature Based Alignment**: Aligns images using detected features (e.g., SIFT, SURF, ORB).
     - **Enhanced Correlation Coefficient Maximization (ECC)**: Maximizes correlation between images.
     - **Fourier Mellin Transform (FMT)**: Aligns images based on frequency content.
     - **FFT Phase Correlation**: Aligns images using phase correlation in the Fourier domain.
     - **Rotational Alignment**: Aligns images by correcting rotational differences.
     - **User-Provided Keypoints**: Uses custom keypoints for alignment (if available).
-  - Depending on the selected method, you may need to choose additional options like **Motion Models** or **Normalization Methods**.
+  - Depending on the selected method, you may need to choose additional options like **Motion Models** (see 4b) or **Normalization Methods**.
   - The alignment process will run, and a progress bar will show the status of the alignment.
 
 ### 4a. Alignment Methods Overview
@@ -69,6 +69,24 @@ The **Image Alignment** page in this Streamlit app allows you to align multiple 
 ### User-Provided Keypoints
 **Description**: This method aligns images based on keypoints provided by the user, which may be derived from external processes like pose estimation. The alignment process uses these custom keypoints to adjust the images accordingly.  
 **Usefulness**: User-provided keypoints are particularly useful when automated feature detection methods fail or when the user requires precise control over the alignment process based on specific reference points.
+
+### 4b. Motion models
+
+Motion models describe different types of geometric transformations used to align images. Each model addresses specific types of misalignments. The available motion models include (see image below):
+
+![motion](motion_models.jpg)
+
+### Translation
+Translation adjusts the position of an image by shifting it horizontally or vertically. It is useful when the primary misalignment involves shifting the image along the x or y axis. This model is ideal for correcting simple positional errors without altering the image's orientation or scale.
+
+### Euclidean
+Euclidean transformations include translation along with rotation and uniform scaling. This model preserves the shape of the image but allows for rotation and scaling adjustments. It is suitable when images differ only by rotation and scaling, and it maintains the overall proportions of the image.
+
+### Affine
+Affine transformations extend Euclidean transformations by allowing non-uniform scaling and shearing. This model can handle more complex distortions such as perspective changes and skewing. It is useful for aligning images where the misalignment involves both stretching and shearing distortions.
+
+### Homography
+Homography models account for more complex transformations, including perspective distortions and varying depths. It maps points from one image to another using a projective transformation, making it ideal for aligning images taken from different viewpoints or with significant perspective changes. This model is particularly useful in panoramic stitching and when handling images with large perspective shifts.
 
 ### 5. **View Help for Alignment Methods**
 - **Action**: Access detailed information about each alignment method.
@@ -100,3 +118,7 @@ The **Image Alignment** page in this Streamlit app allows you to align multiple 
 The Image Alignment page walks you through the process of aligning images. By following these steps, you can ensure that your images are correctly aligned and ready for further analysis or processing. If you have any further questions or need further assistance, refer to the help section within the app, or look at the following links.
 
 ## References and links for more information
+
+-
+-
+-

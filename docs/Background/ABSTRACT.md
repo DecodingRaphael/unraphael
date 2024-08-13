@@ -6,7 +6,7 @@ During the 16th century, the reproduction of paintings became a significant and 
 
 ### Raphael's Use of Detailed Templates
 
-One of the most famous artists associated with the practice of reproducing paintings was Raphael. He was known for his meticulous use of detailed templates, which served as guides for his artworks. These templates allowed Raphael and his workshop to produce multiple versions of a painting with a high degree of consistency and quality.
+One of the most famous artists associated with the practice of reproducing paintings was Raphael. He was known for his meticulous use of  templates (i.e., detailed preparatory drawings), which served as guides for reproducing his artworks. These templates allowed Raphael and his workshop to produce multiple versions of a painting with a high degree of consistency and quality.
 
 ![template](template_image.jpg)
 
@@ -18,21 +18,17 @@ As a result, dozens of faithful reproductions of Raphael's paintings survive tod
 
 ## Different Copying Methods
 
-### Tracing of Lines and Impressing Chalk
+### Pouncing (Spolvero)
+A preparatory drawing is pricked with small holes along the design’s outlines using a fine tool like a needle. This pricked cartoon is placed on the new surface, and a cloth bag filled with powdered charcoal or chalk is tapped over it. The powder passes through the holes, leaving a series of dots on the surface below, which can then be connected to outline the composition. This technique allows for precise and repeatable transfers, crucial for creating multiple copies.
 
-One common method of copying involved tracing the lines of a composition and then impressing the outlines onto a new surface using chalk. This technique ensured that the proportions and layout of the original design were accurately transferred to the copy, serving as a reliable foundation for further work.
-
-### Pouncing by Pricking
-
-Pouncing, another popular method, involved pricking small holes along the lines of a design and then dusting the surface with powdered charcoal or chalk. This process created a series of dots that could be connected to replicate the original image. Pouncing was particularly useful for reproducing intricate details and was often employed for large-scale frescoes or altarpieces.
+### Tracing of Lines and Impressing Chalk (Calco)
+The artist would smudge charcoal on the back of the sheet itself before tracing the outlines of the design. The original design is placed over a new surface, and its outlines are traced using a stylus or sharp tool, leaving indentations on the underlying surface. It could also be done using the verso of a separate sheet placed underneath the first sheet. The artist would then press heavily on the pointed tool he used for transferring his designs, hence tracing more fluidly the drawing on the paper while minimising the damages caused to the original design. This method ensures that the key elements of the composition (i.e. ussually the main figures) are accurately transferred, providing a reliable guide for the subsequent painting process on the canvas.
 
 ### Squaring with a Grid
+The original image is divided into a grid of equal squares, which is replicated on the new surface. Each square of the original is then copied individually, focusing on the details within that specific section. This method is particularly useful for enlarging or reducing the scale of the image while maintaining accurate proportions. It also helps in transferring complex compositions by breaking them down into manageable parts.
 
-The squaring method used a grid to divide the composition into smaller squares, allowing the artist to copy the image square by square. This method was especially effective for ensuring accurate proportions and was widely used for scaling up smaller drawings or sketches to larger canvases or walls.
-
-### Freehand Copying
-
-Finally, freehand copying relied on the skill and experience of the artist to replicate the original composition by eye. While this method allowed for greater artistic interpretation and flexibility, it required a high level of expertise and often resulted in variations between the original and the copy.
+###  Freehand Copying
+In freehand copying, the artist redraws the original design directly onto a new surface without mechanical aids. This requires the artist to rely on their visual memory and drawing skills to replicate the composition. Variations in the copy can occur due to the interpretative nature of this method, allowing for artistic freedom but requiring a high level of expertise to ensure fidelity to the original.
 
 ---
 
