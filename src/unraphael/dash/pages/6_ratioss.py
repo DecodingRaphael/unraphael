@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import itertools
+from typing import Optional
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 import streamlit as st
 from align import align_image_to_base
 from equalize import equalize_image_with_base
@@ -21,14 +24,13 @@ _equalize_image_with_base = st.cache_data(equalize_image_with_base)
 # Helper functions
 
 
-def compute_size_in_cm(pixels, dpi):
+def compute_size_in_cm(pixels: int, dpi: int) -> Optional[float]:
     """Compute the size in centimeters based on pixels and DPI."""
-    if dpi != 0:
-        inches = pixels / dpi
-        cm = inches * 2.54
-        return cm
-    else:
-        return None
+    if dpi == 0:
+        raise ValueError('DPI cannot be zero.')
+    inches = pixels / dpi
+    cm = inches * 2.54
+    return cm
 
 
 def create_mask(image):
@@ -291,6 +293,37 @@ def main():
         combinations = list(itertools.combinations(corrected_areas, 2))
 
         st.subheader('Results')
+
+        # Prepare data for heatmap
+        image_names = [name for name, _ in corrected_areas]
+        heatmap_data = np.zeros((len(image_names), len(image_names)))
+
+        # Compare each combination of images
+        for (name1, area1), (name2, area2) in combinations:
+            if area1 is not None and area2 is not None:
+                area_ratio = area1 / area2
+                i = image_names.index(name1)
+                j = image_names.index(name2)
+                heatmap_data[i, j] = area_ratio
+                heatmap_data[j, i] = area_ratio  # Ensure the matrix is symmetric
+
+        # Create a heatmap
+        fig, ax = plt.subplots(figsize=(10, 8))
+        sns.heatmap(
+            heatmap_data,
+            annot=True,
+            fmt='.2f',
+            xticklabels=image_names,
+            yticklabels=image_names,
+            cmap='coolwarm',
+            cbar_kws={'label': 'Area Ratio'},
+        )
+        plt.title('Heatmap of Area Ratios')
+        plt.xlabel('Image Names')
+        plt.ylabel('Image Names')
+
+        # Display the heatmap in Streamlit
+        st.pyplot(fig)
 
         # Compare each combination of images
         for (name1, area1), (name2, area2) in combinations:
