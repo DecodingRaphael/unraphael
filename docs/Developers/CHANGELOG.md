@@ -1,3 +1,0 @@
-**CHANGELOG**
-
-More coming soon!

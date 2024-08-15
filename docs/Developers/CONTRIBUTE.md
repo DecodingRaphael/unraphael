@@ -1,3 +1,0 @@
-**CONTRIBUTE**
-
-More coming soon!
