@@ -33,9 +33,7 @@ In freehand copying, the artist redraws the original design directly onto a new 
 ---
 
 ## Aim
-This background information highlights the historical context and various methods of copying paintings in Renaissance Italy, which are relevant to understanding the significance of image alignment and clustering in art historical research. The Streamlit app leverages modern computational techniques to explore these historical practices, offering insights into the similarities and differences between artworks that were produced using these traditional methods. A computational approach to the above sketched phenomenon enables the comparison of an unlimited number of paintings using photographs alone with millimetre-precise accuracy.
-
-This approach can be used to answer questions such as:
+This background information highlights the historical context and various methods of copying paintings in Renaissance Italy, which are relevant to understanding the significance of image alignment and clustering in art historical research. The Streamlit app leverages modern computational techniques to explore these historical practices, offering insights into the similarities and differences between artworks that were produced using these traditional methods. A computational approach to the above sketched phenomenon enables the comparison of an unlimited number of paintings using photographs alone with millimetre-precise accuracy. This approach can be used to answer questions such as:
 
 - Can computer vision methods identify different copying methods used in the reproductions of Raphael’s paintings? 
 - Based on the computed variations in the design of copies, what is the genealogical relationship between the original paintings and its variants? Which copies could come from Raphael’s workshop?
@@ -44,13 +42,3 @@ This approach can be used to answer questions such as:
 Developed in python, **Unraphael** is a toolbox for obtaining insight into structural similarities and differences between the original painting and its copies. It relies on computer vision algorithms to extract the outlines of the figures and compare these across paintings, revealing how these relate to each other (smaller variations revealing closer affinities), and copying practices (identical outlines denoting a mechanical method of transferring the compositions). Such comparisons have been undertaken manually, on a small number of cases, but never computationally, and as such **Unraphael** has the potential to revolutionise art historical methods for studying art.
 
  The input for **Unraphael** can be a set of images in *jpg* or *png*. In case of using the app, a target directory can be selected where these images are stored.
-
- Finally, **Unraphael** is:
-
-- easy to use
-- open-source
-- reproducible
-- scalable
-- customizable
-- extendable
-- maintainable

@@ -1,5 +1,3 @@
-**CONTACT INFORMATION**
-
 ![Unraphael banner](https://raw.githubusercontent.com/DecodingRaphael/unraphael/main/src/unraphael/data/logo.png#gh-light-mode-only)
 
 Unraphael is maintained by the [Netherlands eScience Center](https://www.esciencecenter.nl/) in collaboration with the [Department of History and Art History](https://www.uu.nl/en/organisation/department-of-history-and-art-history) at the [University of Utrecht](https://www.uu.nl/en/). If you have any questions, feedback, or need support, please feel free to reach out to us. Below are the primary contacts and useful links for your reference:

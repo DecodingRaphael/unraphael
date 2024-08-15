@@ -116,9 +116,3 @@ Homography models account for more complex transformations, including perspectiv
 ## Conclusion
 
 The Image Alignment page walks you through the process of aligning images. By following these steps, you can ensure that your images are correctly aligned and ready for further analysis or processing. If you have any further questions or need further assistance, refer to the help section within the app, or look at the following links.
-
-## References and links for more information
-
--
--
--

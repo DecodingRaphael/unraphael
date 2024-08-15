@@ -12,8 +12,8 @@ nav:
     - Data-analytical pipeline: Background/PIPELINE.md
   - Getting Started:
     - Installation: Started/INSTALLATION.md
-    - Tutorials: Started/TUTORIALS.md
-    - Known issues: Started/ISSUES.md
+    - Tutorial 1: Started/TUTORIAL1.md
+    - Tutorial 2: Started/TUTORIAL2.md
   - Image Processing Steps:
     - Introduction: Processing/INTRODUCTION.md
     - Preprocessing: Processing/PREPROCESSING.md
@@ -22,19 +22,16 @@ nav:
     - Clustering: Processing/CLUSTERING.md
     - Absolute area analysis: Processing/ANALYSIS.md
   - Developers:
-    - Code of Conduct: CODE_OF_CONDUCT.md
-    - Building from source: Developers/SOURCE.md
-    - Contributing guidelines: CONTRIBUTING.md
-    - Changelog: Developers/CHANGELOG.md
+    - Code of Conduct: Developers/CODE_OF_CONDUCT.md
+    - Contributing guidelines: Developers/CONTRIBUTING.md
   - About:
-    - How to Cite: About/CITE.md
+    - How to cite: About/CITE.md
     - Contact information: About/CONTACT.md
     - In action: About/ACTION.md
-    - FAQ's: About/FAQS.md
 
 theme:
-  name: readthedocs
-  color_mode: dark
+  name: material
+  #color_mode: dark
   palette:
     scheme: default
     primary: deep purple
