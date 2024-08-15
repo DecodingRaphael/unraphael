@@ -12,4 +12,5 @@ RUN pip install .[dash]
 
 EXPOSE 8501
 
-ENTRYPOINT ["unraphael-dash", "--server.port=8501", "--server.address=0.0.0.0"]
+ENTRYPOINT ["unraphael-dash", "--server.port=8501"]
+CMD ["--server.address=0.0.0.0"]
