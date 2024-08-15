@@ -1,8 +1,7 @@
-FROM python:3.12 as builder
+FROM python:3.12-slim
 
-RUN pip install torch==2.3.1+cpu torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cpu
-# RUN apt-get update && apt-get install libsm6 libxext6  -y
-RUN apt-get update && apt-get install libgl1 -y
+RUN pip install torch==2.3.1+cpu torchvision torchaudio 'numpy<2.0' --extra-index-url https://download.pytorch.org/whl/cpu
+RUN apt-get update && apt-get install libgl1 libglib2.0-0 -y
 
 WORKDIR /app
 
