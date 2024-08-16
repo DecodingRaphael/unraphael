@@ -5,7 +5,7 @@ from typing import Any, List, Tuple
 import imageio.v3 as imageio
 import numpy as np
 import streamlit as st
-from align import align_image_to_base, feature_based_alignment_visual
+from align import align_image_to_base, feature_alignment_navigation_widget
 from equalize import equalize_image_with_base
 from streamlit_image_comparison import image_comparison
 from styling import set_custom_css
@@ -259,12 +259,34 @@ def main():
             base_image=base_image, images=images
         )
 
-    # scikit-image icludes SIFT and ORB but not SURF
+    # scikit-image includes SIFT and ORB but not SURF
     if align_method == 'Feature based alignment' and motion_model in ['SIFT', 'ORB']:
-        st.subheader('Feature-based alignment visualization')
-        for i, image in enumerate(images):
-            feature_based_alignment_visual(
-                base_image=base_image.data, target_image=image.data, method=motion_model
+        # Add a selection button to allow the user to choose whether to visualize
+        # the feature-based alignment
+        visualize = col2.checkbox(
+            f'Show feature-based alignment visualization using {motion_model}', value=False
+        )
+
+        if visualize:
+            # Allow user to choose grayscale or original image display
+            display_in_grayscale = (
+                col2.radio('Display images in:', ['Grayscale', 'Original color)'])
+                == 'Grayscale'
+            )
+            # Slider to select max_ratio
+            max_ratio = col2.slider('Max ratio for descriptor matching', 0.5, 0.8, 0.6, 0.01)
+
+            st.write('')
+            st.write('')
+            st.subheader(f'Feature-based alignment visualization using {motion_model}')
+            st.write('')
+
+            feature_alignment_navigation_widget(
+                base_image=base_image,
+                images=images,
+                method=motion_model,
+                display_in_grayscale=display_in_grayscale,
+                max_ratio=max_ratio,
             )
 
     with st.expander('Help for parameters for aligning images', expanded=False):

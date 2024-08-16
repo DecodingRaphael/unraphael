@@ -472,51 +472,43 @@ def align_image_to_base(
 
 
 def feature_based_alignment_visual(
-    base_image: np.ndarray, target_image: np.ndarray, method: str
+    base_image: np.ndarray,
+    target_image: np.ndarray,
+    method: str,
+    base_image_name: str,
+    target_image_name: str,
+    display_in_grayscale: bool = True,
+    max_ratio: float = 0.6,
 ):
     """Visualize feature-based alignment between two images using a specified
     feature detection method.
 
-    This function applies a feature detection method to align and visualize
-    keypoints between a base image and a target image. Supported methods
-    include SIFT and ORB.
-
     Parameters
     ----------
     base_image : np.ndarray
-        The base image to be used as a reference for alignment. Should be a
-        grayscale or RGB image.
+        The base image to be used as a reference for alignment
     target_image : np.ndarray
-        The target image to be aligned with the base image. Should be a
-        grayscale or RGB image.
+        The target image to be aligned with the base image
     method : str
-        The feature detection method to use for alignment. Options are
-        'SIFT' and 'ORB'.
+        The feature detection method to use for alignment ('SIFT' or 'ORB')
+    base_image_name : str
+        Name of the base image for labeling
+    target_image_name : str
+        Name of the target image for labeling
+    display_in_grayscale : bool, optional
+        Whether to display images in grayscale or original color, by default True
+    max_ratio : float, optional
+        The maximum ratio for descriptor matching, by default 0.6
 
     Returns
     -------
     None
-        This function does not return a value. It displays a plot showing
-        the feature-based alignment.
-
-    Notes
-    -----
-    - If the input images are RGB, they will be converted to grayscale before
-    feature detection.
-    - Keypoints and descriptors are computed for both images using the specified
-    method.
-    - The function handles errors for unsupported methods, lack of detected
-    keypoints, and no matches found.
-
-    Examples
-    --------
-    feature_based_alignment_visual(base_image, target_image, 'SIFT')
+        Displays a plot showing the feature-based alignment
     """
 
+    # Initialize the feature descriptor based on the method
     if method == 'SIFT':
         descriptor_extractor = SIFT()
-    # elif method == 'SURF':
-    #     descriptor_extractor = SURF()
     elif method == 'ORB':
         descriptor_extractor = ORB()
     else:
@@ -524,16 +516,10 @@ def feature_based_alignment_visual(
         return
 
     # Convert images to grayscale if not already grayscale
-    if base_image.ndim == 3 and base_image.shape[2] == 3:
-        base_image_gray = rgb2gray(base_image)
-    else:
-        base_image_gray = base_image
+    base_image_gray = rgb2gray(base_image) if base_image.ndim == 3 else base_image
+    target_image_gray = rgb2gray(target_image) if target_image.ndim == 3 else target_image
 
-    if target_image.ndim == 3 and target_image.shape[2] == 3:
-        target_image_gray = rgb2gray(target_image)
-    else:
-        target_image_gray = target_image
-
+    # Extract keypoints and descriptors for both images
     descriptor_extractor.detect_and_extract(base_image_gray)
     keypoints1 = descriptor_extractor.keypoints
     descriptors1 = descriptor_extractor.descriptors
@@ -542,26 +528,99 @@ def feature_based_alignment_visual(
     keypoints2 = descriptor_extractor.keypoints
     descriptors2 = descriptor_extractor.descriptors
 
-    print(f'Base image keypoints: {keypoints1.shape}, descriptors: {descriptors1.shape}')
-    print(f'Target image keypoints: {keypoints2.shape}, descriptors: {descriptors2.shape}')
-
+    # Check if keypoints are detected
     if keypoints1.shape[0] == 0 or keypoints2.shape[0] == 0:
         st.error('No keypoints detected in one of the images.')
         return
 
     # Match descriptors
-    matches = match_descriptors(descriptors1, descriptors2, max_ratio=0.6, cross_check=True)
+    matches = match_descriptors(
+        descriptors1, descriptors2, max_ratio=max_ratio, cross_check=True
+    )
 
+    # Check if matches are found
     if len(matches) == 0:
         st.error('No matches found between images.')
         return
 
-    print(f'Plotting {len(matches)} matches between images.')
-
-    # plot matches
-    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 6))
-    plot_matches(ax, base_image_gray, target_image_gray, keypoints1, keypoints2, matches)
+    # Plot the matched keypoints with image names as titles
+    fig, ax = plt.subplots(figsize=(10, 8))
     ax.axis('off')
-    ax.set_title(f'Feature-based alignment using {method}')
+
+    if display_in_grayscale:
+        plot_matches(ax, base_image_gray, target_image_gray, keypoints1, keypoints2, matches)
+    else:
+        plot_matches(ax, base_image, target_image, keypoints1, keypoints2, matches)
+
+    # Adding the image names above the corresponding images
+    ax.text(
+        0.25,
+        1.05,
+        f'{base_image_name}',
+        ha='center',
+        va='center',
+        fontsize=12,
+        transform=ax.transAxes,
+    )
+    ax.text(
+        0.75,
+        1.05,
+        f'{target_image_name}',
+        ha='center',
+        va='center',
+        fontsize=12,
+        transform=ax.transAxes,
+    )
 
     st.pyplot(fig)
+
+
+def feature_alignment_navigation_widget(
+    base_image: ImageType,
+    images: list[ImageType],
+    method: str,
+    display_in_grayscale: bool = True,
+    max_ratio: float = 0.6,
+):
+    """Widget to navigate and display feature-based alignment between the base
+    image and other images.
+
+    Parameters:
+    - base_image: The base image
+    - images: List of aligned images to compare with the base image
+    - method: The feature detection method used (i.e., 'SIFT' or 'ORB')
+    - display_in_grayscale: Whether to display images in grayscale or original color
+    - max_ratio: The maximum ratio for descriptor matching
+    """
+
+    if 'image_index' not in st.session_state:
+        st.session_state.image_index = 0
+
+    def display_current_image():
+        current_image = images[st.session_state.image_index]
+        feature_based_alignment_visual(
+            base_image=base_image.data,
+            target_image=current_image.data,
+            method=method,
+            base_image_name=base_image.name,
+            target_image_name=current_image.name,
+            display_in_grayscale=display_in_grayscale,
+            max_ratio=max_ratio,
+        )
+
+    def next_image():
+        st.session_state.image_index = (st.session_state.image_index + 1) % len(images)
+
+    def previous_image():
+        st.session_state.image_index = (st.session_state.image_index - 1) % len(images)
+
+    # Layout for buttons and image display
+    col1, col2, col3 = st.columns([1, 6, 1])
+
+    with col1:
+        st.button('⏮️ Previous', on_click=previous_image)
+    with col3:
+        st.button('Next ⏭️', on_click=next_image)
+
+    with col2:
+        display_current_image()
