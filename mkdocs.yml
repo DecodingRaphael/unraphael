@@ -16,9 +16,9 @@ nav:
     - steps/alignment.md
     - steps/clustering.md
     - steps/analysis.md
-  - Code of Conduct: CODE_OF_CONDUCT.md
   - CONTRIBUTING.md
-  - CITE.md
+  - cite.md
+  - Code of Conduct: CODE_OF_CONDUCT.md
   - 🔗 Source code: https://github.com/DecodingRaphael/unraphael
   - 🔗 Issues: https://github.com/DecodingRaphael/unraphael/issues
 
