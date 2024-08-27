@@ -1,6 +1,4 @@
-# Tutorials
-
-## Image Preprocessing, Segmentation, and Alignment Tutorial
+# Image processing
 
 This tutorial will walk you through the steps of preprocessing, segmenting, and aligning images using the Streamlit application. These steps are designed to prepare your images for further analysis by standardizing their visual properties, extracting key regions of interest, and aligning them to a base image. Finally, we will focus on inspecting the heatmap output of the alignment step to uncover structural similarities between images.
 

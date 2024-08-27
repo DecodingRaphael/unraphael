@@ -1,8 +1,9 @@
-## Image Preprocessing and Background Removal
+# Image Preprocessing and Background Removal
 
 This section walks you through the image preprocessing and background removal steps available in the app. These steps help to optimize your image for further analysis by enhancing important features and removing unnecessary background elements.
 
-### 1. Image Preprocessing
+## Image Preprocessing
+
 The preprocessing stage is crucial for preparing the image, ensuring that the background removal and subsequent analysis are more accurate and effective. The app provides several adjustable filters to refine your image:
 
 - **Bilateral Filter Strength**: This filter smooths the image while preserving edges. It's useful for reducing noise while keeping important details intact.
@@ -15,7 +16,8 @@ The preprocessing stage is crucial for preparing the image, ensuring that the ba
 
 The app displays a side-by-side comparison of the original and processed images, allowing you to fine-tune the parameters until you're satisfied with the result.
 
-### 2. Background Removal
+##  Background Removal
+
 After preprocessing, the next step is to remove the background from the image. This step isolates the subject of interest, making it easier to analyze without interference from background elements:
 
 - **Alpha Matting**: A technique that refines the edges of the mask, ensuring a smoother and more natural transition between the subject and the background.
@@ -34,13 +36,12 @@ Additional parameters help fine-tune the background removal process:
 
 The app shows the resulting mask and the image with the background removed, allowing you to compare and adjust settings as needed.
 
-### 3. Final Steps and Download
+## Final Steps and Download
+
 After preprocessing and background removal, you can download the processed images for further analysis. The app allows you to save:
 
 - The original image.
 - The image with the background removed.
 - An extracted version, where only the subject remains, isolated from both the background and any irrelevant details.
 
-These steps ensure that the image is optimized and ready for further analysis, such as aligning the imagesor clustering images based on their features.
-
-## References and links for more information
+These steps ensure that the image is optimized and ready for further analysis, such as aligning the images or clustering images based on their features.

@@ -1,6 +1,4 @@
-
-![Unraphael banner](https://raw.githubusercontent.com/DecodingRaphael/unraphael/main/src/unraphael/data/logo.png#gh-light-mode-only)
-
+# How to cite
 
 If you use this software in your work, please cite it using the following metadata [(Learn more about CITATION files).](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-citation-files)
 

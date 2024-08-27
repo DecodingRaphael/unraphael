@@ -10,7 +10,17 @@
 
 # Unraphael
 
-**Unraphael** is a digital workflow tool that uses computer vision to unravel the artistic practice of Raphael (Raffaello Sanzio, 1483-1520), while providing new digital approaches for the study of artistic practice in art history. Dozens of faithful reproductions survive of Raphael's paintings, attesting to the lucrative practice of serial production of paintings within the artist's workshop and to the lasting demand for the master's designs. This tool aims to provide new insights into Raphael's working methods through new digital approaches for the study of artistic practice in art history.
+**Unraphael** is a digital workflow tool that uses computer vision to unravel the artistic practice of Raphael (Raffaello Sanzio, 1483-1520), while providing new digital approaches for the study of artistic practice in art history. Dozens of faithful reproductions survive of Raphael's paintings, attesting to the lucrative practice of serial production of paintings within the artist's workshop and to the lasting demand for the master's designs.
+
+**Unraphael** provides a flexible and easy-to-use GUI to inspect and assess the structural similarity of figure-outlines in images. Photographs of paintings are used as input for the application.
+
+While **Unraphael** was made for art historians and researchers in the humanities to study the artistic practices of and the process of making copies of paintings, the functionality of **Unraphael** extends well beyond the study of Raphael's paintings and can be used for a wide range of applications in the digital humanities and beyond.
+
+Features:
+- Image preprocessing
+- Background removal
+- Image alignment
+- Image clustering based on structural similarity
 
 To install:
 
@@ -24,16 +34,29 @@ You can also [try unraphael directly from your browser](https://unraphael.stream
 
 <table>
   <tr>
-     <td><a href =https://unraphael.streamlit.app/image_similarity>Image similarity</a></td>
-     <td><a href =https://unraphael.streamlit.app/image_similarity>Image preprocessing</a></td>
-     <td><a href =https://unraphael.streamlit.app/image_similarity>Object detection</a></td>
-     <td><a href =https://unraphael.streamlit.app/image_similarity>Image comparison</a></td>
+    <th>Link</th>
+    <th>Description</th>
+    <th>Image</th>
   </tr>
   <tr>
-    <td><img src="docs/_static/dash_image_sim.png" alt="Image similarity" width="85%"/></td>
-    <td><img src="docs/_static/dash_preprocess.png" alt="Image preprocessing" width="85%"/></td>
-    <td><img src="docs/_static/dash_detect.png" alt="Object detection" width="85%"/></td>
-    <td><img src="docs/_static/dash_compare.png" alt="Image comparison" width="85%"/></td>
+    <td><a href =https://unraphael.streamlit.app/image_similarity>Image similarity</a></td>
+    <td>Group your images using cluster analysis</td>
+    <td><img src="https://raw.githubusercontent.com/DecodingRaphael/unraphael/main/docs/_static/dash_image_sim.png" alt="Image similarity" width="90%"/></td>
+  </tr>
+  <tr>
+    <td><a href =https://unraphael.streamlit.app/image_similarity>Image preprocessing</a></td>
+    <td>Preprocess your images, e.g. background removal, color adjustments, applying image filters, segmentation</td>
+    <td><img src="https://raw.githubusercontent.com/DecodingRaphael/unraphael/main/docs/_static/dash_preprocess.png" alt="Image preprocessing" width="90%"/></td>
+  </tr>
+  <tr>
+    <td><a href =https://unraphael.streamlit.app/image_similarity>Object detection</a></td>
+    <td>Quickly and accurately identify and segment figures or objects within an image to analyse the isolated components</td>
+    <td><img src="https://raw.githubusercontent.com/DecodingRaphael/unraphael/main/docs/_static/dash_detect.png" alt="Object detection" width="90%"/></td>
+  </tr>
+  <tr>
+    <td><a href =https://unraphael.streamlit.app/image_similarity>Image comparison</a></td>
+    <td>Compare your images based on their structural components</td>
+    <td><img src="https://raw.githubusercontent.com/DecodingRaphael/unraphael/main/docs/_static/dash_compare.png" alt="Image comparison" width="90%"/></td>
   </tr>
 </table>
 

@@ -1,20 +1,16 @@
-# Abstract
-
-### The Lucrative Practice of Reproducing Paintings in the 16th Century
+# Reproducing Paintings in the 16th Century
 
 During the 16th century, the reproduction of paintings became a significant and lucrative practice in Renaissance Italy. Artists and workshops often created multiple versions of popular works, both to meet the high demand and to spread the influence of renowned masters. This practice allowed artists to capitalize on successful compositions and provided patrons with highly sought-after artworks, even if they were not original pieces.
 
-### Raphael's Use of Detailed Templates
+## Raphael's Use of Detailed Templates
 
 One of the most famous artists associated with the practice of reproducing paintings was Raphael. He was known for his meticulous use of  templates (i.e., detailed preparatory drawings), which served as guides for reproducing his artworks. These templates allowed Raphael and his workshop to produce multiple versions of a painting with a high degree of consistency and quality.
 
-![template](template_image.jpg)
+![template](_static/template_image.jpg)
 
 As a result, dozens of faithful reproductions of Raphael's paintings survive today, offering insights into the techniques and processes used in his workshop.
 
-![data](example_data.jpg)
-
----
+![data](_static/example_data.jpg)
 
 ## Different Copying Methods
 
@@ -30,7 +26,6 @@ The original image is divided into a grid of equal squares, which is replicated 
 ###  Freehand Copying
 In freehand copying, the artist redraws the original design directly onto a new surface without mechanical aids. This requires the artist to rely on their visual memory and drawing skills to replicate the composition. Variations in the copy can occur due to the interpretative nature of this method, allowing for artistic freedom but requiring a high level of expertise to ensure fidelity to the original.
 
----
 
 ## Aim
 This background information highlights the historical context and various methods of copying paintings in Renaissance Italy, which are relevant to understanding the significance of image alignment and clustering in art historical research. The Streamlit app leverages modern computational techniques to explore these historical practices, offering insights into the similarities and differences between artworks that were produced using these traditional methods. A computational approach to the above sketched phenomenon enables the comparison of an unlimited number of paintings using photographs alone with millimetre-precise accuracy. This approach can be used to answer questions such as:

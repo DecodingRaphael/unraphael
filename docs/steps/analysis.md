@@ -1,9 +1,9 @@
-## Estimating the absolute area in the paintings based on photos
+# Estimating the absolute area in the paintings based on photos
 
-### Background
 From images/ photos of a set of paintings (i.e., original and copies), the outlines of the figures can be overlaid with information about the actual size of the paintings. Here, we offer a precise way of computing the size of the outlines and of analysing the degree in variations between the original and later copies. This allows us to verify if the same template was used to produce the outlines of figures in different paintings. Since we only have digital photos and not the physical paintings themselves, we need to estimate the areas of connected components (i.e., the grouped figures, or else the main figure when there is only one) from the photos.
 
-### Procedure
+## Procedure
+
 Lets denote two paintings as *P1* and *P2* and their corresponding photos as *F1* and *F2*. We would like to verify whether the same template *T* has been used to produce the same "connected component" shape *S*. That shape consists of several touching figures in the painting and is represented by shape *S1* in *P1* and *S2* in *P2*, respectively. If the same *T* is used, then the area of *S1* should be the same as the area of *S2*, or the ratio of their areas should be 1.
 
 ![painting areas](pa_areas.jpg)
@@ -22,7 +22,7 @@ The scaling factor is a bit more tricky to calculate precisely, not knowing if t
 This then allows us to answer how similar the areas of the main outlines in two paintings are, after accounting for differences in the sizes of the paintings and their corresponding photos.
 
 
-### Steps to Follow
+## Steps to Follow
 
 1. **Upload Images and Real Sizes:**
    - **Upload Photos:** Start by uploading the digital photos of the paintings.
@@ -56,7 +56,7 @@ This then allows us to answer how similar the areas of the main outlines in two 
    - **Compute Area Ratios:** For each pair of paintings, calculate the ratio of their corrected areas.
    - **Check for Similarity:** Compare the ratios to 1.0 to determine if the areas are approximately equal, using a set tolerance for minor discrepancies.
 
-### Detailed Code Overview
+## Detailed Code Overview
 
 - **Compute Size in cm:** Converts pixel dimensions to centimeters based on DPI.
 - **Create Mask:** Segments the image to isolate connected components.

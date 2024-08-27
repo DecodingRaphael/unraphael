@@ -5,29 +5,22 @@ repo_name: GitHub
 
 nav:
   - Home: index.md
+  - background.md
+  - pipeline.md
+  - Tutorials:
+    - tutorials/image_processing.md
+    - tutorials/image_clustering.md
+  - Image Processing Steps:
+    - steps/preprocessing.md
+    - steps/segmentation.md
+    - steps/alignment.md
+    - steps/clustering.md
+    - steps/analysis.md
+  - Code of Conduct: CODE_OF_CONDUCT.md
+  - CONTRIBUTING.md
+  - CITE.md
   - 🔗 Source code: https://github.com/DecodingRaphael/unraphael
   - 🔗 Issues: https://github.com/DecodingRaphael/unraphael/issues
-  - Background:
-    - Abstract: Background/ABSTRACT.md
-    - Data-analytical pipeline: Background/PIPELINE.md
-  - Getting Started:
-    - Installation: Started/INSTALLATION.md
-    - Tutorial 1: Started/TUTORIAL1.md
-    - Tutorial 2: Started/TUTORIAL2.md
-  - Image Processing Steps:
-    - Introduction: Processing/INTRODUCTION.md
-    - Preprocessing: Processing/PREPROCESSING.md
-    - Segmentation: Processing/SEGMENTATION.md
-    - Alignment: Processing/ALIGNMENT.md
-    - Clustering: Processing/CLUSTERING.md
-    - Absolute area analysis: Processing/ANALYSIS.md
-  - Developers:
-    - Code of Conduct: Developers/CODE_OF_CONDUCT.md
-    - Contributing guidelines: Developers/CONTRIBUTING.md
-  - About:
-    - How to cite: About/CITE.md
-    - Contact information: About/CONTACT.md
-    - In action: About/ACTION.md
 
 theme:
   name: material
