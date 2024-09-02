@@ -21,7 +21,7 @@ _load_images_from_drc = st.cache_data(load_images_from_drc)
 
 
 def get_image_size_resolution(image_file, name=None) -> Tuple[int, int, Tuple[float, float]]:
-    """Get the width, height, and resolution of an image from an in-memory
+    """Get the height, width, and resolution of an image from an in-memory
     file.
 
     Parameters:
@@ -29,11 +29,12 @@ def get_image_size_resolution(image_file, name=None) -> Tuple[int, int, Tuple[fl
     - name (str): Optional. The name of the image file for logging and warning purposes.
 
     Returns:
-    - Tuple[int, int, Tuple[float, float]]: The width, height, and resolution of the image.
+    - Tuple[int, int, Tuple[float, float]]: The height, width, and resolution of the image.
     """
     try:
         with Image.open(image_file) as img:
-            width_pixels, height_pixels = img.size
+            # Note: PIL's img.size returns (width, height), so we reverse it here
+            height_pixels, width_pixels = img.size[::-1]
 
             # Attempt to get DPI from the image metadata
             dpi = img.info.get('dpi', (None, None))
@@ -46,7 +47,7 @@ def get_image_size_resolution(image_file, name=None) -> Tuple[int, int, Tuple[fl
                     )
                 dpi = (96.0, 96.0)  # Common fallback DPI
 
-            return width_pixels, height_pixels, dpi
+            return height_pixels, width_pixels, dpi  # Return (height, width)
     except Exception as e:
         st.error(f'Error processing image: {e}')
         return 0, 0, (0.0, 0.0)

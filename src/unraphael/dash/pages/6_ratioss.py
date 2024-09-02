@@ -13,6 +13,8 @@ from equalize import equalize_image_with_base
 from ratio_analysis import load_images_widget, show_aligned_masks_widget
 from rembg import remove
 from skimage import measure
+from skimage.transform import resize
+from skimage.util import img_as_ubyte
 from styling import set_custom_css
 from widgets import show_images_widget
 
@@ -21,9 +23,8 @@ from unraphael.types import ImageType
 _align_image_to_base = st.cache_data(align_image_to_base)
 _equalize_image_with_base = st.cache_data(equalize_image_with_base)
 
+
 # Helper functions
-
-
 def compute_size_in_cm(pixels: int, dpi: int) -> Optional[float]:
     """Compute the size in centimeters based on pixels and DPI."""
     if dpi == 0:
@@ -38,11 +39,116 @@ def create_mask(image):
     return binary_mask
 
 
+def resize_image_to_original(
+    image: ImageType, target_height: int, target_width: int
+) -> ImageType:
+    """Resize the aligned image back to its original size and return an
+    ImageType object."""
+
+    # Get current dimensions of the image
+    current_height, current_width = image.data.shape[:2]
+
+    # Determine the aspect ratios
+    # original_aspect_ratio = target_height / target_width
+    # current_aspect_ratio = current_height / current_width
+
+    # Determine the orientation of the dimensions for the original and current images
+    original_is_portrait = target_height > target_width
+    current_is_portrait = current_height > current_width
+
+    # Check if the orientation (portrait/landscape) is consistent
+    if original_is_portrait != current_is_portrait:
+        print(
+            f'Warning: Orientation mismatch detected. '
+            f'Current dimensions: {current_height}x{current_width}.'
+        )
+
+        print(f'Original dimensions: {target_height}x{target_width}.')
+
+        print(
+            f'Original is portrait: {original_is_portrait}, '
+            f'Current is portrait: {current_is_portrait}.'
+        )
+
+    # Resize the image using skimage
+    resized_image_data = resize(
+        image.data, (target_height, target_width), anti_aliasing=True, preserve_range=True
+    )
+
+    # Normalize between 0 and 1 and convert to uint8 format
+    resized_image_data = img_as_ubyte(np.clip(resized_image_data, 0, 1))
+
+    # Create a new ImageType object with the resized image data
+    resized_image = ImageType(
+        name=image.name,
+        data=resized_image_data,
+    )
+
+    return resized_image
+
+
+def resize_image_with_aspect_ratio(
+    image: ImageType, target_height: int, target_width: int
+) -> ImageType:
+    """Resize the aligned image back to its original size with padding."""
+
+    current_height, current_width = image.data.shape[:2]
+
+    # Calculate the aspect ratio of the target and the current image
+    original_aspect_ratio = target_height / target_width
+    current_aspect_ratio = current_height / current_width
+
+    # If aspect ratios don't match, resize while preserving aspect ratio
+    if current_aspect_ratio > original_aspect_ratio:
+        new_height = target_height
+        new_width = int(new_height / current_aspect_ratio)
+    else:
+        new_width = target_width
+        new_height = int(new_width * current_aspect_ratio)
+
+    # Resize the image using skimage
+    resized_image_data = resize(
+        image.data, (new_height, new_width), anti_aliasing=True, preserve_range=True
+    )
+    resized_image_data = img_as_ubyte(np.clip(resized_image_data, 0, 1))
+
+    # Create an empty canvas with the target dimensions
+    canvas = np.zeros((target_height, target_width, 3), dtype=np.uint8)
+
+    # Calculate where to place the resized image on the canvas
+    start_y = (target_height - new_height) // 2
+    start_x = (target_width - new_width) // 2
+
+    # Ensure dimensions match to avoid broadcasting issues
+    end_y = start_y + new_height
+    end_x = start_x + new_width
+
+    # Debugging statements
+    print(f'Canvas shape: {canvas.shape}')
+    print(f'Resized image data shape: {resized_image_data.shape}')
+    print(
+        f'Placing image at: start_y={start_y}, end_y={end_y}, start_x={start_x}, end_x={end_x}'
+    )
+
+    # Ensure the resized image fits within the canvas
+    if end_y <= target_height and end_x <= target_width:
+        canvas[start_y:end_y, start_x:end_x] = resized_image_data
+    else:
+        raise ValueError('Resized image dimensions exceed canvas size.')
+
+    # Create a new ImageType object with the resized image data
+    resized_image = ImageType(
+        name=image.name,
+        data=canvas,
+        # Add other necessary attributes here if needed
+    )
+
+    return resized_image
+
+
 def calculate_corrected_area(image, real_size_cm, photo_size_cm, dpi):
     """Calculate the corrected area of an image based on the real and photo
     sizes."""
-
-    photo_size_cm = photo_size_cm
 
     # Create mask and find the largest connected component
     largest_contour_mask = create_mask(np.array(image))
@@ -74,7 +180,7 @@ def calculate_corrected_area(image, real_size_cm, photo_size_cm, dpi):
     # to represent the area of the region of interest (the largest
     # connected component) in the original painting, but it is
     # derived from the corresponding area in the digital photo
-    corrected_area = area_pixels / (dpi**2) * scaling_factor
+    corrected_area = (area_pixels / (dpi**2)) * scaling_factor
 
     return corrected_area
 
@@ -195,7 +301,7 @@ def main():
     if not images:
         st.stop()
 
-    # Overview of image sizes and DPI
+    # Overview of image sizes and dpi
     st.subheader('Overview of Imported Images')
 
     for image in images:
@@ -211,6 +317,7 @@ def main():
         st.write(f'**DPI**: {dpi[0]} x {dpi[1]}')
         st.write('---')
 
+    # Select base image
     st.subheader('Select base image')
     base_image = show_images_widget(
         images, key='original images', message='Select base image for alignment'
@@ -219,20 +326,39 @@ def main():
     if not base_image:
         st.stop()
 
-    # Equalize and align images
     col1, col2 = st.columns(2)
 
+    # Equalize images to the selected base image
     with col1:
         images = equalize_images_widget(base_image=base_image, images=images)
 
-    # creates aligned images which are now in similar size and gray scale
+    # Align images to the selected base image (now in similar size and gray scale)
     with col2:
         images = align_images_widget(base_image=base_image, images=images)
 
-    # show_images_widget(images, message='The aligned images')
+    # Resize aligned images back to their original size
+    resized_images = []
+
+    for image in images:
+        original_height = image_metrics[image.name]['height']
+        original_width = image_metrics[image.name]['width']
+
+        print(f'Original dimensions: Height={original_height}, Width={original_width}')
+        print(f'Aligned image dimensions: {image.data.shape[:2]}')
+
+        # resized_image = resize_image_to_original(image, original_height, original_width)
+        resized_image = resize_image_with_aspect_ratio(image, original_height, original_width)
+
+        print(f'Resized image dimensions: {resized_image.data.shape}')
+
+        resized_images.append(resized_image)
+
     # Display the masks of the aligned images
     show_aligned_masks_widget(
-        images, message='The masks of the aligned images', display_masks=True
+        resized_images,
+        message='The masks of the aligned images',
+        display_masks=True,
+        # images, message='The masks of the aligned images', display_masks=True
     )
 
     # Upload excel file containing real sizes of paintings
@@ -240,7 +366,11 @@ def main():
     uploaded_excel = st.file_uploader('Choose an Excel file', type=['xlsx'])
 
     if images and uploaded_excel:
-        real_sizes_df = pd.read_excel(uploaded_excel, header=0)
+        try:
+            real_sizes_df = pd.read_excel(uploaded_excel, header=0)
+        except Exception as e:
+            st.error(f'Error reading Excel file: {e}')
+            st.stop()
 
         st.write('Information on painting sizes:')
         st.write(real_sizes_df)
@@ -261,7 +391,8 @@ def main():
 
         corrected_areas = []
 
-        for i, uploaded_file in enumerate(images):
+        for i, uploaded_file in enumerate(resized_images):
+            # for i, uploaded_file in enumerate(images):
             image_data = uploaded_file.data
             image_name = uploaded_file.name
 
@@ -271,7 +402,7 @@ def main():
             # Retrieve dpi's from the photos
             dpi = image_metrics[image_name]['dpi'][0]  # Assuming square DPI, use dpi[0]
 
-            # Compute the new size of the aligned image in cm
+            # Compute the photo size of the aligned image in centimeters
             height_pixels, width_pixels = image_data.shape[:2]
             photo_size_cm = [
                 compute_size_in_cm(height_pixels, dpi),
@@ -305,9 +436,9 @@ def main():
                 i = image_names.index(name1)
                 j = image_names.index(name2)
                 heatmap_data[i, j] = area_ratio
-                heatmap_data[j, i] = area_ratio  # Ensure the matrix is symmetric
+                heatmap_data[j, i] = area_ratio
 
-        # Create a heatmap
+        # Heatmap
         fig, ax = plt.subplots(figsize=(10, 8))
         sns.heatmap(
             heatmap_data,
