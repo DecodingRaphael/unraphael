@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import cv2
 import imageio.v3 as imageio
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
@@ -7,6 +8,7 @@ import numpy as np
 import streamlit as st
 from align import align_image_to_base, homography_matrix
 from equalize import equalize_image_with_base
+from rembg import remove
 from skimage import img_as_ubyte, transform
 from streamlit_image_comparison import image_comparison
 from styling import set_custom_css
@@ -16,6 +18,43 @@ from unraphael.types import ImageType
 
 _align_image_to_base = st.cache_data(align_image_to_base)
 _equalize_image_with_base = st.cache_data(equalize_image_with_base)
+
+
+# Define the function to extract contours
+def extract_foreground_mask(image: np.ndarray) -> np.ndarray:
+    """Extract the foreground mask using rembg."""
+    return remove(image, mask=True)
+
+
+def extract_outer_contour_from_mask(mask: np.ndarray, min_area: int = 25) -> list:
+    """Extract the outer contour from the mask."""
+    gray_mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
+    _, thresh = cv2.threshold(
+        gray_mask, 1, 255, cv2.THRESH_BINARY
+    )  # threshold to get binary mask
+    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # Filter out small contours based on area
+    filtered_contours = [cnt for cnt in contours if cv2.contourArea(cnt) > min_area]
+    return filtered_contours
+
+
+def overlay_contours(image1, image2, name1, name2, contours1, contours2):
+    """Overlay the contours from two images and return the combined image."""
+    # Create a black canvas with the same size as the images
+    h, w = image1.shape[:2]
+    contour_overlay = np.zeros((h, w, 3), dtype=np.uint8)
+
+    # Define the colors for each contour
+    color1 = (255, 0, 0)  # Red for the first image
+    color2 = (0, 0, 255)  # Blue for the second image
+
+    # Draw the contours on the black canvas
+    cv2.drawContours(contour_overlay, contours1, -1, color1, thickness=2)
+    cv2.drawContours(contour_overlay, contours2, -1, color2, thickness=2)
+
+    # Return the image and the colors used
+    return contour_overlay, color1, color2
 
 
 def warp_image_skimage(img, H, output_shape):
@@ -31,25 +70,14 @@ def blend_images_skimage(img1, img2, alpha):
 
 
 def animate_images(img1, img2, H, num_frames=50):
-    # Get the dimensions of the images
     h, w = img2.shape[:2]
+    fig, ax = plt.subplots(figsize=(w / 100, h / 100))
 
-    # Create figure and axes with dynamic size based on image aspect ratio
-    fig, ax = plt.subplots(
-        figsize=(w / 100, h / 100)
-    )  # Adjust figsize based on image dimensions
-
-    # Set transparent background for the figure
     fig.patch.set_alpha(0)
 
-    # Turn off axis and remove padding
     ax.axis('off')
     fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=None, hspace=None)
-
-    # Ensure the axes also have a transparent background
-    ax.set_facecolor((0, 0, 0, 0))  # RGBA format, last value is alpha (0 for transparent)
-
-    # Set the aspect ratio of the axes to be equal
+    ax.set_facecolor((0, 0, 0, 0))
     ax.set_aspect('equal', adjustable='box')
 
     # Warp the image and initialize the display
@@ -263,7 +291,7 @@ def display_images_widget(
 
     display_mode = col1.radio(
         'Select Display Option',
-        options=('slider', 'side-by-side', 'animation'),
+        options=('slider', 'side-by-side', 'animation', 'contour comparison'),
         # captions=('Compare with slider', 'Alongside each other'),
         format_func=str.capitalize,
         horizontal=True,
@@ -295,7 +323,7 @@ def display_images_widget(
                 label1=base_image.name,
                 img2=image.data,
                 label2=image.name,
-                width=450,
+                width=850,
             )
 
     elif display_mode == 'side-by-side':
@@ -304,10 +332,39 @@ def display_images_widget(
         col2.image(image.data, caption=image.name, use_column_width=True)
 
     elif display_mode == 'animation':
-        H = homography_matrix(image=image, base_image=base_image)
-        ani = animate_images(base_image.data, image.data, H)
+        homo_matrix = homography_matrix(image=image, base_image=base_image)
+        ani = animate_images(base_image.data, image.data, homo_matrix)
         html_animation = ani.to_jshtml()
         st.components.v1.html(html_animation, height=1500)
+
+    elif display_mode == 'contour comparison':
+        # Extract foreground masks using rembg
+        mask1 = extract_foreground_mask(base_image.data)
+        mask2 = extract_foreground_mask(image.data)
+
+        # Extract contours from the masks
+        contours1 = extract_outer_contour_from_mask(mask1)
+        contours2 = extract_outer_contour_from_mask(mask2)
+
+        # Overlay contours and get the colors used
+        contour_overlay, color1, color2 = overlay_contours(
+            base_image.data, image.data, base_image.name, image.name, contours1, contours2
+        )
+
+        # Display the names above the image using columns with matching colors
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown(
+                f'<span style="color: rgb{color1}; font-size: 20px;">{base_image.name}</span>',
+                unsafe_allow_html=True,
+            )
+            st.markdown(
+                f'<span style="color: rgb{color2}; font-size: 20px;">{image.name}</span>',
+                unsafe_allow_html=True,
+            )
+
+        # Display the contour overlay image
+        col1.image(contour_overlay, caption='Contour Comparison', use_column_width=True)
 
     col1, col2 = st.columns(2)
 
