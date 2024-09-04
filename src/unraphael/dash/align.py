@@ -77,7 +77,8 @@ def homography_matrix(
     keepPercent: float = 0.15,
 ) -> np.ndarray:
     """Computes the homography matrix between an input image and a base image
-    using feature matching.
+    using feature matching. This matrix is then used for animating or
+    visualizing how the images align over a sequence of frames.
 
     Parameters
     ----------
