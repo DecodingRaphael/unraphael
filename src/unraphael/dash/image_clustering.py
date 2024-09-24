@@ -1,6 +1,6 @@
 """Module for clustering of images based on structural similarity, including
-alignment of images based on the mean of the images and equalization of
-contrast, sharpness, and brightness to optimize the clustering process."""
+the equalization of contrast, sharpness, and brightness across the images and
+alignment of images to their mean to optimize the clustering process."""
 
 
 # Copyright (c) 2016, Oleg Puzanov
@@ -133,15 +133,12 @@ def align_images_to_mean(
     return aligned_images
 
 
-# Brushstroke Analysis
-
-# This module provides functions for analyzing brushstrokes in images by
-# extracting various edge detection metrics. The methods implemented here focus
+# Brushstroke Analysis -----------------------------------------------------
+# This set of functions analyzes brushstrokes in images by extracting various
+# edge detection metrics. The methods implemented here focus
 # on identifying and quantifying the characteristics of brushstrokes as they
 # manifest in the form of edges in an image. The extracted features can be
 # used for further analysis or classification of brushstroke patterns.
-
-
 def calculate_canny_edges(img) -> float:
     """Calculates the standard deviation of the edges detected in the input
     image using the Canny edge detection algorithm.
@@ -282,7 +279,7 @@ def calculate_features(img) -> np.ndarray:
     return features
 
 
-def calculate_sift_similarity(i1, i2):
+def calculate_sift_similarity(i1: np.ndarray, i2: np.ndarray) -> float:
     """Calculate similarity using SIFT."""
     sift = cv2.SIFT_create()
     k1, d1 = sift.detectAndCompute(i1, None)
@@ -295,27 +292,27 @@ def calculate_sift_similarity(i1, i2):
     return len(good_matches) / max(len(matches), 1)
 
 
-def calculate_cw_ssim_similarity(i1, i2):
+def calculate_cw_ssim_similarity(i1: np.ndarray, i2: np.ndarray) -> float:
     """Calculate similarity using Complex Wavelet SSIM."""
     pil_img1 = Image.fromarray(i1)
     pil_img2 = Image.fromarray(i2)
     return pyssim.SSIM(pil_img1).cw_ssim_value(pil_img2)
 
 
-def calculate_ssim_similarity(i1, i2):
+def calculate_ssim_similarity(i1: np.ndarray, i2: np.ndarray) -> float:
     """Calculate similarity using Structural Similarity Index."""
     similarity, _ = ssim(i1, i2, full=True)
     return similarity
 
 
-def calculate_mse_similarity(i1, i2):
+def calculate_mse_similarity(i1: np.ndarray, i2: np.ndarray) -> float:
     """Calculate similarity using Mean Squared Error."""
     err = np.sum((i1.astype('float') - i2.astype('float')) ** 2)
     err /= float(i1.shape[0] * i2.shape[1])
     return MSE_NUMERATOR / err if err > 0 else 1.0
 
 
-def calculate_brushstroke_similarity(i1, i2):
+def calculate_brushstroke_similarity(i1: np.ndarray, i2: np.ndarray) -> float:
     """Calculate similarity based on brushstroke features."""
     features_i1 = calculate_features(i1)
 
@@ -331,7 +328,7 @@ def calculate_brushstroke_similarity(i1, i2):
     return np.mean(difference)
 
 
-def get_image_similarity(img1, img2, algorithm='SSIM'):
+def get_image_similarity(img1: np.ndarray, img2: np.ndarray, algorithm: str = 'SSIM') -> float:
     """Returns the normalized similarity value (from 0.0 to 1.0) for the
     provided pair of images, using the specified algorithm.
 
@@ -389,17 +386,19 @@ def get_image_similarity(img1, img2, algorithm='SSIM'):
         raise ValueError(f'Unsupported algorithm: {algorithm}')
 
 
-def build_similarity_matrix(images, algorithm='SSIM'):
-    """For AffinityPropagation, SpectralClustering and DBSCAN one can input
+def build_similarity_matrix(images: list[np.ndarray], algorithm: str = 'SSIM') -> np.ndarray:
+    """Builds a similarity matrix for a set of images.
+
+    For AffinityPropagation, SpectralClustering, and DBSCAN, one can input
     similarity matrices of shape (n_samples, n_samples). This function builds
-    such a similarity matrix for the given set of images.
+    such a similarity matrix for the given set of n images.
 
     Args:
-        images (list of numpy.ndarray): A list of images
+        images (list[np.ndarray]): A list of images.
         algorithm (str, optional): Select image similarity index. Defaults to 'SSIM'.
 
     Returns:
-        numpy.ndarray: The similarity matrix.
+        np.ndarray: The similarity matrix of shape (n_samples, n_samples).
     """
 
     num_images = len(images)
@@ -425,7 +424,9 @@ def build_similarity_matrix(images, algorithm='SSIM'):
     return sm
 
 
-def get_cluster_metrics(X, labels, labels_true=None):
+def get_cluster_metrics(
+    X: np.ndarray, labels: np.ndarray, labels_true: Optional[np.ndarray] = None
+) -> dict[str, float]:
     """Calculate cluster evaluation metrics based on the given data and labels.
 
     Parameters:
@@ -505,14 +506,14 @@ def get_cluster_metrics(X, labels, labels_true=None):
 
 
 def determine_optimal_clusters(
-    matrix,
-    method='elbow',
-    cluster_method='kmeans',
-    metric='euclidean',
-    linkage='ward',
-    min_clust=2,
-    max_clust=10,
-):
+    matrix: np.ndarray,
+    method: str = 'elbow',
+    cluster_method: str = 'kmeans',
+    metric: str = 'euclidean',
+    linkage: str = 'ward',
+    min_clust: int = 2,
+    max_clust: int = 10,
+) -> int:
     """Determines the optimal number of clusters using various evaluation
     methods.
 
@@ -594,7 +595,9 @@ def determine_optimal_clusters(
     return optimal_clusters
 
 
-def plot_clusters(images, labels, n_clusters, title='Clustering results'):
+def plot_clusters(
+    images: dict, labels: np.ndarray, n_clusters: int, title: str = 'Clustering results'
+) -> plt.Figure:
     """Plots the clustering results in 2D space using PCA.
 
     Parameters
@@ -636,7 +639,9 @@ def plot_clusters(images, labels, n_clusters, title='Clustering results'):
     return fig
 
 
-def plot_dendrogram(images, method='ward', title='Dendrogram'):
+def plot_dendrogram(
+    images: dict, method: str = 'ward', title: str = 'Dendrogram'
+) -> plt.Figure:
     """Plots a dendrogram for the clustering results.
 
     Parameters
@@ -644,7 +649,8 @@ def plot_dendrogram(images, method='ward', title='Dendrogram'):
     images : list
         A list of images to be clustered.
     method : str, optional
-        The linkage method to be used for the hierarchical clustering. Default is 'ward'.
+        The linkage method to be used for the hierarchical clustering.
+        Default is 'ward'.
     title : str
         The title of the plot.
 
@@ -674,13 +680,20 @@ def matrix_of_similarities(images, algorithm):
     return matrix
 
 
-def cluster_images(images, algorithm, n_clusters, method, print_metrics=True, labels_true=None):
+def cluster_images(
+    images: list[np.ndarray],
+    algorithm: str,
+    n_clusters: int,
+    method: str,
+    print_metrics: bool = True,
+    labels_true: np.ndarray = None,
+) -> tuple[np.ndarray, int]:
     """Clusters a list of images using different clustering algorithms.
 
     Parameters
     ----------
-    images : list
-        A list of images to be clustered.
+    images : dict[str, np.ndarray]
+        A dictionary of images to be clustered.
     algorithm : str, optional
         The algorithm used to calculate the similarity between images.
         Default is 'SSIM'.
@@ -724,7 +737,7 @@ def cluster_images(images, algorithm, n_clusters, method, print_metrics=True, la
                 print(f'{k}: {v:.2f}')
         return sc.labels_, n_clusters
 
-    # Affinity propagation is also  appropriate for small to medium sized datasets
+    # Affinity propagation is also appropriate for small to medium sized datasets
     elif method == 'AffinityPropagation':
         af = AffinityPropagation(affinity='precomputed', random_state=42).fit(matrix)
         af_metrics = get_cluster_metrics(matrix, af.labels_, labels_true)
@@ -748,8 +761,12 @@ def cluster_images(images, algorithm, n_clusters, method, print_metrics=True, la
                 print(f'{k}: {v:.2f}')
         return db_labels, len(set(db_labels)) - (1 if -1 in db_labels else 0)
 
+    # Default return for unsupported methods
+    else:
+        raise ValueError(f'Unsupported clustering method: {method}')
 
-def preprocess_images(images, target_shape=(128, 128)):
+
+def preprocess_images(images: list, target_shape: tuple = (128, 128)) -> np.ndarray:
     """Preprocesses a list of images by resizing them to a target shape.
 
     Parameters
@@ -772,16 +789,17 @@ def preprocess_images(images, target_shape=(128, 128)):
 
 
 # using the clustimage functionality
-def clustimage_clustering(images, method, evaluation, linkage_type):
+def clustimage_clustering(
+    images: list, method: str, evaluation: str, linkage_type: str
+) -> dict:
     """Perform image clustering using the clustimage library, aiming to detect
     natural groups or clusters of images. It uses a multi-step proces of pre-
     processing the images, extracting the features, and evaluating the optimal
     number of clusters across the feature.
 
-    space.
     - clustering approaches can be set to agglomerative, kmeans, dbscan and hdbscan.
-    - cluster evaluation can be performed based on Silhouette scores, Davies–Bouldin index, or
-      Derivative method
+    - cluster evaluation can be performed based on Silhouette scores,
+    Davies–Bouldin index, or Derivative method
 
 
     Args:
@@ -817,6 +835,7 @@ def clustimage_clustering(images, method, evaluation, linkage_type):
     )  # cluster on the 2-D embedded space
 
     print(results)
+
     # Collect plots and save them to a dictionary 'figures'
     evaluation_plot = cl.clusteval.plot()  # silhoutte versus nr of clusters
     eval_plot = cl.clusteval.scatter(cl.results['xycoord'])
@@ -840,7 +859,8 @@ def clustimage_clustering(images, method, evaluation, linkage_type):
     return figures
 
 
-def compute_mean_brightness(images):
+# Equalization of brightness, contrast and sharpness ----------------------
+def compute_mean_brightness(images: list[np.ndarray]) -> float:
     """Compute the mean brightness across a set of images."""
 
     mean_brightness = 0
@@ -854,7 +874,7 @@ def compute_mean_brightness(images):
     return mean_brightness / len(images)
 
 
-def compute_mean_contrast(images):
+def compute_mean_contrast(images: list[np.ndarray]) -> float:
     """Compute the mean contrast across a set of images."""
 
     mean_contrast = 0
@@ -868,7 +888,7 @@ def compute_mean_contrast(images):
     return mean_contrast / len(images)
 
 
-def compute_sharpness(img_gray):
+def compute_sharpness(img_gray: np.ndarray) -> float:
     """Compute the sharpness of a grayscale image using the Sobel operator."""
 
     grad_x = cv2.Sobel(img_gray, cv2.CV_64F, 1, 0, ksize=3)
@@ -877,10 +897,10 @@ def compute_sharpness(img_gray):
     return np.mean(grad)
 
 
-def compute_mean_sharpness(images):
+def compute_mean_sharpness(images: list[np.ndarray]) -> float:
     """Compute the mean sharpness across a set of images."""
 
-    mean_sharpness = 0
+    mean_sharpness = 0.0
     for img in images:
         if len(img.shape) == 3:
             img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -890,7 +910,9 @@ def compute_mean_sharpness(images):
     return mean_sharpness / len(images)
 
 
-def normalize_brightness_set(images, mean_brightness):
+def normalize_brightness_set(
+    images: list[np.ndarray], mean_brightness: float
+) -> list[np.ndarray]:
     """Normalize brightness of all images in the set to the mean brightness."""
 
     normalized_images = []
@@ -925,7 +947,7 @@ def normalize_brightness_set(images, mean_brightness):
     return normalized_images
 
 
-def normalize_contrast_set(images, mean_contrast):
+def normalize_contrast_set(images: list[np.ndarray], mean_contrast: float) -> list[np.ndarray]:
     """Normalize contrast of all images in the set to the mean contrast."""
 
     normalized_images = []
@@ -956,7 +978,9 @@ def normalize_contrast_set(images, mean_contrast):
     return normalized_images
 
 
-def normalize_sharpness_set(images, target_sharpness):
+def normalize_sharpness_set(
+    images: list[np.ndarray], target_sharpness: float
+) -> list[np.ndarray]:
     """Normalize sharpness of all images in the set to the target sharpness."""
 
     normalized_images = []
@@ -1002,7 +1026,12 @@ def normalize_sharpness_set(images, target_sharpness):
     return normalized_images
 
 
-def equalize_images(images, brightness=False, contrast=False, sharpness=False):
+def equalize_images(
+    images: list[np.ndarray],
+    brightness: bool = False,
+    contrast: bool = False,
+    sharpness: bool = False,
+) -> list[np.ndarray]:
     """Preprocesses the input images based on the selected enhancement options.
 
     Parameters:
@@ -1029,7 +1058,7 @@ def equalize_images(images, brightness=False, contrast=False, sharpness=False):
     return images
 
 
-def compute_metrics(images):
+def compute_metrics(images: list[np.ndarray]) -> dict[str, float]:
     """Computes metrics (mean and standard deviation) for normalized
     brightness, contrast, and sharpness.
 

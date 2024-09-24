@@ -218,7 +218,7 @@ def cluster_image_widget(images: dict[str, np.ndarray]):
         # st.image(buf, use_column_width = True)
 
         c, n_clusters = cluster_images(
-            np.array(image_list),
+            image_list,
             algorithm=measure,
             n_clusters=n_clusters,
             method=cluster_method,
@@ -304,7 +304,7 @@ def main():
     st.title('Clustering of images')
     st.write(
         'This page groups a set of images based on their structural similarity.'
-        'Optimal aligning clustering performance is obtained via equalization'
+        'Optimal clustering performance is obtained via equalization'
         'of image parameters and by aligning images to a common reference point,'
         'thereby improving the quality of the data being analyzed.'
     )
