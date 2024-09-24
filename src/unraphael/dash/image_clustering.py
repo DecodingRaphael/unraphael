@@ -137,8 +137,7 @@ def align_images_to_mean(
 # This set of functions analyzes brushstrokes in images by extracting various
 # edge detection metrics. The methods implemented here focus
 # on identifying and quantifying the characteristics of brushstrokes as they
-# manifest in the form of edges in an image. The extracted features can be
-# used for further analysis or classification of brushstroke patterns.
+# manifest in the form of edges in an image.
 def calculate_canny_edges(img) -> float:
     """Calculates the standard deviation of the edges detected in the input
     image using the Canny edge detection algorithm.
@@ -328,6 +327,32 @@ def calculate_brushstroke_similarity(i1: np.ndarray, i2: np.ndarray) -> float:
     return np.mean(difference)
 
 
+def preprocess(img: np.ndarray) -> np.ndarray:
+    """Preprocess the input image by converting it to uint8, creating a binary
+    mask, and applying the mask to isolate the foreground.
+
+    Parameters
+    ----------
+    img : numpy.ndarray
+        The input image to preprocess.
+
+    Returns
+    -------
+    np.ndarray
+        The preprocessed image with foreground isolated.
+    """
+    # Ensure the image is of type np.uint8
+    img_gray = img.astype(np.uint8)
+
+    # Create a mask to isolate the foreground
+    _, mask = cv2.threshold(img_gray, 1, 255, cv2.THRESH_BINARY)
+
+    # Apply the mask to isolate the foreground
+    img_masked = cv2.bitwise_and(img_gray, img_gray, mask=mask)
+
+    return img_masked
+
+
 def get_image_similarity(img1: np.ndarray, img2: np.ndarray, algorithm: str = 'SSIM') -> float:
     """Returns the normalized similarity value (from 0.0 to 1.0) for the
     provided pair of images, using the specified algorithm.
@@ -351,21 +376,9 @@ def get_image_similarity(img1: np.ndarray, img2: np.ndarray, algorithm: str = 'S
         If an unsupported algorithm is provided.
     """
 
-    # Ensure the images are of type np.uint8
-    img1_gray = img1.astype(np.uint8)
-    img2_gray = img2.astype(np.uint8)
-
-    # Create masks to isolate the foreground
-    _, mask1 = cv2.threshold(img1_gray, 1, 255, cv2.THRESH_BINARY)
-    _, mask2 = cv2.threshold(img2_gray, 1, 255, cv2.THRESH_BINARY)
-
-    # Ensure the masks are of type np.uint8
-    mask1 = mask1.astype(np.uint8)
-    mask2 = mask2.astype(np.uint8)
-
-    # Apply the masks to isolate the foreground
-    i1 = cv2.bitwise_and(img1_gray, img1_gray, mask=mask1)
-    i2 = cv2.bitwise_and(img2_gray, img2_gray, mask=mask2)
+    # Preprocess both images
+    i1 = preprocess(img1)
+    i2 = preprocess(img2)
 
     if algorithm == 'SIFT':
         return calculate_sift_similarity(i1, i2)
@@ -386,7 +399,9 @@ def get_image_similarity(img1: np.ndarray, img2: np.ndarray, algorithm: str = 'S
         raise ValueError(f'Unsupported algorithm: {algorithm}')
 
 
-def build_similarity_matrix(images: list[np.ndarray], algorithm: str = 'SSIM') -> np.ndarray:
+def build_similarity_matrix(
+    images: list[np.ndarray], algorithm: str = 'SSIM', fill_diagonal_value: float = 0.0
+) -> np.ndarray:
     """Builds a similarity matrix for a set of images.
 
     For AffinityPropagation, SpectralClustering, and DBSCAN, one can input
@@ -396,6 +411,8 @@ def build_similarity_matrix(images: list[np.ndarray], algorithm: str = 'SSIM') -
     Args:
         images (list[np.ndarray]): A list of images.
         algorithm (str, optional): Select image similarity index. Defaults to 'SSIM'.
+        fill_diagonal_value (float, optional): Value to fill the diagonal with,
+        typically 1 for perfect self-similarity.
 
     Returns:
         np.ndarray: The similarity matrix of shape (n_samples, n_samples).
@@ -403,7 +420,8 @@ def build_similarity_matrix(images: list[np.ndarray], algorithm: str = 'SSIM') -
 
     num_images = len(images)
     sm = np.zeros((num_images, num_images), dtype=np.float64)
-    np.fill_diagonal(sm, 1.0)
+
+    np.fill_diagonal(sm, fill_diagonal_value)
 
     def compute_similarity(i, j):
         if i != j:
@@ -419,8 +437,6 @@ def build_similarity_matrix(images: list[np.ndarray], algorithm: str = 'SSIM') -
         for i, j, future in futures:
             sm[i, j] = sm[j, i] = future.result()
 
-    for row in sm:
-        print(' '.join(f'{val:.2f}' for val in row))
     return sm
 
 
@@ -447,7 +463,6 @@ def get_cluster_metrics(
     - Completeness score: measures the completeness of the predicted clusters.
     - Homogeneity score: measures the homogeneity of the predicted clusters.
     """
-    np.fill_diagonal(X, 0)
 
     metrics_dict = {}
 
@@ -468,41 +483,6 @@ def get_cluster_metrics(
         )
 
     return metrics_dict
-
-
-# def determine_optimal_clusters(matrix):
-#     """
-#     Determines the optimal number of clusters using the elbow method.
-
-#     Args:
-#         matrix (numpy.ndarray): The input matrix for clustering.
-
-#     Returns:
-#         int: The optimal number of clusters.
-
-#     """
-#     max_clusters = min(len(matrix), 10)
-#     inertias = []
-
-#     for k in range(2, max_clusters+1):
-#         kmeans = KMeans(n_clusters = k, random_state = 42).fit(matrix)
-#         inertias.append(kmeans.inertia_)
-
-#     # Plot the inertia to visualize the elbow point
-#     # plt.figure()
-#     # plt.plot(range(2, max_clusters+1), inertias, 'bo-')
-#     # plt.xlabel('Number of clusters')
-#     # plt.ylabel('Inertia')
-#     # plt.title('Elbow Method For Optimal Clusters')
-#     # plt.show()
-
-#     # Identify the elbow point
-#     elbow_point = 2  # default
-#     if len(inertias) > 1:
-#         diffs = np.diff(inertias)
-#         elbow_point = np.argmin(diffs) + 2  # +2 because the range starts from 2
-
-#     return elbow_point
 
 
 def determine_optimal_clusters(
@@ -675,11 +655,6 @@ def plot_dendrogram(
     return fig
 
 
-def matrix_of_similarities(images, algorithm):
-    matrix = build_similarity_matrix(images, algorithm=algorithm)
-    return matrix
-
-
 def cluster_images(
     images: list[np.ndarray],
     algorithm: str,
@@ -788,7 +763,6 @@ def preprocess_images(images: list, target_shape: tuple = (128, 128)) -> np.ndar
     return np.array(preprocessed_images)
 
 
-# using the clustimage functionality
 def clustimage_clustering(
     images: list, method: str, evaluation: str, linkage_type: str
 ) -> dict:

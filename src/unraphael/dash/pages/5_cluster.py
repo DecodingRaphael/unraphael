@@ -5,21 +5,16 @@ import streamlit as st
 from styling import set_custom_css
 from widgets import load_images_widget
 
-# from skimage import color
 from unraphael.dash.image_clustering import (
     align_images_to_mean,
+    build_similarity_matrix,
     cluster_images,
     clustimage_clustering,
     compute_metrics,
     equalize_images,
-    matrix_of_similarities,
     plot_clusters,
     plot_dendrogram,
 )
-
-# import matplotlib.pyplot as plt
-# import seaborn as sns
-# import io
 
 
 def show_images_widget(
@@ -31,11 +26,8 @@ def show_images_widget(
 ) -> None | str:
     """Widget to show images with given number of columns."""
     col1, col2 = st.columns(2)
-
-    # Ensure each number_input has a unique key
-    n_cols_key = f'{key}_cols'
     n_cols = col1.number_input(
-        'Number of columns for display', value=4, min_value=1, step=1, key=n_cols_key
+        'Number of columns for display', value=4, min_value=1, step=1, key=f'{key}_cols'
     )
 
     cols = st.columns(n_cols)
@@ -100,7 +92,7 @@ def align_to_mean_image_widget(*, images: dict[str, np.ndarray]) -> dict[str, np
     """This widget aligns all images, preferably to their mean value but other
     aligning options are also available.
 
-    The aligned images are input for thr later clustering of the images
+    The aligned images are input for the later clustering of the images
     """
 
     st.subheader('Alignment parameters')
@@ -205,17 +197,9 @@ def cluster_image_widget(images: dict[str, np.ndarray]):
             help='Select a similarity measure used as the basis for clustering the images:',
         )
 
-        matrix = matrix_of_similarities(np.array(image_list), algorithm=measure)
+        matrix = build_similarity_matrix(np.array(image_list), algorithm=measure)
         st.subheader(f'Similarity matrix based on pairwise {measure} indices')
         st.write(np.round(matrix, decimals=3))
-
-        # fig, ax = plt.subplots(figsize=(10, 10))
-        # sns.heatmap(matrix, annot=True, fmt=".2f",annot_kws={"size": 8})
-        # buf = io.BytesIO()
-        # plt.savefig(buf, format='png')
-        # plt.close(fig)
-
-        # st.image(buf, use_column_width = True)
 
         c, n_clusters = cluster_images(
             image_list,
