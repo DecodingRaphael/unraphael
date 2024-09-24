@@ -31,11 +31,11 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Image Processing",
 ]
 dependencies = [
-    "numpy",
+    "numpy < 2.0",
     "rembg",
     "scikit-image",
     "scipy",
-    'PyYAML',
+    "PyYAML",
 ]
 
 [project.urls]
