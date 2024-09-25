@@ -59,7 +59,7 @@ def align_images_to_mean(
     images: dict[str, np.ndarray],
     *,
     motion_model: Optional[str] = None,
-    feature_method: str = 'to mean image',
+    feature_method: Optional[str] = None,
     target_size: tuple = SIM_IMAGE_SIZE,
 ) -> dict[str, np.ndarray]:
     """Aligns images based on the selected alignment option and motion model.
@@ -69,10 +69,10 @@ def align_images_to_mean(
     images : dict of str, np.ndarray
         Dictionary of images where keys are image names and values are the
         corresponding image arrays.
-    motion_model : str
-        The motion model to be used for alignment.
+    motion_model : str, optional
+        The motion model to be used for alignment. Defaults to None.
     feature_method : str, optional
-        The feature method used for alignment. Defaults to 'mean'.
+        The feature method used for alignment. Defaults to None.
     target_size : tuple, optional
         The target size to resize the images to. Defaults to (640, 480).
 
@@ -102,11 +102,11 @@ def align_images_to_mean(
     if image_stack.ndim != 3:
         raise ValueError('Image stack must have three dimensions (num_images, height, width).')
 
-    # no alignment by default
-    if motion_model is None:
+    # Return resized images if no motion model or feature method is selected
+    if motion_model is None or feature_method is None:
         return resized_images
 
-    # select the type of transformation to align the images
+    # Select the type of transformation to align the images
     if motion_model == 'translation':
         sr = StackReg(StackReg.TRANSLATION)
     elif motion_model == 'rigid body':

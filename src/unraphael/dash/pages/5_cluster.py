@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Optional
+
 import numpy as np
 import streamlit as st
 from styling import set_custom_css
@@ -39,112 +41,151 @@ def show_images_widget(
 
         col.image(im, use_column_width=True, caption=name, clamp=True)
 
-    return None  # Indicate that this function is primarily for display
+    return None  # primarily for display
+
+
+def display_equalization_options() -> dict[str, bool]:
+    """Display the equalization options UI and return the selected options."""
+    st.subheader('Equalization parameters')
+    brightness = st.checkbox('Equalize brightness', value=False)
+    contrast = st.checkbox('Equalize contrast', value=False)
+    sharpness = st.checkbox('Equalize sharpness', value=False)
+
+    return {
+        'brightness': brightness,
+        'contrast': contrast,
+        'sharpness': sharpness,
+    }
+
+
+def display_metrics(metrics: dict[str, float], title: str) -> None:
+    """Display the metrics with a specified title."""
+    st.subheader(title)
+    col3, col4 = st.columns(2)
+
+    # Display mean and SD for each metric separately
+    col3.metric('Mean Normalized Brightness', metrics['mean_normalized_brightness'])
+    col4.metric('SD Normalized Brightness', metrics['sd_normalized_brightness'])
+
+    col3.metric('Mean Normalized Contrast', metrics['mean_normalized_contrast'])
+    col4.metric('SD Normalized Contrast', metrics['sd_normalized_contrast'])
+
+    col3.metric('Mean Normalized Sharpness', metrics['mean_normalized_sharpness'])
+    col4.metric('SD Normalized Sharpness', metrics['sd_normalized_sharpness'])
 
 
 def equalize_images_widget(*, images: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
-    """This widget helps with equalizing images in terms of brightness,
-    contrast and sharpness.
+    """Widget for equalizing images in terms of brightness, contrast, and
+    sharpness."""
 
-    The mean brightness, contrast and sharpness of the images are
-    computed
-    """
+    # Compute metrics before equalization
+    all_images = list(images.values())
+    before_metrics = compute_metrics(all_images)
 
+    # Display equalization options first
+    preprocess_options = display_equalization_options()
+
+    # Create columns for metrics
     col1, col2 = st.columns(2)
 
     with col1:
-        col1.subheader('Equalization parameters')
-
-        brightness = st.checkbox('Equalize brightness', value=False)
-        contrast = st.checkbox('Equalize contrast', value=False)
-        sharpness = st.checkbox('Equalize sharpness', value=False)
-
-        preprocess_options = {
-            'brightness': brightness,
-            'contrast': contrast,
-            'sharpness': sharpness,
-        }
-
-        all_images = [img for name, img in images.items()]
-
-        equalized_images = equalize_images(all_images, **preprocess_options)
+        # Display metrics before equalization
+        display_metrics(before_metrics, 'Metrics Before Equalization')
 
     with col2:
-        metrics = compute_metrics(equalized_images)
+        # Initialize a variable for equalized images
+        equalized_images = all_images.copy()  # Keep original images initially
 
-        col2.subheader('Metrics after equalization')
-
-        col3, col4 = st.columns((2))
-        col3.metric('Mean Normalized Brightness', metrics['mean_normalized_brightness'])
-        col4.metric('SD Normalized Brightness', metrics['sd_normalized_brightness'])
-
-        col3.metric('Mean Normalized Contrast', metrics['mean_normalized_contrast'])
-        col4.metric('SD Normalized Contrast', metrics['sd_normalized_contrast'])
-
-        col3.metric('Mean Normalized Sharpness', metrics['mean_normalized_sharpness'])
-        col4.metric('SD Normalized Sharpness', metrics['sd_normalized_sharpness'])
+        # Perform equalization if any checkbox is ticked
+        if any(preprocess_options.values()):
+            equalized_images = equalize_images(all_images, **preprocess_options)
+            after_metrics = compute_metrics(equalized_images)
+            display_metrics(after_metrics, 'Metrics After Equalization')
 
     # Map the equalized images back to their original names
     return {name: equalized_images[i] for i, name in enumerate(images.keys())}
 
 
-def align_to_mean_image_widget(*, images: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
+def align_to_mean_image_widget(
+    *,
+    images: dict[str, np.ndarray],
+) -> Optional[dict[str, np.ndarray]]:
     """This widget aligns all images, preferably to their mean value but other
     aligning options are also available.
 
-    The aligned images are input for the later clustering of the images
+    The aligned images are input for the later clustering of the images.
     """
 
     st.subheader('Alignment parameters')
+    st.write(
+        (
+            'This section allows aligning the images (typically on their mean image) '
+            'to ensure the best possible clustering outcomes, mitigating variations in '
+            'perspective, orientation, and scale that may exist among the images in '
+            'the data. For more information on the available techniques, expand the'
+            'help box below.'
+        )
+    )
 
-    # Displaying the alignment help text
-    with st.expander('Help on Motion Models', expanded=False):
+    with st.expander('Help on transformation models', expanded=False):
         st.write(
             (
-                'This section allows to align the images (typically on their mean image)'
-                'to ensure the best possible clustering outcomes, mitigating variations in'
-                'perspective, orientation, and scale that may exist among the images in'
-                'the data. The following methods are available:\n\n'
-                '**Translation:** Moves images in the x and/or y direction.'
+                '**Translation:** Moves images in the x and/or y direction. '
                 'This is suitable for cases where images have been shifted but are '
                 'otherwise aligned.\n\n'
-                '**Rigid Body:** Allows rotation and translation without deformation.'
-                'It is used when images might have been taken from slightly different'
-                'angles.\n\n'
-                '**Scaled Rotation:** Combines rotation with scaling, useful when images'
-                'might be taken from different distances.\n\n'
-                '**Affine:** A more complex transformation that allows for translation,'
-                'rotation, scaling, and shearing. It is suitable for images that may have'
-                'been distorted or taken from varying perspectives.\n\n'
-                '**Bilinear:** Another transformation method, often used for general '
-                'image alignment.'
+                '**Rigid Body:** (translation + rotation). It is used when images might '
+                'have been taken from slightly different angles.\n\n'
+                '**Scaled Rotation:** (translation + rotation + scaling). It '
+                'combines rotation with scaling, useful when images might be taken '
+                'from different distances.\n\n'
+                '**Affine:** (translation + rotation + scaling + shearing), suited '
+                'for images that may have been distorted or taken from varying '
+                'perspectives.\n\n'
+                '**Bilinear:** non-linear transformation; does not preserve straight lines.'
             )
         )
 
     motion_model = st.selectbox(
-        'Motion model:',
+        'Transformation model:',
         [None, 'translation', 'rigid body', 'scaled rotation', 'affine', 'bilinear'],
-        help=('The motion model defines the specific transformation one wants to apply. '),
+        index=0,  # default to none
+        help=(
+            'The transformation model defines the geometric transformation'
+            'one wants to apply.'
+        ),
     )
 
-    feature_method = st.selectbox(
-        'Register and transform a stack of images:',
-        [
-            'to first image',
-            'to mean image',
-            'each image to the previous (already registered) one',
-        ],
-        index=1,  # default 'to mean image'
-        help=('For more help, see https://pystackreg.readthedocs.io/en/latest/readme.html'),
-    )
+    if motion_model is None:
+        st.warning('Please select a transformation model to proceed.')
 
-    aligned_images = align_images_to_mean(
-        images=images,
-        motion_model=motion_model,
-        feature_method=feature_method,
-    )
+    feature_method = None
 
-    return aligned_images
+    if motion_model is not None:
+        feature_method = st.selectbox(
+            'Register and transform a stack of images:',
+            [
+                None,
+                'to first image',
+                'to mean image',
+                'each image to the previous (already registered) one',
+            ],
+            index=0,  # default to none
+            help=('For more help, see https://pystackreg.readthedocs.io/en/latest/readme.html'),
+        )
+
+    if motion_model is not None and feature_method is None:
+        st.warning('Please select how you want to align your stack of images to proceed.')
+
+    # Proceed only if both motion_model and feature_method are selected
+    if motion_model is not None and feature_method is not None:
+        aligned_images = align_images_to_mean(
+            images=images,
+            motion_model=motion_model,
+            feature_method=feature_method,
+        )
+        return aligned_images
+
+    return None
 
 
 def cluster_image_widget(images: dict[str, np.ndarray]):
@@ -159,9 +200,6 @@ def cluster_image_widget(images: dict[str, np.ndarray]):
 
     image_list = list(images.values())
     image_names = list(images.keys())
-
-    # Ensure images are grayscale before stacking
-    # image_list = [image if image.ndim == 2 else color.rgb2gray(image) for image in image_list]
 
     cluster_method = st.selectbox(
         'clustering algorithms:',
@@ -287,7 +325,7 @@ def main():
 
     st.title('Clustering of images')
     st.write(
-        'This page groups a set of images based on their structural similarity.'
+        'This page groups a set of images based on their structural similarity. '
         'Optimal clustering performance is obtained via equalization'
         'of image parameters and by aligning images to a common reference point,'
         'thereby improving the quality of the data being analyzed.'
@@ -312,27 +350,28 @@ def main():
     # with st.expander('Help for aligning images', expanded=False):
     #    alignment_help_widget()
 
-    # creates aligned images which are now in similar size and gray scale
-    images = align_to_mean_image_widget(images=images)
+    # Create aligned images which are now in similar size and grayscale
+    aligned_images = align_to_mean_image_widget(images=images)
 
-    # Convert to uint8 if necessary
-    images = {
-        name: (image * 255).astype(np.uint8)
-        if image.dtype == np.float64
-        else image.astype(np.uint8)
-        for name, image in images.items()
-    }
+    if aligned_images:
+        # Convert to uint8 if necessary
+        aligned_images = {
+            name: (image * 255).astype(np.uint8)
+            if image.dtype == np.float64
+            else image.astype(np.uint8)
+            for name, image in aligned_images.items()
+        }
 
-    st.markdown('---')
-    st.subheader('The aligned images')
-    st.write(
-        'If selected, these aligned images are equalized in brightness,'
-        'contrast, and sharpness'
-    )
-    show_images_widget(images, message='The aligned images')
+        st.markdown('---')
+        st.subheader('The aligned images')
+        st.write(
+            'If selected, these aligned images are equalized in brightness, '
+            'contrast, and sharpness.'
+        )
+        show_images_widget(aligned_images, message='The aligned images')
 
-    st.markdown('---')
-    cluster_image_widget(images)
+        st.markdown('---')
+        cluster_image_widget(aligned_images)
 
 
 if __name__ == '__main__':
