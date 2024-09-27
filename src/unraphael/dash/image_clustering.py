@@ -36,7 +36,9 @@ from typing import Optional
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
+import piq
 import ssim.ssimlib as pyssim
+import torch
 from clusteval import clusteval
 from clustimage import Clustimage
 from PIL import Image
@@ -291,17 +293,39 @@ def calculate_sift_similarity(i1: np.ndarray, i2: np.ndarray) -> float:
     return len(good_matches) / max(len(matches), 1)
 
 
+def calculate_ssim_similarity(i1: np.ndarray, i2: np.ndarray) -> float:
+    """Calculate similarity using Structural Similarity Index."""
+    similarity, _ = ssim(i1, i2, full=True)
+    return similarity
+
+
 def calculate_cw_ssim_similarity(i1: np.ndarray, i2: np.ndarray) -> float:
-    """Calculate similarity using Complex Wavelet SSIM."""
+    """Calculate similarity using Complex Wavelet SSIM.
+
+    Strong for handling small geometric distortions in structural
+    comparison.
+    """
     pil_img1 = Image.fromarray(i1)
     pil_img2 = Image.fromarray(i2)
     return pyssim.SSIM(pil_img1).cw_ssim_value(pil_img2)
 
 
-def calculate_ssim_similarity(i1: np.ndarray, i2: np.ndarray) -> float:
-    """Calculate similarity using Structural Similarity Index."""
-    similarity, _ = ssim(i1, i2, full=True)
-    return similarity
+def calculate_iw_ssim_similarity(i1_torch: torch.Tensor, i2_torch: torch.Tensor) -> float:
+    """Calculate similarity using Information-Weighted SSIM.
+
+    This metric gives more weight to important structural regions of the
+    image based on image information content.
+    """
+    iw_ssim_similarity = piq.information_weighted_ssim(i1_torch, i2_torch, data_range=1.0)
+    return iw_ssim_similarity
+
+
+def calculate_fsim_similarity(i1_torch: torch.Tensor, i2_torch: torch.Tensor) -> float:
+    """Calculate similarity using Feature Similarity Index."""
+    fsim_similarity = piq.fsim(
+        i1_torch, i2_torch, data_range=1.0, reduction='none', chromatic=False
+    ).item()
+    return fsim_similarity
 
 
 def calculate_mse_similarity(i1: np.ndarray, i2: np.ndarray) -> float:
@@ -353,6 +377,14 @@ def preprocess(img: np.ndarray) -> np.ndarray:
     return img_masked
 
 
+def to_torch(img: np.ndarray) -> torch.Tensor:
+    """Converts a NumPy array to a Torch tensor and normalizes it."""
+    if img.ndim == 2:  # Grayscale case
+        img = np.expand_dims(img, axis=-1)  # Add channel dimension
+    torch_img = torch.from_numpy(img).permute(2, 0, 1)[None, ...] / 255.0  # Normalize to [0, 1]
+    return torch_img
+
+
 def get_image_similarity(img1: np.ndarray, img2: np.ndarray, algorithm: str = 'SSIM') -> float:
     """Returns the normalized similarity value (from 0.0 to 1.0) for the
     provided pair of images, using the specified algorithm.
@@ -380,14 +412,29 @@ def get_image_similarity(img1: np.ndarray, img2: np.ndarray, algorithm: str = 'S
     i1 = preprocess(img1)
     i2 = preprocess(img2)
 
+    # Convert images to torch tensors for torch-based algorithms
+    i1_torch = to_torch(i1)
+    i2_torch = to_torch(i2)
+
+    # Ensure both images are the same size for torch-based methods
+    i1_torch = torch.nn.functional.interpolate(
+        i1_torch, size=i2_torch.size()[2:], mode='bilinear', align_corners=False
+    )
+
     if algorithm == 'SIFT':
         return calculate_sift_similarity(i1, i2)
+
+    elif algorithm == 'SSIM':
+        return calculate_ssim_similarity(i1, i2)
 
     elif algorithm == 'CW-SSIM':
         return calculate_cw_ssim_similarity(i1, i2)
 
-    elif algorithm == 'SSIM':
-        return calculate_ssim_similarity(i1, i2)
+    elif algorithm == 'IW-SSIM':
+        return calculate_iw_ssim_similarity(i1_torch, i2_torch)
+
+    elif algorithm == 'FSIM':
+        return calculate_fsim_similarity(i1_torch, i2_torch)
 
     elif algorithm == 'MSE':
         return calculate_mse_similarity(i1, i2)

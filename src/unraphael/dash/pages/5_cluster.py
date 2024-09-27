@@ -189,11 +189,11 @@ def align_to_mean_image_widget(
 
 
 def cluster_image_widget(images: dict[str, np.ndarray]):
-    """Widget to cluster images, focusing on clustering methods suitable for
-    small datasets.
+    """Widget to cluster images, using clustering methods suitable for small
+    datasets.
 
     The clustering is based on the similarity of the images, which is
-    computed using the selected similarity measure
+    computed using the selected similarity measure.
     """
 
     st.subheader('Clustering')
@@ -205,17 +205,19 @@ def cluster_image_widget(images: dict[str, np.ndarray]):
         'clustering algorithms:',
         [
             'SpectralClustering',
-            'AffinityPropagation',  # similarity based
+            'AffinityPropagation',
             'agglomerative',
             'kmeans',
             'dbscan',
             'hdbscan',
-        ],  # clustimage
+        ],
         help='The cluster method defines the way in which the images are grouped.',
     )
 
     # clustering based on similarity measures
     if cluster_method in ['SpectralClustering', 'AffinityPropagation']:
+        n_clusters = None
+
         if cluster_method == 'SpectralClustering':
             specify_clusters = st.checkbox(
                 'Do you want to specify the number of clusters beforehand?', value=False
@@ -224,20 +226,16 @@ def cluster_image_widget(images: dict[str, np.ndarray]):
                 n_clusters = st.number_input(
                     'Number of clusters:', min_value=2, step=1, value=4
                 )
-            else:
-                n_clusters = None
-        else:
-            n_clusters = None
 
         measure = st.selectbox(
             'Select the similarity measure to cluster on:',
-            ['SIFT', 'SSIM', 'CW-SSIM', 'MSE', 'Brushstrokes'],
+            ['SIFT', 'SSIM', 'CW-SSIM', 'IW-SSIM', 'FSIM', 'MSE', 'Brushstrokes'],
             help='Select a similarity measure used as the basis for clustering the images:',
         )
 
         matrix = build_similarity_matrix(np.array(image_list), algorithm=measure)
         st.subheader(f'Similarity matrix based on pairwise {measure} indices')
-        st.write(np.round(matrix, decimals=3))
+        st.write(np.round(matrix, decimals=2))
 
         c, n_clusters = cluster_images(
             image_list,
@@ -344,13 +342,10 @@ def main():
     images = {name: image for name, image in images.items()}
 
     st.markdown('---')
+
     images = equalize_images_widget(images=images)
 
-    # st.markdown('---')
-    # with st.expander('Help for aligning images', expanded=False):
-    #    alignment_help_widget()
-
-    # Create aligned images which are now in similar size and grayscale
+    # aligned images are now in similar size and in grayscale
     aligned_images = align_to_mean_image_widget(images=images)
 
     if aligned_images:
@@ -364,10 +359,7 @@ def main():
 
         st.markdown('---')
         st.subheader('The aligned images')
-        st.write(
-            'If selected, these aligned images are equalized in brightness, '
-            'contrast, and sharpness.'
-        )
+
         show_images_widget(aligned_images, message='The aligned images')
 
         st.markdown('---')
