@@ -19,6 +19,40 @@ from unraphael.dash.image_clustering import (
 )
 
 
+@st.cache_data
+def cached_compute_metrics(all_images):
+    return compute_metrics(all_images)
+
+
+@st.cache_data
+def cached_equalize_images(all_images, **preprocess_options):
+    return equalize_images(all_images, **preprocess_options)
+
+
+@st.cache_data
+def cached_align_images_to_mean(images, motion_model, feature_method):
+    return align_images_to_mean(
+        images=images, motion_model=motion_model, feature_method=feature_method
+    )
+
+
+@st.cache_data
+def cached_build_similarity_matrix(image_array, algorithm):
+    return build_similarity_matrix(image_array, algorithm=algorithm)
+
+
+@st.cache_data
+def cached_cluster_images(image_list, algorithm, n_clusters, method):
+    return cluster_images(
+        image_list,
+        algorithm=algorithm,
+        n_clusters=n_clusters,
+        method=method,
+        print_metrics=True,
+        labels_true=None,
+    )
+
+
 def show_images_widget(
     images: dict[str, np.ndarray],
     *,
@@ -80,7 +114,7 @@ def equalize_images_widget(*, images: dict[str, np.ndarray]) -> dict[str, np.nda
 
     # Compute metrics before equalization
     all_images = list(images.values())
-    before_metrics = compute_metrics(all_images)
+    before_metrics = cached_compute_metrics(all_images)
 
     # Display equalization options first
     preprocess_options = display_equalization_options()
@@ -98,8 +132,8 @@ def equalize_images_widget(*, images: dict[str, np.ndarray]) -> dict[str, np.nda
 
         # Perform equalization if any checkbox is ticked
         if any(preprocess_options.values()):
-            equalized_images = equalize_images(all_images, **preprocess_options)
-            after_metrics = compute_metrics(equalized_images)
+            equalized_images = cached_equalize_images(all_images, **preprocess_options)
+            after_metrics = cached_compute_metrics(equalized_images)
             display_metrics(after_metrics, 'Metrics After Equalization')
 
     # Map the equalized images back to their original names
@@ -107,8 +141,7 @@ def equalize_images_widget(*, images: dict[str, np.ndarray]) -> dict[str, np.nda
 
 
 def align_to_mean_image_widget(
-    *,
-    images: dict[str, np.ndarray],
+    *, images: dict[str, np.ndarray]
 ) -> Optional[dict[str, np.ndarray]]:
     """This widget aligns all images, preferably to their mean value but other
     aligning options are also available.
@@ -178,7 +211,7 @@ def align_to_mean_image_widget(
 
     # Proceed only if both motion_model and feature_method are selected
     if motion_model is not None and feature_method is not None:
-        aligned_images = align_images_to_mean(
+        aligned_images = cached_align_images_to_mean(
             images=images,
             motion_model=motion_model,
             feature_method=feature_method,
@@ -233,17 +266,15 @@ def cluster_image_widget(images: dict[str, np.ndarray]):
             help='Select a similarity measure used as the basis for clustering the images:',
         )
 
-        matrix = build_similarity_matrix(np.array(image_list), algorithm=measure)
+        matrix = cached_build_similarity_matrix(np.array(image_list), algorithm=measure)
         st.subheader(f'Similarity matrix based on pairwise {measure} indices')
         st.write(np.round(matrix, decimals=2))
 
-        c, n_clusters = cluster_images(
+        c, n_clusters = cached_cluster_images(
             image_list,
             algorithm=measure,
             n_clusters=n_clusters,
             method=cluster_method,
-            print_metrics=True,
-            labels_true=None,
         )
 
         if c is None:
