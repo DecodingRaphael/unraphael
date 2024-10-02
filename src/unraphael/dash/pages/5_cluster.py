@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Optional
 
+import cv2
+import matplotlib.pyplot as plt
 import numpy as np
 import streamlit as st
 from styling import set_custom_css
@@ -128,7 +130,7 @@ def equalize_images_widget(*, images: dict[str, np.ndarray]) -> dict[str, np.nda
 
     with col2:
         # Initialize a variable for equalized images
-        equalized_images = all_images.copy()  # Keep original images initially
+        equalized_images = all_images.copy()
 
         # Perform equalization if any checkbox is ticked
         if any(preprocess_options.values()):
@@ -245,6 +247,7 @@ def cluster_image_widget(images: dict[str, np.ndarray]):
             'hdbscan',
         ],
         help='The cluster method defines the way in which the images are grouped.',
+        key='cluster_method',
     )
 
     # clustering based on similarity measures
@@ -264,6 +267,7 @@ def cluster_image_widget(images: dict[str, np.ndarray]):
             'Select the similarity measure to cluster on:',
             ['SIFT', 'SSIM', 'CW-SSIM', 'IW-SSIM', 'FSIM', 'MSE', 'Brushstrokes'],
             help='Select a similarity measure used as the basis for clustering the images:',
+            key='similarity_measure',
         )
 
         matrix = cached_build_similarity_matrix(np.array(image_list), algorithm=measure)
@@ -299,13 +303,18 @@ def cluster_image_widget(images: dict[str, np.ndarray]):
 
         col1, col2 = st.columns(2)
 
+        # Create a dictionary of images from image_list and image_names
+        images_dict = dict(zip(image_names, image_list))
+
         pca_clusters = plot_clusters(
-            images, c, n_clusters, title=f'{cluster_method} Clustering results'
+            images_dict, c, n_clusters, title=f'{cluster_method}-{measure} PCA dimensions'
         )
         col1.subheader('Scatterplot')
         col1.pyplot(pca_clusters)
 
-        dendrogram = plot_dendrogram(images, title=f'{cluster_method} Dendrogram')
+        dendrogram = plot_dendrogram(
+            images_dict, c, title=f'{cluster_method}-{measure} Dendrogram'
+        )
         col2.subheader('Dendrogram')
         col2.pyplot(dendrogram)
 
@@ -376,8 +385,38 @@ def main():
 
     images = equalize_images_widget(images=images)
 
-    # aligned images are now in similar size and in grayscale
-    aligned_images = align_to_mean_image_widget(images=images)
+    # Prompt user to select "Yes" or "No" for aligning images
+    alignment_option = st.radio('Are your images already aligned?', ('Yes', 'No'))
+
+    if alignment_option == 'No':
+        # aligned images will be in similar size and in grayscale
+        aligned_images = align_to_mean_image_widget(images=images)
+    elif alignment_option == 'Yes':
+        # Check if all images are in grayscale
+        for name, image in images.items():
+            if (
+                len(image.shape) == 3 and image.shape[2] == 3
+            ):  # Image has 3 channels (i.e., it's in RGB format)
+                images[name] = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)  # Convert to grayscale
+
+        # Check if all images have the same dimension
+        image_shape = None
+        for name, image in images.items():
+            if image_shape is None:
+                image_shape = image.shape  # Set the shape of the first image as reference
+            else:
+                if image.shape != image_shape:
+                    st.error(
+                        f'Image {name} has a different size ({image.shape}) '
+                        f'compared to others ({image_shape}).'
+                    )
+                    st.stop()
+
+        # Assume images are already aligned if they pass the grayscale and size checks
+        aligned_images = images
+    else:
+        st.error("Please select either 'Yes' or 'No' to proceed.")
+        st.stop()
 
     if aligned_images:
         # Convert to uint8 if necessary
@@ -392,6 +431,27 @@ def main():
         st.subheader('The aligned images')
 
         show_images_widget(aligned_images, message='The aligned images')
+
+        # Function to compute the mean of aligned images
+        def compute_mean_image(aligned_images):
+            # Ensure the input is a 3D array (stack of 2D images)
+            image_stack = np.array(list(aligned_images.values()))
+
+            # Compute the mean across the stack (axis=0 assumes (height, width, n_images))
+            mean_image = np.mean(image_stack, axis=0)
+            return mean_image
+
+        # Function to plot the mean image
+        def plot_image(image, title='Mean Image'):
+            plt.imshow(image, cmap='gray')
+            plt.title(title)
+            plt.axis('off')
+            st.pyplot(plt)
+            plt.clf()  # Clear the figure to avoid overlap of plots
+
+        mean_image = compute_mean_image(aligned_images)
+        # show_images_widget(mean_image, message='The mean images')
+        plot_image(mean_image, title='Mean Image')
 
         st.markdown('---')
         cluster_image_widget(aligned_images)

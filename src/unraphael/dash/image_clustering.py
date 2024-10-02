@@ -30,7 +30,7 @@ alignment of images to their mean to optimize the clustering process."""
 
 from __future__ import annotations
 
-from concurrent.futures import ThreadPoolExecutor
+from multiprocessing import Pool
 from typing import Optional
 
 import cv2
@@ -446,6 +446,13 @@ def get_image_similarity(img1: np.ndarray, img2: np.ndarray, algorithm: str = 'S
         raise ValueError(f'Unsupported algorithm: {algorithm}')
 
 
+def compute_similarity(args):
+    i, j, images, algorithm = args
+    if i != j:
+        return i, j, get_image_similarity(images[i], images[j], algorithm)
+    return i, j, 1.0
+
+
 def build_similarity_matrix(
     images: list[np.ndarray], algorithm: str = 'SSIM', fill_diagonal_value: float = 0.0
 ) -> np.ndarray:
@@ -467,22 +474,20 @@ def build_similarity_matrix(
 
     num_images = len(images)
     sm = np.zeros((num_images, num_images), dtype=np.float64)
-
     np.fill_diagonal(sm, fill_diagonal_value)
 
-    def compute_similarity(i, j):
-        if i != j:
-            return get_image_similarity(images[i], images[j], algorithm)
-        return 1.0
+    # Prepare arguments for multiprocessing
+    args = [
+        (i, j, images, algorithm) for i in range(num_images) for j in range(i + 1, num_images)
+    ]
 
-    with ThreadPoolExecutor(max_workers=NUM_THREADS) as executor:
-        futures = [
-            (i, j, executor.submit(compute_similarity, i, j))
-            for i in range(num_images)
-            for j in range(i + 1, num_images)
-        ]
-        for i, j, future in futures:
-            sm[i, j] = sm[j, i] = future.result()
+    # Use multiprocessing to compute similarities
+    with Pool() as pool:
+        results = pool.map(compute_similarity, args)
+
+    # Fill the similarity matrix with the results
+    for i, j, similarity in results:
+        sm[i, j] = sm[j, i] = similarity
 
     return sm
 
@@ -575,14 +580,6 @@ def determine_optimal_clusters(
             kmeans = KMeans(n_clusters=k, random_state=42).fit(matrix)
             inertias.append(kmeans.inertia_)
 
-        # Plot the inertia to visualize the elbow point
-        # plt.figure()
-        # plt.plot(range(min_clust, max_clust + 1), inertias, 'bo-')
-        # plt.xlabel('Number of clusters')
-        # plt.ylabel('Inertia')
-        # plt.title('Elbow Method For Optimal Clusters')
-        # plt.show()
-
         # Calculate the second derivative to find the elbow point
         if len(inertias) > 2:
             diffs = np.diff(inertias, 2)
@@ -667,7 +664,7 @@ def plot_clusters(
 
 
 def plot_dendrogram(
-    images: dict, method: str = 'ward', title: str = 'Dendrogram'
+    images: dict, labels: np.ndarray, method: str = 'ward', title: str = 'Dendrogram'
 ) -> plt.Figure:
     """Plots a dendrogram for the clustering results.
 
