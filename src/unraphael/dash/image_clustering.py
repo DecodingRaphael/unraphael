@@ -704,9 +704,8 @@ def cluster_images(
     algorithm: str,
     n_clusters: int,
     method: str,
-    print_metrics: bool = True,
     labels_true: np.ndarray = None,
-) -> tuple[np.ndarray, int]:
+) -> tuple[np.ndarray, dict, int]:
     """Clusters a list of images using different clustering algorithms.
 
     Parameters
@@ -722,9 +721,6 @@ def cluster_images(
     method : str, optional
         The clustering method to use. Options are 'SpectralClustering',
         'AffinityPropagation', and 'DBSCAN'. Default is 'SpectralClustering'.
-    print_metrics : bool, optional
-        Whether to print performance metrics for each clustering method.
-        Default is True.
     labels_true : list, optional
         The true labels for the images, used for evaluating clustering
         performance. Default is None.
@@ -741,46 +737,26 @@ def cluster_images(
     if n_clusters is None and method != 'DBSCAN':
         n_clusters = determine_optimal_clusters(matrix)
 
-    # SpectralClustering requires the number of clusters to be specified in advance. It
-    # works well for a small number of clusters, but is not advised for many clusters
+    metrics = {}
     if method == 'SpectralClustering':
         sc = SpectralClustering(
             n_clusters=n_clusters, random_state=42, affinity='precomputed'
         ).fit(matrix)
-        sc_metrics = get_cluster_metrics(matrix, sc.labels_, labels_true)
+        metrics = get_cluster_metrics(matrix, sc.labels_, labels_true)
+        return sc.labels_, metrics, n_clusters
 
-        if print_metrics:
-            print('\nPerformance metrics for Spectral Clustering')
-            print(f'Number of clusters: {len(set(sc.labels_))}')
-            for k, v in sc_metrics.items():
-                print(f'{k}: {v:.2f}')
-        return sc.labels_, n_clusters
-
-    # Affinity propagation is also appropriate for small to medium sized datasets
     elif method == 'AffinityPropagation':
         af = AffinityPropagation(affinity='precomputed', random_state=42).fit(matrix)
-        af_metrics = get_cluster_metrics(matrix, af.labels_, labels_true)
-
-        if print_metrics:
-            print('\nPerformance metrics for Affinity Propagation Clustering')
-            print(f'Number of clusters: {len(set(af.labels_))}')
-            for k, v in af_metrics.items():
-                print(f'{k}: {v:.2f}')
-        return af.labels_, len(set(af.labels_))
+        metrics = get_cluster_metrics(matrix, af.labels_, labels_true)
+        return af.labels_, metrics, len(set(af.labels_))
 
     elif method == 'DBSCAN':
         db = DBSCAN(metric='precomputed', eps=0.5, min_samples=2).fit(matrix)
         db_labels = db.labels_
-        db_metrics = get_cluster_metrics(matrix, db_labels, labels_true)
+        metrics = get_cluster_metrics(matrix, db_labels, labels_true)
+        num_clusters = len(set(db_labels)) - (1 if -1 in db_labels else 0)
+        return db_labels, metrics, num_clusters
 
-        if print_metrics:
-            print('\nPerformance metrics for DBSCAN Clustering')
-            print(f'Number of clusters: {len(set(db_labels)) - (1 if -1 in db_labels else 0)}')
-            for k, v in db_metrics.items():
-                print(f'{k}: {v:.2f}')
-        return db_labels, len(set(db_labels)) - (1 if -1 in db_labels else 0)
-
-    # Default return for unsupported methods
     else:
         raise ValueError(f'Unsupported clustering method: {method}')
 

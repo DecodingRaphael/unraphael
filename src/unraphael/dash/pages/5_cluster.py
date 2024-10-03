@@ -50,8 +50,7 @@ def cached_cluster_images(image_list, algorithm, n_clusters, method):
         algorithm=algorithm,
         n_clusters=n_clusters,
         method=method,
-        print_metrics=True,
-        labels_true=None,
+        # labels_true=None,
     )
 
 
@@ -231,7 +230,7 @@ def cluster_image_widget(images: dict[str, np.ndarray]):
     computed using the selected similarity measure.
     """
 
-    st.subheader('Clustering')
+    st.subheader('Select clustering approach')
 
     image_list = list(images.values())
     image_names = list(images.keys())
@@ -270,30 +269,37 @@ def cluster_image_widget(images: dict[str, np.ndarray]):
             key='similarity_measure',
         )
 
+        st.title('Results')
+
         matrix = cached_build_similarity_matrix(np.array(image_list), algorithm=measure)
         st.subheader(f'Similarity matrix based on pairwise {measure} indices')
         st.write(np.round(matrix, decimals=2))
 
-        c, n_clusters = cached_cluster_images(
+        labels, metrics, n_clusters = cached_cluster_images(
             image_list,
             algorithm=measure,
             n_clusters=n_clusters,
             method=cluster_method,
         )
 
-        if c is None:
+        if labels is None:
             st.error('Clustering failed. Please check the parameters and try again.')
             return
 
-        st.subheader('Cluster results')
+        num_clusters = len(set(labels))
 
-        num_clusters = len(set(c))
+        # Display the cluster performance metrics
+        st.subheader(f'Performance metrics for {cluster_method}')
+        st.write(f'**Number of clusters**: {num_clusters}')
+        for metric_name, metric_value in metrics.items():
+            st.write(f'**{metric_name}**: {metric_value:.2f}')
 
+        st.subheader('Visualizing the cluster results')
         for n in range(num_clusters):
             cluster_label = n + 1
             st.write(f'\n --- Images from cluster #{cluster_label} ---')
 
-            cluster_indices = np.argwhere(c == n).flatten()
+            cluster_indices = np.argwhere(labels == n).flatten()
             cluster_images_dict = {image_names[i]: image_list[i] for i in cluster_indices}
             show_images_widget(
                 cluster_images_dict,
@@ -307,13 +313,13 @@ def cluster_image_widget(images: dict[str, np.ndarray]):
         images_dict = dict(zip(image_names, image_list))
 
         pca_clusters = plot_clusters(
-            images_dict, c, n_clusters, title=f'{cluster_method}-{measure} PCA dimensions'
+            images_dict, labels, n_clusters, title=f'{cluster_method}-{measure} PCA dimensions'
         )
         col1.subheader('Scatterplot')
         col1.pyplot(pca_clusters)
 
         dendrogram = plot_dendrogram(
-            images_dict, c, title=f'{cluster_method}-{measure} Dendrogram'
+            images_dict, labels, title=f'{cluster_method}-{measure} Dendrogram'
         )
         col2.subheader('Dendrogram')
         col2.pyplot(dendrogram)
