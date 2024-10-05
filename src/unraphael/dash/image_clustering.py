@@ -38,6 +38,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import piq
 import ssim.ssimlib as pyssim
+import streamlit as st
 import torch
 from clusteval import clusteval
 from clustimage import Clustimage
@@ -50,6 +51,7 @@ from skimage.transform import resize
 from sklearn import metrics
 from sklearn.cluster import DBSCAN, AffinityPropagation, KMeans, SpectralClustering
 from sklearn.decomposition import PCA
+from sklearn.metrics import davies_bouldin_score, silhouette_score
 
 SIM_IMAGE_SIZE = (640, 480)
 SIFT_RATIO = 0.7
@@ -519,10 +521,10 @@ def get_cluster_metrics(
     metrics_dict = {}
 
     if len(set(labels)) > 1:
-        metrics_dict['Silhouette coefficient'] = metrics.silhouette_score(
+        metrics_dict['Silhouette coefficient'] = silhouette_score(
             X, labels, metric='precomputed'
         )
-        metrics_dict['Davies-Bouldin index'] = metrics.davies_bouldin_score(1 - X, labels)
+        metrics_dict['Davies-Bouldin index'] = davies_bouldin_score(1 - X, labels)
 
     if labels_true is not None:
         metrics_dict['Completeness score'] = metrics.completeness_score(labels_true, labels)
@@ -601,7 +603,6 @@ def determine_optimal_clusters(
         )
 
         results = ce.fit(matrix)
-        print(f'ClustEval results: {results}')
 
         if method == 'silhouette':
             # Access silhouette scores and corresponding cluster numbers
@@ -699,6 +700,7 @@ def plot_dendrogram(
     return fig
 
 
+# cluster based on similarity matrices
 def cluster_images(
     images: list[np.ndarray],
     algorithm: str,
@@ -729,6 +731,10 @@ def cluster_images(
     -------
     list
         The cluster labels assigned to each image.
+
+    Note:
+    using the metric='precomputed' parameter ensures that the input is not
+    raw data points but rather a similarity matrix.
     """
 
     # main input for the clustering algorithm
@@ -751,7 +757,7 @@ def cluster_images(
         return af.labels_, metrics, len(set(af.labels_))
 
     elif method == 'DBSCAN':
-        db = DBSCAN(metric='precomputed', eps=0.5, min_samples=2).fit(matrix)
+        db = DBSCAN(metric='precomputed', eps=0.3, min_samples=2).fit(matrix)
         db_labels = db.labels_
         metrics = get_cluster_metrics(matrix, db_labels, labels_true)
         num_clusters = len(set(db_labels)) - (1 if -1 in db_labels else 0)
@@ -783,18 +789,18 @@ def preprocess_images(images: list, target_shape: tuple = (128, 128)) -> np.ndar
     return np.array(preprocessed_images)
 
 
+# feature-based clustering
 def clustimage_clustering(
     images: list, method: str, evaluation: str, linkage_type: str
 ) -> dict:
-    """Perform image clustering using the clustimage library, aiming to detect
-    natural groups or clusters of images. It uses a multi-step proces of pre-
-    processing the images, extracting the features, and evaluating the optimal
-    number of clusters across the feature.
+    """Perform feature-based clustering using the clustimage library, aiming to
+    detect natural groups or clusters of images. It uses a multi-step proces of
+    pre- processing the images, extracting the features, and evaluating the
+    optimal number of clusters across the feature.
 
     - clustering approaches can be set to agglomerative, kmeans, dbscan and hdbscan.
     - cluster evaluation can be performed based on Silhouette scores,
     Davies–Bouldin index, or Derivative method
-
 
     Args:
         images (list): A list of input images.
@@ -807,12 +813,7 @@ def clustimage_clustering(
     """
     imgs = preprocess_images(images)
     flattened_imgs = np.array([img.flatten() for img in imgs])
-
-    # HOG is most likely not the best feature extraction method for this task; see
-    # https://erdogant.github.io/clustimage/pages/html/Feature%20Extraction.html.
-    # Therefore, we use PCA for dimensionality reduction
     cl = Clustimage(method='pca', params_pca={'n_components': 0.95})
-
     imported = cl.import_data(flattened_imgs)
 
     # Preprocessing, feature extraction, embedding and detection of the
@@ -825,32 +826,56 @@ def clustimage_clustering(
         linkage=linkage_type,
         min_clust=1,
         max_clust=25,
-        cluster_space='low',
-    )  # cluster on the 2-D embedded space
+        cluster_space='high',
+    )
 
     print(results)
 
-    # Collect plots and save them to a dictionary 'figures'
-    evaluation_plot = cl.clusteval.plot()  # silhoutte versus nr of clusters
-    eval_plot = cl.clusteval.scatter(cl.results['xycoord'])
+    # Get cluster labels
+    labels = cl.results['labels']
+
+    # Calculate performance metrics based on the evaluation method
+    metrics = {}
+
+    if evaluation == 'silhouette':
+        # Count the number of unique cluster labels
+        num_unique_labels = len(set(labels))
+
+        # Ensure that there are at least 2 and fewer than n_samples unique clusters
+        if num_unique_labels >= 2 and num_unique_labels < len(flattened_imgs):
+            metrics['Silhouette Score'] = silhouette_score(flattened_imgs, labels)
+        else:
+            st.warning(
+                f'Cannot compute silhouette score: Clustering resulted in '
+                f'{num_unique_labels} clusters.'
+                f' Valid values are between 2 and {len(flattened_imgs)-1} clusters.'
+            )
+
+    elif evaluation == 'dbindex':
+        metrics['Davies-Bouldin Index'] = davies_bouldin_score(flattened_imgs, labels)
+
+    elif evaluation == 'derivatives':
+        metrics['Derivative Metric'] = cl.clusteval.elbowvalue
+
+    # Sillhouette score vs. number of clusters
+    evaluation_plot = cl.clusteval.plot()
+
     scatter_plot = cl.scatter(
-        zoom=None,
+        zoom=1,
         dotsize=200,
         figsize=(25, 15),
         args_scatter={'fontsize': 24, 'gradient': '#FFFFFF', 'cmap': 'Set2', 'legend': True},
-    )  # tsne plot
-    dendrogram_plot = cl.dendrogram()[
-        'ax'
-    ].figure  # ensure cl.dendrogram() returns the figure object from 'ax'
+    )
+
+    dendrogram_plot = cl.dendrogram()['ax'].figure
 
     figures = {
         'evaluation_plot': evaluation_plot,
-        'eval_plot': eval_plot,
         'scatter_plot': scatter_plot,
         'dendrogram_plot': dendrogram_plot,
     }
 
-    return figures
+    return {'labels': labels, 'metrics': metrics, 'figures': figures}
 
 
 # Equalization of brightness, contrast and sharpness ----------------------
