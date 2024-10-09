@@ -3,9 +3,10 @@ from __future__ import annotations
 from typing import Optional
 
 import cv2
-import matplotlib.pyplot as plt
 import numpy as np
 import streamlit as st
+from sklearn.cluster import DBSCAN
+from sklearn.metrics import silhouette_score
 from styling import set_custom_css
 from widgets import load_images_widget
 
@@ -16,8 +17,13 @@ from unraphael.dash.image_clustering import (
     clustimage_clustering,
     compute_metrics,
     equalize_images,
+    extract_and_scale_features,
+    extract_outer_contours_from_aligned_images,
     plot_clusters,
+    plot_clusters2,
     plot_dendrogram,
+    show_images_widget,
+    visualize_outer_contours,
 )
 
 
@@ -45,43 +51,39 @@ def cached_build_similarity_matrix(image_array, algorithm):
 
 @st.cache_data
 def cached_cluster_images(image_list, algorithm, n_clusters, method):
-    return cluster_images(
-        image_list,
-        algorithm=algorithm,
-        n_clusters=n_clusters,
-        method=method,
-        # labels_true=None,
-    )
+    return cluster_images(image_list, algorithm=algorithm, n_clusters=n_clusters, method=method)
 
 
-def show_images_widget(
-    images: dict[str, np.ndarray],
-    *,
-    n_cols: int = 4,
-    key: str = 'show_images',
-    message: str = 'Select image',
-) -> None | str:
-    """Widget to show images with given number of columns."""
-    col1, col2 = st.columns(2)
-    n_cols = col1.number_input(
-        'Number of columns for display', value=4, min_value=1, step=1, key=f'{key}_cols'
-    )
+@st.cache_data
+def cached_extract_outer_contours(images: dict[str, np.ndarray]) -> dict:
+    """Cache the extraction of outer contours from aligned images."""
+    return extract_outer_contours_from_aligned_images(images)
 
-    cols = st.columns(n_cols)
 
-    for i, (name, im) in enumerate(images.items()):
-        if i % n_cols == 0:
-            cols = st.columns(n_cols)
-        col = cols[i % n_cols]
+@st.cache_data
+def cached_extract_and_scale_features(
+    contours_dict: dict, selected_features: list, image_shape: tuple
+) -> tuple:
+    """Cache the feature extraction and scaling."""
+    return extract_and_scale_features(contours_dict, selected_features, image_shape)
 
-        col.image(im, use_column_width=True, caption=name, clamp=True)
 
-    return None  # primarily for display
+@st.cache_data
+def cached_cluster_images2(features: np.ndarray, eps: float, min_samples: int) -> np.ndarray:
+    """Cache the clustering results."""
+    dbscan = DBSCAN(eps=eps, min_samples=min_samples)
+    return dbscan.fit_predict(features)
 
 
 def display_components_options() -> dict[str, bool]:
-    """Display the components used for examining contour similarity."""
-    st.subheader('Select components used for examining contour similarity')
+    """Display the components used for examining contour similarity.
+
+    Returns:
+        dict[str, bool]: A dictionary where keys are the names of the contour
+        similarity components and values are booleans indicating whether each
+        component is selected by the user.
+    """
+
     fourier_descriptors = st.checkbox('Fourier Descriptors', value=False)
     hu_moments = st.checkbox('Hu Moments', value=False)
     hog_features = st.checkbox('HOG Features', value=False)
@@ -143,7 +145,7 @@ def equalize_images_widget(*, images: dict[str, np.ndarray]) -> dict[str, np.nda
 
     with col1:
         # Display metrics before equalization
-        display_metrics(before_metrics, 'Metrics Before Equalization')
+        display_metrics(before_metrics, 'Metrics before equalization')
 
     with col2:
         # Initialize a variable for equalized images
@@ -153,7 +155,7 @@ def equalize_images_widget(*, images: dict[str, np.ndarray]) -> dict[str, np.nda
         if any(preprocess_options.values()):
             equalized_images = cached_equalize_images(all_images, **preprocess_options)
             after_metrics = cached_compute_metrics(equalized_images)
-            display_metrics(after_metrics, 'Metrics After Equalization')
+            display_metrics(after_metrics, 'Metrics after equalization')
 
     # Map the equalized images back to their original names
     return {name: equalized_images[i] for i, name in enumerate(images.keys())}
@@ -251,7 +253,6 @@ def cluster_image_widget(images: dict[str, np.ndarray]):
     image_names = list(images.keys())
 
     st.subheader('Select object for clustering')
-
     st.write(
         (
             'Select whether you want to cluster on the outer contours or on '
@@ -271,14 +272,79 @@ def cluster_image_widget(images: dict[str, np.ndarray]):
         key='cluster_approach',
     )
 
+    # clustering images based on outer contours of figures
     if cluster_approach in ['Outer contours']:
-        # TODO: add contour extraction widget here (see 4_contour_extraction.py)
-        # TODO: plot outer contours with plot_outer_contours_widget
+        st.write('Extracting outer contours from the aligned images...')
+        contours_dict = cached_extract_outer_contours(images)
 
-        # These approaches enhance the robustness and accuracy of shape similarity analysis
-        # components = display_components_options()
-        pass
+        # Extract the shape of the aligned images
+        image_shape = next(iter(images.values())).shape
 
+        st.subheader('Outer contours of the aligned images')
+        visualize_outer_contours(images, contours_dict)
+
+        st.subheader('Select components used for examining contour similarity')
+        st.write(
+            (
+                'Select components to include for the clustering process. '
+                'By extracting various (combinations of) shape descriptors '
+                'like the ones below, you create a multidimensional '
+                'representation of the contours. This captures different '
+                'aspects of the shape and allows you to differentiate '
+                'between contours effectively.'
+            )
+        )
+
+        components = display_components_options()
+        selected_features = []
+
+        if components['fourier_descriptors']:
+            selected_features.append('fd')
+        if components['hu_moments']:
+            selected_features.append('hu')
+        if components['hog_features']:
+            selected_features.append('hog')
+        if components['hausdorff_distance']:
+            selected_features.append('hd')
+        if components['procrustes']:
+            selected_features.append('procrustes')
+
+        # Extract and scale features from contours
+        if selected_features:
+            st.write('Extracting and scaling features...')
+            features, _ = cached_extract_and_scale_features(
+                contours_dict, selected_features, image_shape
+            )
+
+            # Perform clustering
+            eps_value = 0.5
+            min_samples_value = 2
+            labels = cached_cluster_images2(features, eps_value, min_samples_value)
+
+            n_clusters = len(set(labels)) - (
+                1 if -1 in labels else 0
+            )  # Exclude noise if present
+            # print(f"Number of clusters found: {n_clusters}")
+
+            # Plot the clusters
+            pca_clusters = plot_clusters2(
+                features,
+                labels,
+                contours_dict,
+                title='PCA dimensions',
+            )
+
+            st.subheader('Scatterplot')
+            st.pyplot(pca_clusters)
+
+            # Evaluate clustering
+            if n_clusters > 1:
+                silhouette_avg = silhouette_score(features, labels)
+                print(f'Silhouette Score: {silhouette_avg}')
+            else:
+                print('Silhouette Score cannot be computed with only one cluster.')
+
+    # clustering images based on complete figures
     if cluster_approach in ['Complete figures']:
         cluster_method = st.selectbox(
             'Please choose the clustering algorithm:',
@@ -296,7 +362,7 @@ def cluster_image_widget(images: dict[str, np.ndarray]):
         )
 
         if cluster_method in ['SpectralClustering', 'AffinityPropagation', 'DBSCAN']:
-            n_clusters = None
+            n_clusters = 0
 
             if cluster_method == 'SpectralClustering':
                 specify_clusters = st.checkbox(
@@ -435,10 +501,12 @@ def main():
 
     st.title('Clustering of images')
     st.write(
-        'This page groups a set of images based on their structural similarity. '
-        'Optimal clustering performance is obtained via equalization'
-        'of image parameters and by aligning images to a common reference point,'
-        'thereby improving the quality of the data being analyzed.'
+        'This page groups a set of images based on the structural similarity between '
+        'the extracted figures or their outlines. Optimal clustering performance '
+        'is obtained via equalization of image parameters and by aligning images to '
+        'a common reference point, thereby improving the quality of the data being '
+        'analyzed. Several cluster methods and metrics are available to cluster your '
+        'images.'
     )
 
     with st.sidebar:
@@ -475,7 +543,7 @@ def main():
         image_shape = None
         for name, image in images.items():
             if image_shape is None:
-                image_shape = image.shape  # Set the shape of the first image as reference
+                image_shape = image.shape
             else:
                 if image.shape != image_shape:
                     st.error(
@@ -503,27 +571,6 @@ def main():
         st.subheader('The aligned images')
 
         show_images_widget(aligned_images, message='The aligned images')
-
-        # Function to compute the mean of aligned images
-        def compute_mean_image(aligned_images):
-            # Ensure the input is a 3D array (stack of 2D images)
-            image_stack = np.array(list(aligned_images.values()))
-
-            # Compute the mean across the stack (axis=0 assumes (height, width, n_images))
-            mean_image = np.mean(image_stack, axis=0)
-            return mean_image
-
-        # Function to plot the mean image
-        def plot_image(image, title='Mean Image'):
-            plt.imshow(image, cmap='gray')
-            plt.title(title)
-            plt.axis('off')
-            st.pyplot(plt)
-            plt.clf()  # Clear the figure to avoid overlap of plots
-
-        mean_image = compute_mean_image(aligned_images)
-        # show_images_widget(mean_image, message='The mean images')
-        plot_image(mean_image, title='Mean Image')
 
         st.markdown('---')
         cluster_image_widget(aligned_images)

@@ -44,19 +44,50 @@ from clusteval import clusteval
 from clustimage import Clustimage
 from PIL import Image
 from pystackreg import StackReg
+from rembg import remove
 from scipy.cluster.hierarchy import dendrogram, linkage
+from scipy.interpolate import interp1d
+from scipy.spatial import procrustes
+from scipy.spatial.distance import directed_hausdorff
 from skimage import color, transform
+from skimage.feature import hog
 from skimage.metrics import structural_similarity as ssim
 from skimage.transform import resize
 from sklearn import metrics
 from sklearn.cluster import DBSCAN, AffinityPropagation, KMeans, SpectralClustering
 from sklearn.decomposition import PCA
 from sklearn.metrics import davies_bouldin_score, silhouette_score
+from sklearn.preprocessing import StandardScaler
 
 SIM_IMAGE_SIZE = (640, 480)
 SIFT_RATIO = 0.7
 MSE_NUMERATOR = 1000.0
 NUM_THREADS = 8
+
+
+def show_images_widget(
+    images: dict[str, np.ndarray],
+    *,
+    n_cols: int = 4,
+    key: str = 'show_images',
+    message: str = 'Select image',
+) -> None | str:
+    """Widget to show images with given number of columns."""
+    col1, col2 = st.columns(2)
+    n_cols = col1.number_input(
+        'Number of columns for display', value=4, min_value=1, step=1, key=f'{key}_cols'
+    )
+
+    cols = st.columns(n_cols)
+
+    for i, (name, im) in enumerate(images.items()):
+        if i % n_cols == 0:
+            cols = st.columns(n_cols)
+        col = cols[i % n_cols]
+
+        col.image(im, use_column_width=True, caption=name, clamp=True)
+
+    return None  # primarily for display
 
 
 def align_images_to_mean(
@@ -1123,3 +1154,326 @@ def compute_metrics(images: list[np.ndarray]) -> dict[str, float]:
     }
 
     return metrics
+
+
+# --------------------------------------------------------------------------------
+
+
+# Define the function to extract contours using rembg
+def extract_foreground_mask(image: np.ndarray) -> np.ndarray:
+    """Extract the foreground mask using rembg."""
+    return remove(image, mask=True)
+
+
+def extract_outer_contour_from_mask(
+    mask: np.ndarray, min_area: int = 25
+) -> Optional[np.ndarray]:
+    """Extract the outer contour from the mask.
+
+    Args:
+        mask (np.ndarray): Input binary mask (BGR or grayscale).
+        min_area (int): Minimum area threshold for contours to be considered.
+
+    Returns:
+        Optional[np.ndarray]: The largest contour as a NumPy array if found,
+                              otherwise None.
+    """
+    # Convert the mask to grayscale if it's in BGR format
+    gray_mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
+    _, thresh = cv2.threshold(
+        gray_mask, 1, 255, cv2.THRESH_BINARY
+    )  # threshold to get binary mask
+    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # Filter out small contours based on area
+    filtered_contours = [cnt for cnt in contours if cv2.contourArea(cnt) > min_area]
+
+    # Return the largest contour if available
+    if filtered_contours:
+        return max(filtered_contours, key=cv2.contourArea)
+
+    return None
+
+
+def extract_outer_contours_from_aligned_images(aligned_images: dict[str, np.ndarray]) -> dict:
+    """Extract outer contours from the aligned images using rembg for
+    background removal.
+
+    Each image is provided as a dict of np.ndarray.
+    """
+    contours_dict = {}
+
+    for name, image in aligned_images.items():
+        # Check if the image is an np.ndarray
+        if not isinstance(image, np.ndarray):
+            st.error(f'Image "{name}" is not a valid np.ndarray.')
+            continue
+
+        # Ensure the image is in RGB format for rembg
+        if image.shape[-1] == 3:  # Assuming the input is BGR
+            image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        else:
+            image_rgb = image  # Already in RGB format
+
+        # Extract the foreground mask and outer contour
+        mask = extract_foreground_mask(image_rgb)
+        outer_contour = extract_outer_contour_from_mask(mask)
+
+        # Store the result in the dictionary
+        contours_dict[name] = outer_contour  # Use image name as the key
+
+    return contours_dict
+
+
+def visualize_outer_contours(
+    aligned_images: dict[str, np.ndarray], contours_dict: dict
+) -> None:
+    """Visualize only the outer contours for the aligned images on a black
+    background."""
+    contour_images = {}  # Dictionary to store images with only contours
+
+    for name, image in aligned_images.items():
+        outer_contour = contours_dict.get(name)
+
+        # Check if contour exists
+        if outer_contour is not None:
+            # Create a blank canvas (black background) with the same size as the original image
+            contour_canvas = np.zeros_like(image)  # Create a blank canvas
+
+            # Draw contours on the blank canvas
+            cv2.drawContours(
+                contour_canvas, [outer_contour], -1, (255, 255, 255), 2
+            )  # White contours
+
+            # Store the contour image in the dictionary
+            contour_images[name] = contour_canvas
+        else:
+            st.write(f'No valid contour found for {name}')
+
+    # Display the contour images using the widget
+    if contour_images:
+        show_images_widget(
+            contour_images, n_cols=4, key='contour_images', message='Contour Images Only'
+        )
+
+
+# def visualize_outer_contours(aligned_images: dict[str, np.ndarray],
+# contours_dict: dict) -> None:
+#     """Visualize the outer contours for the aligned images."""
+#     contoured_images = {}  # Dictionary to store images with contours
+
+#     for name, image in aligned_images.items():
+#         outer_contour = contours_dict.get(name)
+
+#         # Check if contour exists
+#         if outer_contour is not None:
+#             # Draw contours on the original image
+#             image_with_contours = image.copy()  # Copy original image
+#             cv2.drawContours(image_with_contours, [outer_contour], -1,
+# (255, 255, 255), 2)
+#             contoured_images[name] = image_with_contours  # Store in dictionary
+#         else:
+#             st.write(f"No valid contour found for {name}")
+
+#     # Display the contoured images using the widget
+#     if contoured_images:
+#         show_images_widget(contoured_images, n_cols=4, key='contoured_images',
+# message='Contoured Images')
+
+
+def compute_hu_moments(contour: np.ndarray) -> np.ndarray:
+    moments = cv2.moments(contour)
+    hu_moments = cv2.HuMoments(moments).flatten()
+    return np.log(np.abs(hu_moments))  # Log transform for scale invariance
+
+
+def compute_fourier_descriptors(contour: np.ndarray, num_coeff: int = 10) -> np.ndarray:
+    contour_array = contour[:, 0, :]
+    complex_contour = contour_array[:, 0] + 1j * contour_array[:, 1]
+    fourier_result = np.fft.fft(complex_contour)
+    descriptors = np.abs(fourier_result)
+    descriptors = descriptors[:num_coeff] / np.abs(descriptors[0])
+    return np.pad(descriptors, (0, max(0, num_coeff - len(descriptors))), 'constant')
+
+
+def compute_hog_features(contour: np.ndarray, image_shape: tuple) -> np.ndarray:
+    blank_image = np.zeros(image_shape, dtype=np.uint8)
+    cv2.drawContours(blank_image, [contour], -1, 255, 1)
+    features, _ = hog(
+        blank_image, pixels_per_cell=(8, 8), cells_per_block=(2, 2), visualize=True
+    )
+    desired_length = 100  # Example length
+    return np.pad(features, (0, max(0, desired_length - len(features))), 'constant')[
+        :desired_length
+    ]
+
+
+def resample_contour(contour: np.ndarray, num_points: int = 100) -> np.ndarray:
+    # Extract x and y coordinates
+    x, y = contour[:, 0, 0], contour[:, 0, 1]
+    # Calculate cumulative lengths
+    cumulative_lengths = np.cumsum(
+        np.sqrt(np.diff(x, prepend=x[0]) ** 2 + np.diff(y, prepend=y[0]) ** 2)
+    )
+    # Normalize to [0, 1]
+    cumulative_lengths /= cumulative_lengths[-1]
+    # Create interpolation functions
+    interp_x = interp1d(cumulative_lengths, x, kind='linear')
+    interp_y = interp1d(cumulative_lengths, y, kind='linear')
+    # Generate new cumulative lengths
+    new_cumulative_lengths = np.linspace(0, 1, num_points)
+    # Resample
+    new_x = interp_x(new_cumulative_lengths)
+    new_y = interp_y(new_cumulative_lengths)
+    return np.stack([new_x, new_y], axis=1)
+
+
+def compute_procrustes_distance(contour1: np.ndarray, contour2: np.ndarray) -> float:
+    # Resample both contours
+    resampled_contour1 = resample_contour(contour1)
+    resampled_contour2 = resample_contour(contour2)
+    mtx1, mtx2, disparity = procrustes(resampled_contour1, resampled_contour2)
+    return disparity
+
+
+def hausdorff_distance(contour1: np.ndarray, contour2: np.ndarray) -> float:
+    return max(
+        directed_hausdorff(contour1[:, 0, :], contour2[:, 0, :])[0],
+        directed_hausdorff(contour2[:, 0, :], contour1[:, 0, :])[0],
+    )
+
+
+def extract_and_scale_features(
+    contours_dict: dict, selected_features: list, image_shape: tuple
+) -> tuple[np.ndarray, None]:
+    """Extract and scale features from contours, including Hausdorff and
+    Procrustes distances.
+
+    Parameters:
+        contours_dict (dict): Dictionary of contours where keys are image names
+        and values are np.ndarrays of contours.
+        selected_features (list): List of features to include in the output.
+
+    Returns:
+        tuple: A tuple containing:
+            - combined_features (np.ndarray): The scaled feature array.
+            - None (since scalers are not used in this case).
+    """
+
+    # Type annotation for features_by_type
+    # features_by_type = {ft: [] for ft in selected_features}
+    features_by_type: dict[str, list[list[float]]] = {ft: [] for ft in selected_features}
+
+    contours_list = list(contours_dict.values())
+
+    # Compute distance matrices for Hausdorff and Procrustes distances
+    hausdorff_matrix = np.zeros((len(contours_list), len(contours_list)))
+    procrustes_matrix = np.zeros((len(contours_list), len(contours_list)))
+
+    # Fill the distance matrices
+    for i, contour_i in enumerate(contours_list):
+        for j, contour_j in enumerate(contours_list):
+            if i != j:
+                hausdorff_matrix[i, j] = hausdorff_distance(contour_i, contour_j)
+                procrustes_matrix[i, j] = compute_procrustes_distance(contour_i, contour_j)
+
+    # For each selected feature, calculate and store the corresponding feature values
+    for idx, contour in enumerate(contours_list):
+        if 'hd' in selected_features:
+            # Average Hausdorff distance to other contours
+            avg_hd = np.mean(
+                hausdorff_matrix[idx, :][hausdorff_matrix[idx, :] > 0]
+            )  # Avoid self-distance
+            features_by_type['hd'].append([avg_hd])
+        if 'procrustes' in selected_features:
+            # Average Procrustes distance to other contours
+            avg_procrustes = np.mean(
+                procrustes_matrix[idx, :][procrustes_matrix[idx, :] > 0]
+            )  # Avoid self-distance
+            features_by_type['procrustes'].append([avg_procrustes])
+        if 'fd' in selected_features:
+            features_by_type['fd'].append(compute_fourier_descriptors(contour))
+        if 'hu' in selected_features:
+            features_by_type['hu'].append(compute_hu_moments(contour))
+        if 'hog' in selected_features:
+            features_by_type['hog'].append(compute_hog_features(contour, image_shape))
+
+    # Scale each feature type separately
+    scaled_features = []
+    for ft in selected_features:
+        if features_by_type[ft]:  # Ensure there are features to scale
+            ft_array = np.array(features_by_type[ft])
+            scaled_ft = StandardScaler().fit_transform(ft_array)
+            scaled_features.append(scaled_ft)
+
+    # Combine scaled features
+    combined_features = np.hstack(scaled_features) if scaled_features else np.array([])
+
+    return combined_features, None  # Returning None for scalers as they're not used
+
+
+def plot_clusters2(
+    features: np.ndarray,
+    labels: np.ndarray,
+    contours_dict: dict,
+    title: str = 'DBSCAN Clustering of Image Contours',
+) -> plt.Figure:
+    """Plot clusters of image contours based on extracted features.
+
+    Parameters:
+        features (np.ndarray): The feature array used for clustering.
+        labels (np.ndarray): The labels resulting from clustering (e.g., from DBSCAN).
+        contours_dict (dict): Dictionary of contours where keys are image names
+        and values are np.ndarrays of contours.
+        title (str): Title of the plot.
+
+    Returns:
+        plt.Figure: The figure containing the scatter plot.
+    """
+    # Reduce dimensions using PCA
+    pca = PCA(n_components=2)
+    reduced_features = pca.fit_transform(features)
+    print('PCA Explained Variance Ratio:', pca.explained_variance_ratio_)
+
+    unique_labels = set(labels)
+
+    # Create a figure for plotting
+    fig, ax = plt.subplots(figsize=(10, 8))
+
+    # Plot each cluster
+    for label in unique_labels:
+        if label == -1:
+            color = 'k'  # Noise points
+            marker = 'x'
+        else:
+            color = plt.cm.jet(float(label) / (max(unique_labels) + 1))
+            marker = 'o'
+
+        members = labels == label
+        ax.scatter(
+            reduced_features[members, 0], reduced_features[members, 1], c=color, marker=marker
+        )
+
+    # Annotate each point with the corresponding image name
+    for i, (x, y) in enumerate(reduced_features):
+        # Use the key of contours_dict to get the image name
+        image_name = list(contours_dict.keys())[
+            i
+        ]  # Get the image name corresponding to the index
+        ax.annotate(
+            image_name,
+            (x, y),
+            xytext=(5, 2),
+            textcoords='offset points',
+            ha='left',
+            va='bottom',
+            bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.5),
+            fontsize=8,
+        )
+
+    ax.set_title(title)
+    ax.set_xlabel('PCA 1')
+    ax.set_ylabel('PCA 2')
+    ax.grid(True)
+
+    return fig
