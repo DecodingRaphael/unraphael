@@ -1,32 +1,10 @@
-"""Module for clustering of images based on structural similarity, including
-the equalization of contrast, sharpness, and brightness across the images and
-alignment of images to their mean to optimize the clustering process."""
+"""Module for clustering of images based on:
+- structural similarity
+- shape/ contour similarity.
 
-
-# Copyright (c) 2016, Oleg Puzanov
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice,
-#   this list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
-# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+Includes the equalization of contrast, sharpness, and brightness
+across the images and alignment of images to their mean to optimize
+the clustering process."""
 
 from __future__ import annotations
 
@@ -37,24 +15,31 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import piq
+import similaritymeasures
 import ssim.ssimlib as pyssim
 import streamlit as st
 import torch
-from clusteval import clusteval
-from clustimage import Clustimage
+from clusteval import clusteval  # for unsupervised clustering of images
+from clustimage import Clustimage  # for unsupervised clustering of images
 from PIL import Image
 from pystackreg import StackReg
 from rembg import remove
 from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.interpolate import interp1d
 from scipy.spatial import procrustes
-from scipy.spatial.distance import directed_hausdorff
+from scipy.spatial.distance import directed_hausdorff, pdist, squareform
 from skimage import color, transform
 from skimage.feature import hog
 from skimage.metrics import structural_similarity as ssim
 from skimage.transform import resize
 from sklearn import metrics
-from sklearn.cluster import DBSCAN, AffinityPropagation, KMeans, SpectralClustering
+from sklearn.cluster import (
+    DBSCAN,
+    AffinityPropagation,
+    AgglomerativeClustering,
+    KMeans,
+    SpectralClustering,
+)
 from sklearn.decomposition import PCA
 from sklearn.metrics import davies_bouldin_score, silhouette_score
 from sklearn.preprocessing import StandardScaler
@@ -88,6 +73,256 @@ def show_images_widget(
         col.image(im, use_column_width=True, caption=name, clamp=True)
 
     return None  # primarily for display
+
+
+# Equalization of brightness, contrast and sharpness ----------------------
+def compute_mean_brightness(images: list[np.ndarray]) -> float:
+    """Compute the mean brightness across a set of images."""
+
+    mean_brightness = 0
+    for img in images:
+        if len(img.shape) == 3:  # color image
+            img_lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+            l_channel, _, _ = cv2.split(img_lab)
+        else:  # grayscale image
+            l_channel = img
+        mean_brightness += np.mean(l_channel)
+    return mean_brightness / len(images)
+
+
+def compute_mean_contrast(images: list[np.ndarray]) -> float:
+    """Compute the mean contrast across a set of images."""
+
+    mean_contrast = 0
+    for img in images:
+        if len(img.shape) == 3:
+            img_lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+            l_channel, _, _ = cv2.split(img_lab)
+        else:
+            l_channel = img
+        mean_contrast += np.std(l_channel)
+    return mean_contrast / len(images)
+
+
+def compute_sharpness(img_gray: np.ndarray) -> float:
+    """Compute the sharpness of a grayscale image using the Sobel operator."""
+
+    grad_x = cv2.Sobel(img_gray, cv2.CV_64F, 1, 0, ksize=3)
+    grad_y = cv2.Sobel(img_gray, cv2.CV_64F, 0, 1, ksize=3)
+    grad = cv2.magnitude(grad_x, grad_y)
+    return np.mean(grad)
+
+
+def compute_mean_sharpness(images: list[np.ndarray]) -> float:
+    """Compute the mean sharpness across a set of images."""
+
+    mean_sharpness = 0.0
+    for img in images:
+        if len(img.shape) == 3:
+            img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        else:
+            img_gray = img
+        mean_sharpness += compute_sharpness(img_gray)
+    return mean_sharpness / len(images)
+
+
+def normalize_brightness_set(
+    images: list[np.ndarray], mean_brightness: float
+) -> list[np.ndarray]:
+    """Normalize brightness of all images in the set to the mean brightness."""
+
+    normalized_images = []
+    for img in images:
+        if len(img.shape) == 3:  # color image
+            img_lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+            l_channel, a_channel, b_channel = cv2.split(img_lab)
+            current_brightness = np.mean(l_channel)
+            print(f'Original brightness: {current_brightness}')
+            l_channel = (
+                (l_channel * (mean_brightness / current_brightness))
+                .clip(0, 255)
+                .astype(np.uint8)
+            )
+            normalized_img_lab = cv2.merge([l_channel, a_channel, b_channel])
+            normalized_img = cv2.cvtColor(normalized_img_lab, cv2.COLOR_LAB2BGR)
+            print(f'Normalized brightness: {np.mean(l_channel)}')
+
+        else:  # grayscale image
+            l_channel = img
+            current_brightness = np.mean(l_channel)
+            print(f'Original brightness: {current_brightness}')
+            normalized_img = (
+                (l_channel * (mean_brightness / current_brightness))
+                .clip(0, 255)
+                .astype(np.uint8)
+            )
+            print(f'Normalized brightness: {np.mean(normalized_img)}')
+
+        normalized_images.append(normalized_img)
+
+    return normalized_images
+
+
+def normalize_contrast_set(images: list[np.ndarray], mean_contrast: float) -> list[np.ndarray]:
+    """Normalize contrast of all images in the set to the mean contrast."""
+
+    normalized_images = []
+    for img in images:
+        if len(img.shape) == 3:  # color
+            img_lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+            l_channel, a_channel, b_channel = cv2.split(img_lab)
+            current_contrast = np.std(l_channel)
+            print(f'Original contrast: {current_contrast}')
+            l_channel = (
+                (l_channel * (mean_contrast / current_contrast)).clip(0, 255).astype(np.uint8)
+            )
+            normalized_img_lab = cv2.merge([l_channel, a_channel, b_channel])
+            normalized_img = cv2.cvtColor(normalized_img_lab, cv2.COLOR_LAB2BGR)
+            print(f'Normalized contrast: {np.std(l_channel)}')
+
+        else:  # grayscale
+            l_channel = img
+            current_contrast = np.std(l_channel)
+            print(f'Original contrast: {current_contrast}')
+            normalized_img = (
+                (l_channel * (mean_contrast / current_contrast)).clip(0, 255).astype(np.uint8)
+            )
+            print(f'Normalized contrast: {np.std(normalized_img)}')
+
+        normalized_images.append(normalized_img)
+
+    return normalized_images
+
+
+def normalize_sharpness_set(
+    images: list[np.ndarray], target_sharpness: float
+) -> list[np.ndarray]:
+    """Normalize sharpness of all images in the set to the target sharpness."""
+
+    normalized_images = []
+
+    for img in images:
+        if len(img.shape) == 3:
+            img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+        else:
+            img_gray = img
+
+        original_sharpness = compute_sharpness(img_gray)
+        print(f'Original sharpness: {original_sharpness}')
+
+        # Apply unsharp mask
+        blurred = cv2.GaussianBlur(img_gray, (0, 0), 3)
+        sharpened = cv2.addWeighted(img_gray, 1.5, blurred, -0.5, 0)
+
+        # Compute the new sharpness after applying the unsharp mask
+        sharpened_sharpness = compute_sharpness(sharpened)
+
+        # Scale to match the target sharpness
+        scaling_factor = target_sharpness / sharpened_sharpness
+        sharpened = (sharpened * scaling_factor).clip(0, 255).astype(np.uint8)
+
+        # If the original image was in color, convert the sharpened grayscale back to color
+        if len(img.shape) == 3:
+            img_yuv = cv2.cvtColor(img, cv2.COLOR_BGR2YUV)
+            img_yuv[:, :, 0] = sharpened
+            normalized_img = cv2.cvtColor(img_yuv, cv2.COLOR_YUV2BGR)
+        else:
+            normalized_img = sharpened
+
+        normalized_sharpness = compute_sharpness(
+            cv2.cvtColor(normalized_img, cv2.COLOR_BGR2GRAY)
+            if len(img.shape) == 3
+            else normalized_img
+        )
+        print(f'Normalized sharpness: {normalized_sharpness}')
+
+        normalized_images.append(normalized_img)
+
+    return normalized_images
+
+
+def equalize_images(
+    images: list[np.ndarray],
+    brightness: bool = False,
+    contrast: bool = False,
+    sharpness: bool = False,
+) -> list[np.ndarray]:
+    """Preprocesses the input images based on the selected enhancement options.
+
+    Parameters:
+    - images: The input images in BGR or gray format.
+    - brightness: Whether to equalize brightness.
+    - contrast: Whether to equalize contrast.
+    - sharpness: Whether to equalize sharpness.
+
+    Returns:
+    - images: the images with identical brightnes, cintrast and sharpness
+    """
+    if brightness:
+        mean_brightness = compute_mean_brightness(images)
+        images = normalize_brightness_set(images, mean_brightness)
+
+    if contrast:
+        mean_contrast = compute_mean_contrast(images)
+        images = normalize_contrast_set(images, mean_contrast)
+
+    if sharpness:
+        mean_sharpness = compute_mean_sharpness(images)
+        images = normalize_sharpness_set(images, mean_sharpness)
+
+    return images
+
+
+def compute_metrics(images: list[np.ndarray]) -> dict[str, float]:
+    """Computes metrics (mean and standard deviation) for normalized
+    brightness, contrast, and sharpness.
+
+    Parameters:
+    - images: The input images in BGR or gray format.
+
+    Returns:
+    - metrics: Dictionary containing mean and standard deviation of
+    normalized metrics.
+    """
+    normalized_brightness = []
+    normalized_contrast = []
+    normalized_sharpness = []
+
+    for img in images:
+        img_lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+        l_channel, _, _ = cv2.split(img_lab)
+
+        # Compute normalized brightness and contrast
+        normalized_brightness.append(np.mean(l_channel))
+        normalized_contrast.append(np.std(l_channel))
+
+        # Compute normalized sharpness
+        img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        normalized_sharpness.append(compute_sharpness(img_gray))
+
+    # Compute means and standard deviations, rounded to 2 decimal places
+    mean_normalized_brightness = np.round(np.mean(normalized_brightness), 2)
+    mean_normalized_contrast = np.round(np.mean(normalized_contrast), 2)
+    mean_normalized_sharpness = np.round(np.mean(normalized_sharpness), 2)
+
+    sd_normalized_brightness = np.round(np.std(normalized_brightness), 2)
+    sd_normalized_contrast = np.round(np.std(normalized_contrast), 2)
+    sd_normalized_sharpness = np.round(np.std(normalized_sharpness), 2)
+
+    metrics = {
+        'mean_normalized_brightness': mean_normalized_brightness,
+        'mean_normalized_contrast': mean_normalized_contrast,
+        'mean_normalized_sharpness': mean_normalized_sharpness,
+        'sd_normalized_brightness': sd_normalized_brightness,
+        'sd_normalized_contrast': sd_normalized_contrast,
+        'sd_normalized_sharpness': sd_normalized_sharpness,
+    }
+
+    return metrics
+
+
+# --------------------------------------------------------------------------------
 
 
 def align_images_to_mean(
@@ -772,7 +1007,7 @@ def cluster_images(
     matrix = build_similarity_matrix(images, algorithm=algorithm)
 
     if n_clusters is None and method != 'DBSCAN':
-        n_clusters = determine_optimal_clusters(matrix)
+        n_clusters = determine_optimal_clusters(matrix) if n_clusters is None else n_clusters
 
     metrics = {}
     if method == 'SpectralClustering':
@@ -849,7 +1084,7 @@ def clustimage_clustering(
 
     # Preprocessing, feature extraction, embedding and detection of the
     # optimal number of clusters
-    results = cl.fit_transform(
+    cl.fit_transform(
         imported,
         cluster=method,
         evaluate=evaluation,
@@ -859,8 +1094,6 @@ def clustimage_clustering(
         max_clust=25,
         cluster_space='high',
     )
-
-    print(results)
 
     # Get cluster labels
     labels = cl.results['labels']
@@ -885,7 +1118,7 @@ def clustimage_clustering(
     elif evaluation == 'dbindex':
         metrics['Davies-Bouldin Index'] = davies_bouldin_score(flattened_imgs, labels)
 
-    elif evaluation == 'derivatives':
+    elif evaluation == 'derivative':
         metrics['Derivative Metric'] = cl.clusteval.elbowvalue
 
     # Sillhouette score vs. number of clusters
@@ -907,256 +1140,6 @@ def clustimage_clustering(
     }
 
     return {'labels': labels, 'metrics': metrics, 'figures': figures}
-
-
-# Equalization of brightness, contrast and sharpness ----------------------
-def compute_mean_brightness(images: list[np.ndarray]) -> float:
-    """Compute the mean brightness across a set of images."""
-
-    mean_brightness = 0
-    for img in images:
-        if len(img.shape) == 3:  # color image
-            img_lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
-            l_channel, _, _ = cv2.split(img_lab)
-        else:  # grayscale image
-            l_channel = img
-        mean_brightness += np.mean(l_channel)
-    return mean_brightness / len(images)
-
-
-def compute_mean_contrast(images: list[np.ndarray]) -> float:
-    """Compute the mean contrast across a set of images."""
-
-    mean_contrast = 0
-    for img in images:
-        if len(img.shape) == 3:
-            img_lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
-            l_channel, _, _ = cv2.split(img_lab)
-        else:
-            l_channel = img
-        mean_contrast += np.std(l_channel)
-    return mean_contrast / len(images)
-
-
-def compute_sharpness(img_gray: np.ndarray) -> float:
-    """Compute the sharpness of a grayscale image using the Sobel operator."""
-
-    grad_x = cv2.Sobel(img_gray, cv2.CV_64F, 1, 0, ksize=3)
-    grad_y = cv2.Sobel(img_gray, cv2.CV_64F, 0, 1, ksize=3)
-    grad = cv2.magnitude(grad_x, grad_y)
-    return np.mean(grad)
-
-
-def compute_mean_sharpness(images: list[np.ndarray]) -> float:
-    """Compute the mean sharpness across a set of images."""
-
-    mean_sharpness = 0.0
-    for img in images:
-        if len(img.shape) == 3:
-            img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        else:
-            img_gray = img
-        mean_sharpness += compute_sharpness(img_gray)
-    return mean_sharpness / len(images)
-
-
-def normalize_brightness_set(
-    images: list[np.ndarray], mean_brightness: float
-) -> list[np.ndarray]:
-    """Normalize brightness of all images in the set to the mean brightness."""
-
-    normalized_images = []
-    for img in images:
-        if len(img.shape) == 3:  # color image
-            img_lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
-            l_channel, a_channel, b_channel = cv2.split(img_lab)
-            current_brightness = np.mean(l_channel)
-            print(f'Original brightness: {current_brightness}')
-            l_channel = (
-                (l_channel * (mean_brightness / current_brightness))
-                .clip(0, 255)
-                .astype(np.uint8)
-            )
-            normalized_img_lab = cv2.merge([l_channel, a_channel, b_channel])
-            normalized_img = cv2.cvtColor(normalized_img_lab, cv2.COLOR_LAB2BGR)
-            print(f'Normalized brightness: {np.mean(l_channel)}')
-
-        else:  # grayscale image
-            l_channel = img
-            current_brightness = np.mean(l_channel)
-            print(f'Original brightness: {current_brightness}')
-            normalized_img = (
-                (l_channel * (mean_brightness / current_brightness))
-                .clip(0, 255)
-                .astype(np.uint8)
-            )
-            print(f'Normalized brightness: {np.mean(normalized_img)}')
-
-        normalized_images.append(normalized_img)
-
-    return normalized_images
-
-
-def normalize_contrast_set(images: list[np.ndarray], mean_contrast: float) -> list[np.ndarray]:
-    """Normalize contrast of all images in the set to the mean contrast."""
-
-    normalized_images = []
-    for img in images:
-        if len(img.shape) == 3:  # color
-            img_lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
-            l_channel, a_channel, b_channel = cv2.split(img_lab)
-            current_contrast = np.std(l_channel)
-            print(f'Original contrast: {current_contrast}')
-            l_channel = (
-                (l_channel * (mean_contrast / current_contrast)).clip(0, 255).astype(np.uint8)
-            )
-            normalized_img_lab = cv2.merge([l_channel, a_channel, b_channel])
-            normalized_img = cv2.cvtColor(normalized_img_lab, cv2.COLOR_LAB2BGR)
-            print(f'Normalized contrast: {np.std(l_channel)}')
-
-        else:  # grayscale
-            l_channel = img
-            current_contrast = np.std(l_channel)
-            print(f'Original contrast: {current_contrast}')
-            normalized_img = (
-                (l_channel * (mean_contrast / current_contrast)).clip(0, 255).astype(np.uint8)
-            )
-            print(f'Normalized contrast: {np.std(normalized_img)}')
-
-        normalized_images.append(normalized_img)
-
-    return normalized_images
-
-
-def normalize_sharpness_set(
-    images: list[np.ndarray], target_sharpness: float
-) -> list[np.ndarray]:
-    """Normalize sharpness of all images in the set to the target sharpness."""
-
-    normalized_images = []
-
-    for img in images:
-        if len(img.shape) == 3:
-            img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-        else:
-            img_gray = img
-
-        original_sharpness = compute_sharpness(img_gray)
-        print(f'Original sharpness: {original_sharpness}')
-
-        # Apply unsharp mask
-        blurred = cv2.GaussianBlur(img_gray, (0, 0), 3)
-        sharpened = cv2.addWeighted(img_gray, 1.5, blurred, -0.5, 0)
-
-        # Compute the new sharpness after applying the unsharp mask
-        sharpened_sharpness = compute_sharpness(sharpened)
-
-        # Scale to match the target sharpness
-        scaling_factor = target_sharpness / sharpened_sharpness
-        sharpened = (sharpened * scaling_factor).clip(0, 255).astype(np.uint8)
-
-        # If the original image was in color, convert the sharpened grayscale back to color
-        if len(img.shape) == 3:
-            img_yuv = cv2.cvtColor(img, cv2.COLOR_BGR2YUV)
-            img_yuv[:, :, 0] = sharpened
-            normalized_img = cv2.cvtColor(img_yuv, cv2.COLOR_YUV2BGR)
-        else:
-            normalized_img = sharpened
-
-        normalized_sharpness = compute_sharpness(
-            cv2.cvtColor(normalized_img, cv2.COLOR_BGR2GRAY)
-            if len(img.shape) == 3
-            else normalized_img
-        )
-        print(f'Normalized sharpness: {normalized_sharpness}')
-
-        normalized_images.append(normalized_img)
-
-    return normalized_images
-
-
-def equalize_images(
-    images: list[np.ndarray],
-    brightness: bool = False,
-    contrast: bool = False,
-    sharpness: bool = False,
-) -> list[np.ndarray]:
-    """Preprocesses the input images based on the selected enhancement options.
-
-    Parameters:
-    - images: The input images in BGR or gray format.
-    - brightness: Whether to equalize brightness.
-    - contrast: Whether to equalize contrast.
-    - sharpness: Whether to equalize sharpness.
-
-    Returns:
-    - images: the images with identical brightnes, cintrast and sharpness
-    """
-    if brightness:
-        mean_brightness = compute_mean_brightness(images)
-        images = normalize_brightness_set(images, mean_brightness)
-
-    if contrast:
-        mean_contrast = compute_mean_contrast(images)
-        images = normalize_contrast_set(images, mean_contrast)
-
-    if sharpness:
-        mean_sharpness = compute_mean_sharpness(images)
-        images = normalize_sharpness_set(images, mean_sharpness)
-
-    return images
-
-
-def compute_metrics(images: list[np.ndarray]) -> dict[str, float]:
-    """Computes metrics (mean and standard deviation) for normalized
-    brightness, contrast, and sharpness.
-
-    Parameters:
-    - images: The input images in BGR or gray format.
-
-    Returns:
-    - metrics: Dictionary containing mean and standard deviation of
-    normalized metrics.
-    """
-    normalized_brightness = []
-    normalized_contrast = []
-    normalized_sharpness = []
-
-    for img in images:
-        img_lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
-        l_channel, _, _ = cv2.split(img_lab)
-
-        # Compute normalized brightness and contrast
-        normalized_brightness.append(np.mean(l_channel))
-        normalized_contrast.append(np.std(l_channel))
-
-        # Compute normalized sharpness
-        img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        normalized_sharpness.append(compute_sharpness(img_gray))
-
-    # Compute means and standard deviations, rounded to 2 decimal places
-    mean_normalized_brightness = np.round(np.mean(normalized_brightness), 2)
-    mean_normalized_contrast = np.round(np.mean(normalized_contrast), 2)
-    mean_normalized_sharpness = np.round(np.mean(normalized_sharpness), 2)
-
-    sd_normalized_brightness = np.round(np.std(normalized_brightness), 2)
-    sd_normalized_contrast = np.round(np.std(normalized_contrast), 2)
-    sd_normalized_sharpness = np.round(np.std(normalized_sharpness), 2)
-
-    metrics = {
-        'mean_normalized_brightness': mean_normalized_brightness,
-        'mean_normalized_contrast': mean_normalized_contrast,
-        'mean_normalized_sharpness': mean_normalized_sharpness,
-        'sd_normalized_brightness': sd_normalized_brightness,
-        'sd_normalized_contrast': sd_normalized_contrast,
-        'sd_normalized_sharpness': sd_normalized_sharpness,
-    }
-
-    return metrics
-
-
-# --------------------------------------------------------------------------------
 
 
 # Define the function to extract contours using rembg
@@ -1196,15 +1179,22 @@ def extract_outer_contour_from_mask(
 
 
 def extract_outer_contours_from_aligned_images(aligned_images: dict[str, np.ndarray]) -> dict:
-    """Extract outer contours from the aligned images using rembg for
-    background removal.
+    """Extract outer contours from the aligned images using rembg for.
 
-    Each image is provided as a dict of np.ndarray.
+    Parameters
+    ----------
+    aligned_images : dict[str, np.ndarray]
+        A dictionary where the keys are image names and the values are
+        the corresponding images in np.ndarray format.
+    Returns
+    -------
+    dict
+        A dictionary where the keys are the image names and the values
+        are the extracted outer contours.
     """
     contours_dict = {}
 
     for name, image in aligned_images.items():
-        # Check if the image is an np.ndarray
         if not isinstance(image, np.ndarray):
             st.error(f'Image "{name}" is not a valid np.ndarray.')
             continue
@@ -1215,11 +1205,9 @@ def extract_outer_contours_from_aligned_images(aligned_images: dict[str, np.ndar
         else:
             image_rgb = image  # Already in RGB format
 
-        # Extract the foreground mask and outer contour
         mask = extract_foreground_mask(image_rgb)
         outer_contour = extract_outer_contour_from_mask(mask)
 
-        # Store the result in the dictionary
         contours_dict[name] = outer_contour  # Use image name as the key
 
     return contours_dict
@@ -1228,63 +1216,39 @@ def extract_outer_contours_from_aligned_images(aligned_images: dict[str, np.ndar
 def visualize_outer_contours(
     aligned_images: dict[str, np.ndarray], contours_dict: dict
 ) -> None:
-    """Visualize only the outer contours for the aligned images on a black
-    background."""
+    """
+    Visualize only the outer contours for the aligned images on a black background.
+    Args:
+        aligned_images (dict[str, np.ndarray]): A dictionary where keys are image
+        names and values are the aligned images as numpy arrays.
+        contours_dict (dict): A dictionary where keys are image names and values
+        are the corresponding outer contours.
+    Returns:
+        None: This function does not return any value. It displays the images with
+        outer contours using a widget.
+    Inline Documentation:
+        - contour_images: Dictionary to store images with only contours.
+    """
     contour_images = {}  # Dictionary to store images with only contours
 
     for name, image in aligned_images.items():
         outer_contour = contours_dict.get(name)
 
-        # Check if contour exists
         if outer_contour is not None:
             # Create a blank canvas (black background) with the same size as the original image
-            contour_canvas = np.zeros_like(image)  # Create a blank canvas
+            contour_canvas = np.zeros_like(image)
 
             # Draw contours on the blank canvas
-            cv2.drawContours(
-                contour_canvas, [outer_contour], -1, (255, 255, 255), 2
-            )  # White contours
+            cv2.drawContours(contour_canvas, [outer_contour], -1, (255, 255, 255), 2)
 
-            # Store the contour image in the dictionary
             contour_images[name] = contour_canvas
         else:
             st.write(f'No valid contour found for {name}')
 
-    # Display the contour images using the widget
     if contour_images:
         show_images_widget(
             contour_images, n_cols=4, key='contour_images', message='Contour Images Only'
         )
-
-
-# def visualize_outer_contours(aligned_images: dict[str, np.ndarray],
-# contours_dict: dict) -> None:
-#     """Visualize the outer contours for the aligned images."""
-#     contoured_images = {}  # Dictionary to store images with contours
-
-#     for name, image in aligned_images.items():
-#         outer_contour = contours_dict.get(name)
-
-#         # Check if contour exists
-#         if outer_contour is not None:
-#             # Draw contours on the original image
-#             image_with_contours = image.copy()  # Copy original image
-#             cv2.drawContours(image_with_contours, [outer_contour], -1,
-# (255, 255, 255), 2)
-#             contoured_images[name] = image_with_contours  # Store in dictionary
-#         else:
-#             st.write(f"No valid contour found for {name}")
-
-#     # Display the contoured images using the widget
-#     if contoured_images:
-#         show_images_widget(contoured_images, n_cols=4, key='contoured_images',
-# message='Contoured Images')
-
-
-def compute_hu_moments(contour: np.ndarray) -> np.ndarray:
-    moments = cv2.moments(contour)
-    hu_moments = cv2.HuMoments(moments).flatten()
-    return np.log(np.abs(hu_moments))  # Log transform for scale invariance
 
 
 def compute_fourier_descriptors(contour: np.ndarray, num_coeff: int = 10) -> np.ndarray:
@@ -1294,6 +1258,12 @@ def compute_fourier_descriptors(contour: np.ndarray, num_coeff: int = 10) -> np.
     descriptors = np.abs(fourier_result)
     descriptors = descriptors[:num_coeff] / np.abs(descriptors[0])
     return np.pad(descriptors, (0, max(0, num_coeff - len(descriptors))), 'constant')
+
+
+def compute_hu_moments(contour: np.ndarray) -> np.ndarray:
+    moments = cv2.moments(contour)
+    hu_moments = cv2.HuMoments(moments).flatten()
+    return np.log(np.abs(hu_moments))  # Log transform for scale invariance
 
 
 def compute_hog_features(contour: np.ndarray, image_shape: tuple) -> np.ndarray:
@@ -1309,9 +1279,7 @@ def compute_hog_features(contour: np.ndarray, image_shape: tuple) -> np.ndarray:
 
 
 def resample_contour(contour: np.ndarray, num_points: int = 100) -> np.ndarray:
-    # Extract x and y coordinates
     x, y = contour[:, 0, 0], contour[:, 0, 1]
-    # Calculate cumulative lengths
     cumulative_lengths = np.cumsum(
         np.sqrt(np.diff(x, prepend=x[0]) ** 2 + np.diff(y, prepend=y[0]) ** 2)
     )
@@ -1322,32 +1290,97 @@ def resample_contour(contour: np.ndarray, num_points: int = 100) -> np.ndarray:
     interp_y = interp1d(cumulative_lengths, y, kind='linear')
     # Generate new cumulative lengths
     new_cumulative_lengths = np.linspace(0, 1, num_points)
-    # Resample
     new_x = interp_x(new_cumulative_lengths)
     new_y = interp_y(new_cumulative_lengths)
     return np.stack([new_x, new_y], axis=1)
 
 
+def compute_aspect_ratio(contour: np.ndarray) -> float:
+    """Computes the aspect ratio of the contour's bounding rectangle."""
+    x, y, w, h = cv2.boundingRect(contour)
+    return float(w) / h if h != 0 else 0
+
+
+def compute_contour_length(contour: np.ndarray) -> float:
+    """Computes the arc length of the contour."""
+    return cv2.arcLength(contour, closed=True)
+
+
+def compute_centroid_distance(contour: np.ndarray) -> float:
+    """Computes the average distance of contour points from the centroid."""
+    moments = cv2.moments(contour)
+    cx = moments['m10'] / moments['m00'] if moments['m00'] != 0 else 0
+    cy = moments['m01'] / moments['m00'] if moments['m00'] != 0 else 0
+    distances = np.sqrt((contour[:, 0, 0] - cx) ** 2 + (contour[:, 0, 1] - cy) ** 2)
+    return np.mean(distances)
+
+
+# several distances -> in matrix form
 def compute_procrustes_distance(contour1: np.ndarray, contour2: np.ndarray) -> float:
-    # Resample both contours
     resampled_contour1 = resample_contour(contour1)
     resampled_contour2 = resample_contour(contour2)
     mtx1, mtx2, disparity = procrustes(resampled_contour1, resampled_contour2)
     return disparity
 
 
-def hausdorff_distance(contour1: np.ndarray, contour2: np.ndarray) -> float:
+def compute_hausdorff_distance(contour1: np.ndarray, contour2: np.ndarray) -> float:
     return max(
         directed_hausdorff(contour1[:, 0, :], contour2[:, 0, :])[0],
         directed_hausdorff(contour2[:, 0, :], contour1[:, 0, :])[0],
     )
 
 
+def compute_frechet_distance(contour1: np.ndarray, contour2: np.ndarray) -> float:
+    resampled_contour1 = resample_contour(contour1)
+    resampled_contour2 = resample_contour(contour2)
+    return similaritymeasures.frechet_dist(resampled_contour1, resampled_contour2)
+
+
+def compute_shape_context(contour1: np.ndarray, contour2: np.ndarray) -> float:
+    sc_extractor = cv2.createShapeContextDistanceExtractor()
+    distance = sc_extractor.computeDistance(contour1, contour2)
+    return distance
+
+
+# # Compute distance matrices
+# hausdorff_matrix = np.zeros((len(contours_list), len(contours_list)))
+# procrustes_matrix = np.zeros((len(contours_list), len(contours_list)))
+# frechet_matrix = np.zeros((len(contours_list), len(contours_list)))
+# shape_context_matrix = np.zeros((len(contours_list), len(contours_list)))
+
+# # Fill the distance matrices
+# for i, contour_i in enumerate(contours_list):
+#     for j, contour_j in enumerate(contours_list):
+#         if i != j:
+#             hausdorff_matrix[i, j] = compute_hausdorff_distance(contour_i, contour_j)
+#             procrustes_matrix[i, j] = compute_procrustes_distance(contour_i, contour_j)
+#             frechet_matrix[i, j] = compute_frechet_distance(contour_i, contour_j)
+#             shape_context_matrix[i, j] = compute_shape_context(contour_i, contour_j)
+
+# if 'hd' in selected_features:
+#     avg_hd = np.mean(hausdorff_matrix[idx, :]
+#                      [hausdorff_matrix[idx, :] > 0])
+#     features_by_type['hd'].append([avg_hd])
+# if 'procrustes' in selected_features:
+#     avg_procrustes = np.mean(procrustes_matrix[idx, :]
+#                              [procrustes_matrix[idx, :] > 0])
+#     features_by_type['procrustes'].append([avg_procrustes])
+# if 'frechet' in selected_features:
+#     avg_frechet = np.mean(frechet_matrix[idx, :]
+#                           [frechet_matrix[idx, :] > 0])
+#     features_by_type['frechet'].append([avg_frechet])
+# if 'shape_context' in selected_features:
+#     avg_shape_context = np.mean(
+#         shape_context_matrix[idx, :]
+#         [shape_context_matrix[idx, :] > 0]
+#     )
+#     features_by_type['shape_context'].append([avg_shape_context])
+
+
 def extract_and_scale_features(
     contours_dict: dict, selected_features: list, image_shape: tuple
 ) -> tuple[np.ndarray, None]:
-    """Extract and scale features from contours, including Hausdorff and
-    Procrustes distances.
+    """Extract and scale several features from contours.
 
     Parameters:
         contours_dict (dict): Dictionary of contours where keys are image names
@@ -1363,53 +1396,50 @@ def extract_and_scale_features(
     # Type annotation for features_by_type
     # features_by_type = {ft: [] for ft in selected_features}
     features_by_type: dict[str, list[list[float]]] = {ft: [] for ft in selected_features}
-
     contours_list = list(contours_dict.values())
 
-    # Compute distance matrices for Hausdorff and Procrustes distances
-    hausdorff_matrix = np.zeros((len(contours_list), len(contours_list)))
-    procrustes_matrix = np.zeros((len(contours_list), len(contours_list)))
-
-    # Fill the distance matrices
-    for i, contour_i in enumerate(contours_list):
-        for j, contour_j in enumerate(contours_list):
-            if i != j:
-                hausdorff_matrix[i, j] = hausdorff_distance(contour_i, contour_j)
-                procrustes_matrix[i, j] = compute_procrustes_distance(contour_i, contour_j)
-
-    # For each selected feature, calculate and store the corresponding feature values
     for idx, contour in enumerate(contours_list):
-        if 'hd' in selected_features:
-            # Average Hausdorff distance to other contours
-            avg_hd = np.mean(
-                hausdorff_matrix[idx, :][hausdorff_matrix[idx, :] > 0]
-            )  # Avoid self-distance
-            features_by_type['hd'].append([avg_hd])
-        if 'procrustes' in selected_features:
-            # Average Procrustes distance to other contours
-            avg_procrustes = np.mean(
-                procrustes_matrix[idx, :][procrustes_matrix[idx, :] > 0]
-            )  # Avoid self-distance
-            features_by_type['procrustes'].append([avg_procrustes])
         if 'fd' in selected_features:
             features_by_type['fd'].append(compute_fourier_descriptors(contour))
         if 'hu' in selected_features:
             features_by_type['hu'].append(compute_hu_moments(contour))
         if 'hog' in selected_features:
             features_by_type['hog'].append(compute_hog_features(contour, image_shape))
+        if 'aspect_ratio' in selected_features:
+            features_by_type['aspect_ratio'].append([compute_aspect_ratio(contour)])
+        if 'contour_length' in selected_features:
+            features_by_type['contour_length'].append([compute_contour_length(contour)])
+        if 'centroid_distance' in selected_features:
+            features_by_type['centroid_distance'].append([compute_centroid_distance(contour)])
 
     # Scale each feature type separately
     scaled_features = []
     for ft in selected_features:
-        if features_by_type[ft]:  # Ensure there are features to scale
+        if features_by_type[ft]:
             ft_array = np.array(features_by_type[ft])
             scaled_ft = StandardScaler().fit_transform(ft_array)
             scaled_features.append(scaled_ft)
 
-    # Combine scaled features
     combined_features = np.hstack(scaled_features) if scaled_features else np.array([])
 
-    return combined_features, None  # Returning None for scalers as they're not used
+    # reduce the amount of dimensions in the feature vector with PCA
+    combined_features = reduce_dimensions(combined_features, n_components=2)
+    return combined_features, None
+
+
+def reduce_dimensions(features: np.ndarray, n_components: int) -> np.ndarray:
+    """Reduces the dimensions of the feature vector using PCA.
+
+    Parameters:
+      features (np.ndarray): The combined feature array.
+      n_components (int): The number of principal components to keep.
+      Returns:
+          np.ndarray: The transformed feature array with reduced dimensions.
+    """
+    pca = PCA(n_components=n_components, random_state=22)
+    pca.fit(features)
+    reduced_features = pca.transform(features)
+    return reduced_features
 
 
 def plot_clusters2(
@@ -1477,3 +1507,59 @@ def plot_clusters2(
     ax.grid(True)
 
     return fig
+
+
+def cluster_images_with_features(
+    features,
+    algorithm='euclidean',
+    n_clusters=None,
+    method='kmeans',
+    labels_true=None,
+    eps=None,
+    min_samples=None,
+):
+    """Clusters images based on their extracted features.
+
+    Parameters:
+      - features (array-like): The extracted features of the images to be clustered.
+      - algorithm (str, optional): The distance metric to use. Default is 'euclidean'.
+      - n_clusters (int, optional): The number of clusters to form. Required for 'kmeans'
+      and 'agglomerative' methods.
+      - method (str, optional): The clustering method to use. Options are 'kmeans',
+      'dbscan', and 'agglomerative'. Default is 'kmeans'.
+      - labels_true (array-like, optional): True labels for the data, used for evaluation
+      purposes. Default is None.
+      - eps (float, optional): The maximum distance between two samples for one to be
+      considered as in the neighborhood of the other. Required for 'dbscan' method.
+      - min_samples (int, optional): The number of samples in a neighborhood for a point
+      to be considered as a core point. Required for 'dbscan' method.
+
+    Returns:
+
+      tuple: A tuple containing:
+      - cluster_labels (array-like): The labels of the clusters.
+    """
+
+    # Calculate the distance matrix
+    distance_matrix = pdist(features, metric=algorithm)
+    distance_matrix_square = squareform(distance_matrix)
+
+    # Fill the diagonal with zeros
+    np.fill_diagonal(distance_matrix_square, 0)
+
+    if method == 'kmeans':
+        kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+        cluster_labels = kmeans.fit_predict(features)
+
+    elif method == 'dbscan':
+        dbscan = DBSCAN(eps=eps, min_samples=min_samples, metric='precomputed')
+        cluster_labels = dbscan.fit_predict(distance_matrix_square)
+
+    elif method == 'agglomerative':
+        agglom = AgglomerativeClustering(n_clusters=n_clusters, linkage='average')
+        cluster_labels = agglom.fit_predict(distance_matrix_square)
+
+    else:
+        raise ValueError('Unsupported clustering method.')
+
+    return cluster_labels

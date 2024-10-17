@@ -3,10 +3,12 @@ from __future__ import annotations
 from typing import Optional
 
 import cv2
+import matplotlib.pyplot as plt
 import numpy as np
 import streamlit as st
-from sklearn.cluster import DBSCAN
-from sklearn.metrics import silhouette_score
+from clusteval import clusteval
+from scatterd import scatterd
+from sklearn.metrics import davies_bouldin_score, silhouette_score
 from styling import set_custom_css
 from widgets import load_images_widget
 
@@ -68,15 +70,9 @@ def cached_extract_and_scale_features(
     return extract_and_scale_features(contours_dict, selected_features, image_shape)
 
 
-@st.cache_data
-def cached_cluster_images2(features: np.ndarray, eps: float, min_samples: int) -> np.ndarray:
-    """Cache the clustering results."""
-    dbscan = DBSCAN(eps=eps, min_samples=min_samples)
-    return dbscan.fit_predict(features)
-
-
 def display_components_options() -> dict[str, bool]:
-    """Display the components used for examining contour similarity.
+    """Display the components used for examining contour similarity in a
+    Streamlit app.
 
     Returns:
         dict[str, bool]: A dictionary where keys are the names of the contour
@@ -84,22 +80,45 @@ def display_components_options() -> dict[str, bool]:
         component is selected by the user.
     """
 
+    # Display checkboxes for each contour similarity component
     fourier_descriptors = st.checkbox('Fourier Descriptors', value=False)
     hu_moments = st.checkbox('Hu Moments', value=False)
     hog_features = st.checkbox('HOG Features', value=False)
     hausdorff_distance = st.checkbox('Hausdorff Distance', value=False)
     procrustes = st.checkbox('Procrustes Analysis', value=False)
+    frechet_distance = st.checkbox('Frechet Distance', value=False)
+    shape_context = st.checkbox('Shape Context', value=False)
+    aspect_ratio = st.checkbox('Aspect Ratio', value=False)
+    contour_length = st.checkbox('Contour Length', value=False)
+    centroid_distance = st.checkbox('Centroid Distance', value=False)
 
+    # Return the selected options as a dictionary
     return {
         'fourier_descriptors': fourier_descriptors,
         'hu_moments': hu_moments,
         'hog_features': hog_features,
         'hausdorff_distance': hausdorff_distance,
         'procrustes': procrustes,
+        'frechet_distance': frechet_distance,
+        'shape_context': shape_context,
+        'aspect_ratio': aspect_ratio,
+        'contour_length': contour_length,
+        'centroid_distance': centroid_distance,
     }
 
 
 def display_equalization_options() -> dict[str, bool]:
+    """This function creates a user interface with checkboxes for equalizing
+    brightness, contrast, and sharpness. It returns a dictionary with the
+    selected options.
+
+    Returns
+    -------
+    dict[str, bool]
+        A dictionary with keys 'brightness', 'contrast', and 'sharpness',
+        each mapped to a boolean indicating whether the corresponding
+        equalization option was selected.
+    """
     """Display the equalization options UI and return the selected options."""
     st.subheader('Equalization parameters')
     brightness = st.checkbox('Equalize brightness', value=False)
@@ -114,7 +133,17 @@ def display_equalization_options() -> dict[str, bool]:
 
 
 def display_metrics(metrics: dict[str, float], title: str) -> None:
-    """Display the metrics with a specified title."""
+    """Display the metrics with a specified title.
+
+    Parameters
+    ----------
+    metrics : dict[str, float]
+        A dictionary containing the metrics to be displayed. The keys
+        are the names of the metrics,
+        and the values are the corresponding metric values.
+    title : str
+        The title to be displayed above the metrics.
+    """
     st.subheader(title)
     col3, col4 = st.columns(2)
 
@@ -131,16 +160,22 @@ def display_metrics(metrics: dict[str, float], title: str) -> None:
 
 def equalize_images_widget(*, images: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
     """Widget for equalizing images in terms of brightness, contrast, and
-    sharpness."""
+    sharpness.
 
-    # Compute metrics before equalization
+    Parameters, before and after equalization.
+    ----------
+    images : dict[str, np.ndarray]
+        A dictionary where keys are image names and values are image arrays.
+    Returns
+    -------
+    dict[str, np.ndarray]
+        A dictionary where keys are image names and values are the equalized image arrays.
+    """
+
+    # before equalization
     all_images = list(images.values())
     before_metrics = cached_compute_metrics(all_images)
-
-    # Display equalization options first
     preprocess_options = display_equalization_options()
-
-    # Create columns for metrics
     col1, col2 = st.columns(2)
 
     with col1:
@@ -164,10 +199,19 @@ def equalize_images_widget(*, images: dict[str, np.ndarray]) -> dict[str, np.nda
 def align_to_mean_image_widget(
     *, images: dict[str, np.ndarray]
 ) -> Optional[dict[str, np.ndarray]]:
-    """This widget aligns all images, preferably to their mean value but other
-    aligning options are also available.
+    """This widget aligns a set of images to a reference image using various
+    transformation models, typically to their mean value, but other aligning
+    options are also available. The aligned images are used for later
+    clustering.
 
-    The aligned images are input for the later clustering of the images.
+    Parameters
+    ----------
+    images : dict[str, np.ndarray]
+        A dictionary where keys are image identifiers and values are the image arrays.
+    Returns
+    -------
+    Optional[dict[str, np.ndarray]]
+        A dictionary of aligned images if alignment is successful, otherwise None.
     """
 
     st.subheader('Alignment parameters')
@@ -241,7 +285,7 @@ def align_to_mean_image_widget(
     return None
 
 
-def cluster_image_widget(images: dict[str, np.ndarray]):
+def cluster_image_widget(images: dict[str, np.ndarray]) -> None:
     """Widget to cluster images or outer contours, using clustering methods
     suitable for small datasets.
 
@@ -308,6 +352,16 @@ def cluster_image_widget(images: dict[str, np.ndarray]):
             selected_features.append('hd')
         if components['procrustes']:
             selected_features.append('procrustes')
+        if components['frechet_distance']:
+            selected_features.append('frechet')
+        if components['shape_context']:
+            selected_features.append('shape_context')
+        if components['aspect_ratio']:
+            selected_features.append('aspect_ratio')
+        if components['contour_length']:
+            selected_features.append('contour_length')
+        if components['centroid_distance']:
+            selected_features.append('centroid_distance')
 
         # Extract and scale features from contours
         if selected_features:
@@ -316,33 +370,98 @@ def cluster_image_widget(images: dict[str, np.ndarray]):
                 contours_dict, selected_features, image_shape
             )
 
-            # Perform clustering
-            eps_value = 0.5
-            min_samples_value = 2
-            labels = cached_cluster_images2(features, eps_value, min_samples_value)
+            # Before clustering, visualize the data using a scatter plot
+            # or similar to understand the distribution. This can help you
+            # determine appropriate values for eps and min_samples.
+            def plot_scatter(features):
+                scatterd(features[:, 0], features[:, 1])
 
-            n_clusters = len(set(labels)) - (
-                1 if -1 in labels else 0
-            )  # Exclude noise if present
-            # print(f"Number of clusters found: {n_clusters}")
+                fig = plt.gcf()
+                st.pyplot(fig)
+
+            plot_scatter(features)
+
+            st.subheader('Clustering Outer Contours')
+
+            cluster_method = st.selectbox(
+                'Please choose the clustering algorithm:',
+                [
+                    'kmeans',
+                    'agglomerative',
+                    'dbscan',
+                ],
+                help='The cluster method defines the way in which the images are grouped.',
+                key='cluster_method',
+            )
+
+            cluster_evaluation = st.selectbox(
+                'Select the cluster evaluation method:',
+                ['silhouette', 'dbindex', 'derivative'],
+                help='Select the method used as the basis for clustering the images:',
+            )
+
+            cluster_linkage = st.selectbox(
+                'Select the cluster linkage method:',
+                ['ward', 'single', 'complete', 'average', 'weighted', 'centroid', 'median'],
+                help='Select the linkage method used for clustering the images:',
+            )
+
+            n_clusters = None
+            ce = clusteval(
+                cluster=cluster_method, evaluate=cluster_evaluation, linkage=cluster_linkage
+            )
+
+            results = ce.fit(features)
+            cluster_labels = results['labx']
+
+            # extract optimal number of clusters
+            if cluster_method in ['kmeans', 'agglomerative']:
+                scores = results['score']['score']
+                cluster_numbers = results['score']['clusters']
+
+                # Find the index of the maximum silhouette score
+                optimal_index = np.argmax(scores)
+                n_clusters = cluster_numbers[optimal_index]
+
+            dendrogram_plot = ce.dendrogram(X=results, linkage=cluster_linkage)['ax'].figure
+            st.subheader('Dendrogram plot')
+            st.pyplot(dendrogram_plot)
+
+            silhouette_plot, ax, _ = ce.plot_silhouette(
+                X=features,  # Pass your features here
+                dot_size=200,  # Adjust the dot size if needed
+                jitter=0.01,  # Add jitter if desired
+                cmap='Set2',  # Specify the color map if needed
+                # figsize=(15, 8),  # Adjust the figure size if needed
+                savefig={'fname': None, 'format': 'png', 'dpi': 100},  # Prevent saving to file
+            )
+
+            st.subheader('Silhouette plot')
+            st.pyplot(fig=silhouette_plot)
 
             # Plot the clusters
             pca_clusters = plot_clusters2(
-                features,
-                labels,
-                contours_dict,
-                title='PCA dimensions',
+                features, cluster_labels, contours_dict, title='PCA dimensions'
             )
-
             st.subheader('Scatterplot')
             st.pyplot(pca_clusters)
 
-            # Evaluate clustering
-            if n_clusters > 1:
-                silhouette_avg = silhouette_score(features, labels)
-                print(f'Silhouette Score: {silhouette_avg}')
-            else:
-                print('Silhouette Score cannot be computed with only one cluster.')
+            # show metrics
+            st.metric('Number of clusters found:', n_clusters)
+
+            # Evaluate clustering for kmeans and agglomerative methods only
+            if cluster_method in ['kmeans', 'agglomerative']:
+                if n_clusters is not None and n_clusters > 1:
+                    silhouette_avg = silhouette_score(features, cluster_labels)
+                    davies_bouldin = davies_bouldin_score(features, cluster_labels)
+
+                    st.metric(label='Silhouette Score', value=f'{silhouette_avg:.2f}')
+                    st.metric(label='Davies Bouldin Score', value=f'{davies_bouldin:.2f}')
+                else:
+                    st.warning(
+                        'Silhouette Score cannot be computed with only one cluster '
+                        'or with DBSCAN.'
+                    )
 
     # clustering images based on complete figures
     if cluster_approach in ['Complete figures']:
@@ -362,7 +481,7 @@ def cluster_image_widget(images: dict[str, np.ndarray]):
         )
 
         if cluster_method in ['SpectralClustering', 'AffinityPropagation', 'DBSCAN']:
-            n_clusters = 0
+            n_clusters = None
 
             if cluster_method == 'SpectralClustering':
                 specify_clusters = st.checkbox(
@@ -442,7 +561,7 @@ def cluster_image_widget(images: dict[str, np.ndarray]):
         if cluster_method in ['agglomerative', 'kmeans', 'dbscan', 'hdbscan']:
             cluster_evaluation = st.selectbox(
                 'Select the cluster evaluation method:',
-                ['silhouette', 'dbindex', 'derivatives'],
+                ['silhouette', 'dbindex', 'derivative'],
                 help='Select the method used as the basis for clustering the images:',
             )
 
