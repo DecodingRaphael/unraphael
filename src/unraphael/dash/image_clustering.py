@@ -15,7 +15,6 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import piq
-import similaritymeasures
 import ssim.ssimlib as pyssim
 import streamlit as st
 import torch
@@ -27,7 +26,7 @@ from rembg import remove
 from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.interpolate import interp1d
 from scipy.spatial import procrustes
-from scipy.spatial.distance import directed_hausdorff, pdist, squareform
+from scipy.spatial.distance import directed_hausdorff
 from skimage import color, transform
 from skimage.feature import hog
 from skimage.metrics import structural_similarity as ssim
@@ -36,7 +35,6 @@ from sklearn import metrics
 from sklearn.cluster import (
     DBSCAN,
     AffinityPropagation,
-    AgglomerativeClustering,
     KMeans,
     SpectralClustering,
 )
@@ -58,6 +56,7 @@ def show_images_widget(
     message: str = 'Select image',
 ) -> None | str:
     """Widget to show images with given number of columns."""
+
     col1, col2 = st.columns(2)
     n_cols = col1.number_input(
         'Number of columns for display', value=4, min_value=1, step=1, key=f'{key}_cols'
@@ -72,13 +71,12 @@ def show_images_widget(
 
         col.image(im, use_column_width=True, caption=name, clamp=True)
 
-    return None  # primarily for display
+    return None
 
 
-# Equalization of brightness, contrast and sharpness ----------------------
+# Equalization of brightness, contrast and sharpness
 def compute_mean_brightness(images: list[np.ndarray]) -> float:
     """Compute the mean brightness across a set of images."""
-
     mean_brightness = 0
     for img in images:
         if len(img.shape) == 3:  # color image
@@ -92,7 +90,6 @@ def compute_mean_brightness(images: list[np.ndarray]) -> float:
 
 def compute_mean_contrast(images: list[np.ndarray]) -> float:
     """Compute the mean contrast across a set of images."""
-
     mean_contrast = 0
     for img in images:
         if len(img.shape) == 3:
@@ -106,7 +103,6 @@ def compute_mean_contrast(images: list[np.ndarray]) -> float:
 
 def compute_sharpness(img_gray: np.ndarray) -> float:
     """Compute the sharpness of a grayscale image using the Sobel operator."""
-
     grad_x = cv2.Sobel(img_gray, cv2.CV_64F, 1, 0, ksize=3)
     grad_y = cv2.Sobel(img_gray, cv2.CV_64F, 0, 1, ksize=3)
     grad = cv2.magnitude(grad_x, grad_y)
@@ -115,7 +111,6 @@ def compute_sharpness(img_gray: np.ndarray) -> float:
 
 def compute_mean_sharpness(images: list[np.ndarray]) -> float:
     """Compute the mean sharpness across a set of images."""
-
     mean_sharpness = 0.0
     for img in images:
         if len(img.shape) == 3:
@@ -130,7 +125,6 @@ def normalize_brightness_set(
     images: list[np.ndarray], mean_brightness: float
 ) -> list[np.ndarray]:
     """Normalize brightness of all images in the set to the mean brightness."""
-
     normalized_images = []
     for img in images:
         if len(img.shape) == 3:  # color image
@@ -165,7 +159,6 @@ def normalize_brightness_set(
 
 def normalize_contrast_set(images: list[np.ndarray], mean_contrast: float) -> list[np.ndarray]:
     """Normalize contrast of all images in the set to the mean contrast."""
-
     normalized_images = []
     for img in images:
         if len(img.shape) == 3:  # color
@@ -197,8 +190,8 @@ def normalize_contrast_set(images: list[np.ndarray], mean_contrast: float) -> li
 def normalize_sharpness_set(
     images: list[np.ndarray], target_sharpness: float
 ) -> list[np.ndarray]:
-    """Normalize sharpness of all images in the set to the target sharpness."""
-
+    """Normalize sharpness of all images in the set to the sharpness of the
+    target."""
     normalized_images = []
 
     for img in images:
@@ -257,7 +250,7 @@ def equalize_images(
     - sharpness: Whether to equalize sharpness.
 
     Returns:
-    - images: the images with identical brightnes, cintrast and sharpness
+    - images: the images with identical brightnes, contrast and sharpness
     """
     if brightness:
         mean_brightness = compute_mean_brightness(images)
@@ -320,9 +313,6 @@ def compute_metrics(images: list[np.ndarray]) -> dict[str, float]:
     }
 
     return metrics
-
-
-# --------------------------------------------------------------------------------
 
 
 def align_images_to_mean(
@@ -388,7 +378,7 @@ def align_images_to_mean(
     elif motion_model == 'bilinear':
         sr = StackReg(StackReg.BILINEAR)
 
-    # Perform alignment/registering
+    # Perform alignment/registration based on the selected feature method
     if feature_method == 'to first image':
         aligned_images_stack = sr.register_transform_stack(image_stack, reference='first')
     elif feature_method == 'to mean image':
@@ -403,11 +393,13 @@ def align_images_to_mean(
     return aligned_images
 
 
-# Brushstroke Analysis -----------------------------------------------------
+# Brushstroke Analysis
 # This set of functions analyzes brushstrokes in images by extracting various
-# edge detection metrics. The methods implemented here focus
-# on identifying and quantifying the characteristics of brushstrokes as they
-# manifest in the form of edges in an image.
+# edge detection metrics. The methods implemented here focus on identifying
+# and quantifying the characteristics of brushstrokes as they  manifest in
+# the form of edges in an image. Adapted from Ugail, H, Stork, DG, Edwards,
+# H, Seward, SC & Brooke, C. (2023). Deep transfer learning for visual analysis
+# and attribution of paintings by Raphael. Heritage Science 11(1), 268.
 def calculate_canny_edges(img) -> float:
     """Calculates the standard deviation of the edges detected in the input
     image using the Canny edge detection algorithm.
@@ -646,7 +638,7 @@ def preprocess(img: np.ndarray) -> np.ndarray:
 
 
 def to_torch(img: np.ndarray) -> torch.Tensor:
-    """Converts a NumPy array to a Torch tensor and normalizes it."""
+    """Convert a NumPy array to a Torch tensor and normalize it."""
     if img.ndim == 2:  # Grayscale case
         img = np.expand_dims(img, axis=-1)  # Add channel dimension
     torch_img = torch.from_numpy(img).permute(2, 0, 1)[None, ...] / 255.0  # Normalize to [0, 1]
@@ -764,6 +756,7 @@ def get_cluster_metrics(
     X: np.ndarray, labels: np.ndarray, labels_true: Optional[np.ndarray] = None
 ) -> dict[str, float]:
     """Calculate cluster evaluation metrics based on the given data and labels.
+    Adapted from https://github.com/llvll/imgcluster
 
     Parameters:
     - X: numpy.ndarray
@@ -791,16 +784,9 @@ def get_cluster_metrics(
             X, labels, metric='precomputed'
         )
         metrics_dict['Davies-Bouldin index'] = davies_bouldin_score(1 - X, labels)
-
     if labels_true is not None:
         metrics_dict['Completeness score'] = metrics.completeness_score(labels_true, labels)
         metrics_dict['Homogeneity score'] = metrics.homogeneity_score(labels_true, labels)
-
-        metrics_dict['V-measure'] = metrics.v_measure_score(labels_true, labels)
-        metrics_dict['Adjusted Rand index'] = metrics.adjusted_rand_score(labels_true, labels)
-        metrics_dict['Adjusted mutual information'] = metrics.adjusted_mutual_info_score(
-            labels_true, labels
-        )
 
     return metrics_dict
 
@@ -808,25 +794,24 @@ def get_cluster_metrics(
 def determine_optimal_clusters(
     matrix: np.ndarray,
     method: str = 'elbow',
-    cluster_method: str = 'kmeans',
+    cluster_method: str = 'agglomerative',
     metric: str = 'euclidean',
     linkage: str = 'ward',
     min_clust: int = 2,
     max_clust: int = 10,
 ) -> int:
-    """Determines the optimal number of clusters using various evaluation
-    methods.
+    """Determines the optimal number of clusters using the elbow or silhoutte
+    methods. To be used in case of similarity matrix as imput for the cluster
+    process.
 
     Parameters
     ----------
     matrix : numpy.ndarray
         The input matrix for clustering.
     method : str
-        The cluster evaluation method. Options are 'elbow', 'silhouette',
-        'dbindex', 'derivative'.
+        The cluster evaluation method. Options are 'elbow', 'silhouette'
     cluster_method : str
-        The clustering method to use. Options are 'kmeans', 'agglomerative',
-        'dbscan', 'hdbscan'.
+        The clustering method to use. Options are 'kmeans', 'agglomerative'
     metric : str
         The distance metric to use.
     linkage : str
@@ -837,10 +822,10 @@ def determine_optimal_clusters(
         The maximum number of clusters to evaluate.
 
     Returns
-    -------
-    int
         The optimal number of clusters.
     """
+
+    optimal_clusters = min_clust
 
     if method == 'elbow':
         inertias = []
@@ -858,7 +843,8 @@ def determine_optimal_clusters(
             optimal_clusters = (
                 min_clust + 1
             )  # Fallback if not enough points for second derivative
-    else:
+
+    elif method == 'silhouette':
         ce = clusteval(
             cluster=cluster_method,
             evaluate=method,
@@ -869,19 +855,12 @@ def determine_optimal_clusters(
         )
 
         results = ce.fit(matrix)
+        scores = results['score']['score']
+        cluster_numbers = results['score']['clusters']
 
-        if method == 'silhouette':
-            # Access silhouette scores and corresponding cluster numbers
-            silhouette_scores = results['score']['score']
-            cluster_numbers = results['score']['clusters']
-
-            # Find the index of the maximum silhouette score
-            optimal_index = np.argmax(silhouette_scores)
-            optimal_clusters = cluster_numbers[optimal_index]
-
-            print(f'Optimal_clusters: {optimal_clusters}')
-
-        # TODO: implement DBindex and Derivative method
+        # Find the index of the maximum silhouette score
+        optimal_index = np.argmax(scores)
+        optimal_clusters = cluster_numbers[optimal_index]
 
     return optimal_clusters
 
@@ -901,10 +880,6 @@ def plot_clusters(
         The number of clusters.
     title : str
         The title of the plot.
-
-    Returns
-    -------
-    None
     """
     # Flatten the images and reduce to 2D using PCA
     flattened_images = np.array([img.flatten() for img in images.values()])
@@ -944,10 +919,6 @@ def plot_dendrogram(
         Default is 'ward'.
     title : str
         The title of the plot.
-
-    Returns
-    -------
-    None
     """
     # Flatten the images for clustering
     flattened_images = np.array([img.flatten() for img in images.values()])
@@ -966,7 +937,6 @@ def plot_dendrogram(
     return fig
 
 
-# cluster based on similarity matrices
 def cluster_images(
     images: list[np.ndarray],
     algorithm: str,
@@ -974,7 +944,9 @@ def cluster_images(
     method: str,
     labels_true: np.ndarray = None,
 ) -> tuple[np.ndarray, dict, int]:
-    """Clusters a list of images using different clustering algorithms.
+    """Clusters a list of images using different clustering algorithms
+    based on similarity matrix of specified metric. Adapted from
+    https://github.com/llvll/imgcluster
 
     Parameters
     ----------
@@ -1006,10 +978,12 @@ def cluster_images(
     # main input for the clustering algorithm
     matrix = build_similarity_matrix(images, algorithm=algorithm)
 
+    # Determine number of clusters
     if n_clusters is None and method != 'DBSCAN':
-        n_clusters = determine_optimal_clusters(matrix) if n_clusters is None else n_clusters
+        n_clusters = determine_optimal_clusters(matrix)
 
     metrics = {}
+
     if method == 'SpectralClustering':
         sc = SpectralClustering(
             n_clusters=n_clusters, random_state=42, affinity='precomputed'
@@ -1121,9 +1095,6 @@ def clustimage_clustering(
     elif evaluation == 'derivative':
         metrics['Derivative Metric'] = cl.clusteval.elbowvalue
 
-    # Sillhouette score vs. number of clusters
-    evaluation_plot = cl.clusteval.plot()
-
     scatter_plot = cl.scatter(
         zoom=1,
         dotsize=200,
@@ -1134,7 +1105,6 @@ def clustimage_clustering(
     dendrogram_plot = cl.dendrogram()['ax'].figure
 
     figures = {
-        'evaluation_plot': evaluation_plot,
         'scatter_plot': scatter_plot,
         'dendrogram_plot': dendrogram_plot,
     }
@@ -1142,7 +1112,6 @@ def clustimage_clustering(
     return {'labels': labels, 'metrics': metrics, 'figures': figures}
 
 
-# Define the function to extract contours using rembg
 def extract_foreground_mask(image: np.ndarray) -> np.ndarray:
     """Extract the foreground mask using rembg."""
     return remove(image, mask=True)
@@ -1208,7 +1177,8 @@ def extract_outer_contours_from_aligned_images(aligned_images: dict[str, np.ndar
         mask = extract_foreground_mask(image_rgb)
         outer_contour = extract_outer_contour_from_mask(mask)
 
-        contours_dict[name] = outer_contour  # Use image name as the key
+        # Use image name as the key
+        contours_dict[name] = outer_contour
 
     return contours_dict
 
@@ -1217,7 +1187,7 @@ def visualize_outer_contours(
     aligned_images: dict[str, np.ndarray], contours_dict: dict
 ) -> None:
     """
-    Visualize only the outer contours for the aligned images on a black background.
+    Visualize the outer contours for the aligned images on a black background.
     Args:
         aligned_images (dict[str, np.ndarray]): A dictionary where keys are image
         names and values are the aligned images as numpy arrays.
@@ -1252,6 +1222,8 @@ def visualize_outer_contours(
 
 
 def compute_fourier_descriptors(contour: np.ndarray, num_coeff: int = 10) -> np.ndarray:
+    """Compute the Fourier descriptors for a given contour, returning a
+    specified number of coefficients."""
     contour_array = contour[:, 0, :]
     complex_contour = contour_array[:, 0] + 1j * contour_array[:, 1]
     fourier_result = np.fft.fft(complex_contour)
@@ -1261,12 +1233,16 @@ def compute_fourier_descriptors(contour: np.ndarray, num_coeff: int = 10) -> np.
 
 
 def compute_hu_moments(contour: np.ndarray) -> np.ndarray:
+    """Compute the log-transformed Hu moments of a given contour for scale
+    invariance."""
     moments = cv2.moments(contour)
     hu_moments = cv2.HuMoments(moments).flatten()
     return np.log(np.abs(hu_moments))  # Log transform for scale invariance
 
 
 def compute_hog_features(contour: np.ndarray, image_shape: tuple) -> np.ndarray:
+    """Compute HOG features for a given contour and pad/truncate to a desired
+    length."""
     blank_image = np.zeros(image_shape, dtype=np.uint8)
     cv2.drawContours(blank_image, [contour], -1, 255, 1)
     features, _ = hog(
@@ -1279,6 +1255,8 @@ def compute_hog_features(contour: np.ndarray, image_shape: tuple) -> np.ndarray:
 
 
 def resample_contour(contour: np.ndarray, num_points: int = 100) -> np.ndarray:
+    """Resamples a given contour to a specified number of points using linear
+    interpolation."""
     x, y = contour[:, 0, 0], contour[:, 0, 1]
     cumulative_lengths = np.cumsum(
         np.sqrt(np.diff(x, prepend=x[0]) ** 2 + np.diff(y, prepend=y[0]) ** 2)
@@ -1315,8 +1293,9 @@ def compute_centroid_distance(contour: np.ndarray) -> float:
     return np.mean(distances)
 
 
-# several distances -> in matrix form
 def compute_procrustes_distance(contour1: np.ndarray, contour2: np.ndarray) -> float:
+    """Compute the Procrustes distance between two contours after resampling
+    them."""
     resampled_contour1 = resample_contour(contour1)
     resampled_contour2 = resample_contour(contour2)
     mtx1, mtx2, disparity = procrustes(resampled_contour1, resampled_contour2)
@@ -1324,57 +1303,12 @@ def compute_procrustes_distance(contour1: np.ndarray, contour2: np.ndarray) -> f
 
 
 def compute_hausdorff_distance(contour1: np.ndarray, contour2: np.ndarray) -> float:
+    """Compute the Hausdorff distance between two contours represented as numpy
+    arrays."""
     return max(
         directed_hausdorff(contour1[:, 0, :], contour2[:, 0, :])[0],
         directed_hausdorff(contour2[:, 0, :], contour1[:, 0, :])[0],
     )
-
-
-def compute_frechet_distance(contour1: np.ndarray, contour2: np.ndarray) -> float:
-    resampled_contour1 = resample_contour(contour1)
-    resampled_contour2 = resample_contour(contour2)
-    return similaritymeasures.frechet_dist(resampled_contour1, resampled_contour2)
-
-
-def compute_shape_context(contour1: np.ndarray, contour2: np.ndarray) -> float:
-    sc_extractor = cv2.createShapeContextDistanceExtractor()
-    distance = sc_extractor.computeDistance(contour1, contour2)
-    return distance
-
-
-# # Compute distance matrices
-# hausdorff_matrix = np.zeros((len(contours_list), len(contours_list)))
-# procrustes_matrix = np.zeros((len(contours_list), len(contours_list)))
-# frechet_matrix = np.zeros((len(contours_list), len(contours_list)))
-# shape_context_matrix = np.zeros((len(contours_list), len(contours_list)))
-
-# # Fill the distance matrices
-# for i, contour_i in enumerate(contours_list):
-#     for j, contour_j in enumerate(contours_list):
-#         if i != j:
-#             hausdorff_matrix[i, j] = compute_hausdorff_distance(contour_i, contour_j)
-#             procrustes_matrix[i, j] = compute_procrustes_distance(contour_i, contour_j)
-#             frechet_matrix[i, j] = compute_frechet_distance(contour_i, contour_j)
-#             shape_context_matrix[i, j] = compute_shape_context(contour_i, contour_j)
-
-# if 'hd' in selected_features:
-#     avg_hd = np.mean(hausdorff_matrix[idx, :]
-#                      [hausdorff_matrix[idx, :] > 0])
-#     features_by_type['hd'].append([avg_hd])
-# if 'procrustes' in selected_features:
-#     avg_procrustes = np.mean(procrustes_matrix[idx, :]
-#                              [procrustes_matrix[idx, :] > 0])
-#     features_by_type['procrustes'].append([avg_procrustes])
-# if 'frechet' in selected_features:
-#     avg_frechet = np.mean(frechet_matrix[idx, :]
-#                           [frechet_matrix[idx, :] > 0])
-#     features_by_type['frechet'].append([avg_frechet])
-# if 'shape_context' in selected_features:
-#     avg_shape_context = np.mean(
-#         shape_context_matrix[idx, :]
-#         [shape_context_matrix[idx, :] > 0]
-#     )
-#     features_by_type['shape_context'].append([avg_shape_context])
 
 
 def extract_and_scale_features(
@@ -1386,6 +1320,7 @@ def extract_and_scale_features(
         contours_dict (dict): Dictionary of contours where keys are image names
         and values are np.ndarrays of contours.
         selected_features (list): List of features to include in the output.
+        image_shape (tuple): Shape of the image for HOG feature extraction.
 
     Returns:
         tuple: A tuple containing:
@@ -1393,8 +1328,14 @@ def extract_and_scale_features(
             - None (since scalers are not used in this case).
     """
 
-    # Type annotation for features_by_type
-    # features_by_type = {ft: [] for ft in selected_features}
+    def compute_feature_matrix(contours_list, feature_func):
+        matrix = np.zeros((len(contours_list), len(contours_list)))
+        for i, contour_i in enumerate(contours_list):
+            for j, contour_j in enumerate(contours_list):
+                if i != j:
+                    matrix[i, j] = feature_func(contour_i, contour_j)
+        return matrix
+
     features_by_type: dict[str, list[list[float]]] = {ft: [] for ft in selected_features}
     contours_list = list(contours_dict.values())
 
@@ -1411,6 +1352,16 @@ def extract_and_scale_features(
             features_by_type['contour_length'].append([compute_contour_length(contour)])
         if 'centroid_distance' in selected_features:
             features_by_type['centroid_distance'].append([compute_centroid_distance(contour)])
+        if 'hd' in selected_features:
+            hausdorff_matrix = compute_feature_matrix(contours_list, compute_hausdorff_distance)
+            avg_hd = np.mean(hausdorff_matrix[idx, :][hausdorff_matrix[idx, :] > 0])
+            features_by_type['hd'].append([avg_hd])
+        if 'procrustes' in selected_features:
+            procrustes_matrix = compute_feature_matrix(
+                contours_list, compute_procrustes_distance
+            )
+            avg_procrustes = np.mean(procrustes_matrix[idx, :][procrustes_matrix[idx, :] > 0])
+            features_by_type['procrustes'].append([avg_procrustes])
 
     # Scale each feature type separately
     scaled_features = []
@@ -1422,7 +1373,7 @@ def extract_and_scale_features(
 
     combined_features = np.hstack(scaled_features) if scaled_features else np.array([])
 
-    # reduce the amount of dimensions in the feature vector with PCA
+    # Reduce the amount of dimensions in the feature vector with PCA
     combined_features = reduce_dimensions(combined_features, n_components=2)
     return combined_features, None
 
@@ -1507,59 +1458,3 @@ def plot_clusters2(
     ax.grid(True)
 
     return fig
-
-
-def cluster_images_with_features(
-    features,
-    algorithm='euclidean',
-    n_clusters=None,
-    method='kmeans',
-    labels_true=None,
-    eps=None,
-    min_samples=None,
-):
-    """Clusters images based on their extracted features.
-
-    Parameters:
-      - features (array-like): The extracted features of the images to be clustered.
-      - algorithm (str, optional): The distance metric to use. Default is 'euclidean'.
-      - n_clusters (int, optional): The number of clusters to form. Required for 'kmeans'
-      and 'agglomerative' methods.
-      - method (str, optional): The clustering method to use. Options are 'kmeans',
-      'dbscan', and 'agglomerative'. Default is 'kmeans'.
-      - labels_true (array-like, optional): True labels for the data, used for evaluation
-      purposes. Default is None.
-      - eps (float, optional): The maximum distance between two samples for one to be
-      considered as in the neighborhood of the other. Required for 'dbscan' method.
-      - min_samples (int, optional): The number of samples in a neighborhood for a point
-      to be considered as a core point. Required for 'dbscan' method.
-
-    Returns:
-
-      tuple: A tuple containing:
-      - cluster_labels (array-like): The labels of the clusters.
-    """
-
-    # Calculate the distance matrix
-    distance_matrix = pdist(features, metric=algorithm)
-    distance_matrix_square = squareform(distance_matrix)
-
-    # Fill the diagonal with zeros
-    np.fill_diagonal(distance_matrix_square, 0)
-
-    if method == 'kmeans':
-        kmeans = KMeans(n_clusters=n_clusters, random_state=42)
-        cluster_labels = kmeans.fit_predict(features)
-
-    elif method == 'dbscan':
-        dbscan = DBSCAN(eps=eps, min_samples=min_samples, metric='precomputed')
-        cluster_labels = dbscan.fit_predict(distance_matrix_square)
-
-    elif method == 'agglomerative':
-        agglom = AgglomerativeClustering(n_clusters=n_clusters, linkage='average')
-        cluster_labels = agglom.fit_predict(distance_matrix_square)
-
-    else:
-        raise ValueError('Unsupported clustering method.')
-
-    return cluster_labels
