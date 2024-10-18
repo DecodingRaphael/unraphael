@@ -6,23 +6,21 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import streamlit as st
-from clusteval import clusteval
 from scatterd import scatterd
-from sklearn.metrics import davies_bouldin_score, silhouette_score
 from styling import set_custom_css
 from widgets import load_images_widget
 
 from unraphael.dash.image_clustering import (
     align_images_to_mean,
     build_similarity_matrix,
-    cluster_images,
-    clustimage_clustering,
     compute_metrics,
     equalize_images,
     extract_and_scale_features,
     extract_outer_contours_from_aligned_images,
+    feature_based_clustering,
+    feature_based_clustering2,
+    matrix_based_clustering,
     plot_clusters,
-    plot_clusters2,
     plot_dendrogram,
     show_images_widget,
     visualize_outer_contours,
@@ -52,8 +50,19 @@ def cached_build_similarity_matrix(image_array, algorithm):
 
 
 @st.cache_data
-def cached_cluster_images(image_list, algorithm, n_clusters, method):
-    return cluster_images(image_list, algorithm=algorithm, n_clusters=n_clusters, method=method)
+def cached_matrix_based_clustering(image_list, algorithm, n_clusters, method):
+    return matrix_based_clustering(
+        image_list, algorithm=algorithm, n_clusters=n_clusters, method=method
+    )
+
+
+@st.cache_data
+def cached_feature_based_clustering(
+    features, cluster_method, cluster_evaluation, cluster_linkage, contours_dict
+):
+    return feature_based_clustering(
+        features, cluster_method, cluster_evaluation, cluster_linkage, contours_dict
+    )
 
 
 @st.cache_data
@@ -285,10 +294,10 @@ def align_to_mean_image_widget(
 
 def cluster_image_widget(images: dict[str, np.ndarray]) -> None:
     """Widget to cluster images or outer contours, using clustering methods
-    suitable for small datasets.
+    suitable for small to medium datasets.
 
-    The clustering is based on the structural similarity measure of the
-    images.
+    The clustering is based on image features or a matrix of similarity
+    indices, depending on what cluster method is chosen.
     """
 
     image_list = list(images.values())
@@ -314,12 +323,10 @@ def cluster_image_widget(images: dict[str, np.ndarray]) -> None:
         key='cluster_approach',
     )
 
-    # clustering images based on outer contours of figures
     if cluster_approach in ['Outer contours']:
         st.write('Extracting outer contours from the aligned images...')
         contours_dict = cached_extract_outer_contours(images)
 
-        # Extract the shape of the aligned images
         image_shape = next(iter(images.values())).shape
 
         st.subheader('Outer contours of the aligned images')
@@ -368,7 +375,6 @@ def cluster_image_widget(images: dict[str, np.ndarray]) -> None:
             # or similar to understand the distribution.
             def plot_scatter(features):
                 scatterd(features[:, 0], features[:, 1])
-
                 fig = plt.gcf()
                 st.pyplot(fig)
 
@@ -411,90 +417,27 @@ def cluster_image_widget(images: dict[str, np.ndarray]) -> None:
                 help='Select the linkage method used for clustering the images:',
             )
 
-            n_clusters = None
-            ce = clusteval(
-                cluster=cluster_method, evaluate=cluster_evaluation, linkage=cluster_linkage
+            n_clusters, labels = cached_feature_based_clustering(
+                features, cluster_method, cluster_evaluation, cluster_linkage, contours_dict
             )
 
-            results = ce.fit(features)
+            if labels is not None:
+                st.subheader('Visualizing the clusters')
+                for n in range(n_clusters):
+                    cluster_label = n + 1
+                    st.write(f'\n --- Images from cluster #{cluster_label} ---')
 
-            # Check if results is not None and contains 'labx'
-            if results is not None and 'labx' in results:
-                cluster_labels = results['labx']
-            else:
-                st.error('No clusterlabels found. Check your clustering method and parameters.')
-                cluster_labels = None  # Set to None to avoid further errors
-            # cluster_labels = results['labx']
+                    cluster_indices = np.argwhere(labels == n).flatten()
+                    cluster_images_dict = {
+                        image_names[i]: image_list[i] for i in cluster_indices
+                    }
 
-            # extract optimal number of clusters
-            if cluster_method in ['kmeans', 'agglomerative']:
-                scores = results['score']['score']
-                cluster_numbers = results['score']['clusters']
-
-                # Find the index of the maximum silhouette score
-                optimal_index = np.argmax(scores)
-                n_clusters = cluster_numbers[optimal_index]
-
-            elif cluster_method == 'dbscan':
-                unique_labels = set(cluster_labels) if cluster_labels is not None else set()
-                n_clusters = len(unique_labels) - (
-                    1 if -1 in unique_labels else 0
-                )  # Exclude noise
-
-            dendrogram_plot = ce.dendrogram(X=results, linkage=cluster_linkage)['ax'].figure
-            st.subheader('Dendrogram plot')
-            st.pyplot(dendrogram_plot)
-
-            silhouette_plot, ax, _ = ce.plot_silhouette(
-                X=features,
-                dot_size=200,
-                jitter=0.01,
-                cmap='Set2',
-                savefig={'fname': None, 'format': 'png', 'dpi': 100},
-            )
-
-            st.subheader('Silhouette plot')
-            st.pyplot(fig=silhouette_plot)
-
-            # Plot the clusters
-            pca_clusters = plot_clusters2(
-                features, cluster_labels, contours_dict, title='PCA dimensions'
-            )
-            st.subheader('Scatterplot')
-            st.pyplot(pca_clusters)
-
-            # show metrics
-            st.metric('Number of clusters found:', n_clusters)
-
-            if cluster_method in ['kmeans', 'agglomerative']:
-                if n_clusters is not None and n_clusters > 1:
-                    silhouette_avg = silhouette_score(features, cluster_labels)
-                    davies_bouldin = davies_bouldin_score(features, cluster_labels)
-
-                    st.metric(label='Silhouette Score', value=f'{silhouette_avg:.2f}')
-                    st.metric(label='Davies Bouldin Score', value=f'{davies_bouldin:.2f}')
-
-            elif cluster_method == 'dbscan':
-                # Exclude noise points (-1)
-                if len(set(cluster_labels)) > 1:
-                    valid_labels = cluster_labels[cluster_labels != -1]
-                    if len(set(valid_labels)) > 1:  # Ensure there's more than 1 cluster
-                        silhouette_avg = silhouette_score(
-                            features[cluster_labels != -1], valid_labels
-                        )
-                        davies_bouldin = davies_bouldin_score(
-                            features[cluster_labels != -1], valid_labels
-                        )
-
-                        st.metric(label='Silhouette Score', value=f'{silhouette_avg:.2f}')
-                        st.metric(label='Davies Bouldin Score', value=f'{davies_bouldin:.2f}')
-                    else:
-                        st.metric(label='Silhouette Score could not be computed')
-                        st.metric(label='Davies Bouldin Score could not be computed')
-
-            else:
-                st.metric(label='Silhouette Score could not be computed')
-                st.metric(label='Davies Bouldin Score could not be computed')
+                    show_images_widget(
+                        cluster_images_dict,
+                        # contours_dict,
+                        key=f'cluster_{cluster_label}_images',
+                        message=f'Images from cluster #{cluster_label}',
+                    )
 
     # clustering images based on complete figures
     if cluster_approach in ['Complete figures']:
@@ -534,11 +477,11 @@ def cluster_image_widget(images: dict[str, np.ndarray]) -> None:
 
             st.title('Results')
 
-            matrix = cached_build_similarity_matrix(np.array(image_list), algorithm=measure)
             st.subheader(f'Similarity matrix based on pairwise {measure} indices')
+            matrix = cached_build_similarity_matrix(np.array(image_list), algorithm=measure)
             st.write(np.round(matrix, decimals=2))
 
-            labels, metrics, n_clusters = cached_cluster_images(
+            labels, metrics, n_clusters = cached_matrix_based_clustering(
                 image_list,
                 algorithm=measure,
                 n_clusters=n_clusters,
@@ -591,7 +534,7 @@ def cluster_image_widget(images: dict[str, np.ndarray]) -> None:
             col2.subheader('Dendrogram')
             col2.pyplot(dendrogram)
 
-        if cluster_method in ['agglomerative', 'kmeans', 'dbscan', 'hdbscan']:
+        if cluster_method in ['agglomerative', 'kmeans', 'dbscan']:
             cluster_evaluation = st.selectbox(
                 'Select the cluster evaluation method:',
                 ['silhouette', 'dbindex', 'derivative'],
@@ -604,47 +547,30 @@ def cluster_image_widget(images: dict[str, np.ndarray]) -> None:
                 help='Select the linkage method used for clustering the images:',
             )
 
-            results = clustimage_clustering(
-                image_list,
-                method=cluster_method,
-                evaluation=cluster_evaluation,
-                linkage_type=cluster_linkage,
+            n_clusters, labels = feature_based_clustering2(
+                images=image_list,
+                cluster_method=cluster_method,
+                cluster_evaluation=cluster_evaluation,
+                cluster_linkage=cluster_linkage,
+                contours_dict=images,
             )
 
-            labels = results['labels']
-            metrics = results['metrics']
-            figures = results['figures']
+            if labels is not None:
+                st.subheader('Visualizing the clusters')
+                for n in range(n_clusters):
+                    cluster_label = n + 1
+                    st.write(f'\n --- Images from cluster #{cluster_label} ---')
 
-            num_clusters = len(set(labels))
+                    cluster_indices = np.argwhere(labels == n).flatten()
+                    cluster_images_dict = {
+                        image_names[i]: image_list[i] for i in cluster_indices
+                    }
 
-            st.title('Results')
-            st.subheader(f'Performance metrics for {cluster_method} clustering')
-            st.metric('Number of Clusters:', num_clusters)
-
-            for metric_name, metric_value in metrics.items():
-                metric_str = f'{metric_value:.2f}'
-                st.metric(metric_name, metric_str)
-
-            st.subheader('Visualizing the clusters')
-            for n in range(num_clusters):
-                cluster_label = n + 1
-                st.write(f'\n --- Images from cluster #{cluster_label} ---')
-
-                cluster_indices = np.argwhere(labels == n).flatten()
-                cluster_images_dict = {image_names[i]: image_list[i] for i in cluster_indices}
-                show_images_widget(
-                    cluster_images_dict,
-                    key=f'cluster_{cluster_label}_images',
-                    message=f'Images from cluster #{cluster_label}',
-                )
-
-            col1, col2 = st.columns(2)
-
-            images_dict = dict(zip(image_names, image_list))
-
-            st.subheader('Cluster evaluation')
-            st.pyplot(figures['scatter_plot'][0])
-            st.pyplot(figures['dendrogram_plot'])
+                    show_images_widget(
+                        cluster_images_dict,
+                        key=f'cluster_{cluster_label}_images',
+                        message=f'Images from cluster #{cluster_label}',
+                    )
 
 
 def main():

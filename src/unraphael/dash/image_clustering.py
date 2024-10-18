@@ -18,8 +18,7 @@ import piq
 import ssim.ssimlib as pyssim
 import streamlit as st
 import torch
-from clusteval import clusteval  # for unsupervised clustering of images
-from clustimage import Clustimage  # for unsupervised clustering of images
+from clusteval import clusteval
 from PIL import Image
 from pystackreg import StackReg
 from rembg import remove
@@ -937,7 +936,7 @@ def plot_dendrogram(
     return fig
 
 
-def cluster_images(
+def matrix_based_clustering(
     images: list[np.ndarray],
     algorithm: str,
     n_clusters: int,
@@ -1029,87 +1028,205 @@ def preprocess_images(images: list, target_shape: tuple = (128, 128)) -> np.ndar
     return np.array(preprocessed_images)
 
 
-# feature-based clustering
-def clustimage_clustering(
-    images: list, method: str, evaluation: str, linkage_type: str
-) -> dict:
-    """Perform feature-based clustering using the clustimage library, aiming to
-    detect natural groups or clusters of images. It uses a multi-step proces of
-    pre- processing the images, extracting the features, and evaluating the
-    optimal number of clusters across the feature.
+def feature_based_clustering(
+    features, cluster_method, cluster_evaluation, cluster_linkage, contours_dict
+):
+    """Performs clustering on the given features using the specified method and
+    evaluates the results.
 
-    - clustering approaches can be set to agglomerative, kmeans, dbscan and hdbscan.
+    Args:
+        features (np.ndarray): The features to be clustered.
+        cluster_method (str): The clustering algorithm to use ('kmeans',
+        'agglomerative', 'dbscan').
+        cluster_evaluation (str): The method used for cluster evaluation
+        ('silhouette', 'dbindex', 'derivative').
+        cluster_linkage (str): The linkage method to use for agglomerative clustering.
+        contours_dict (dict): A dictionary containing contours for plotting.
+
+    Returns:
+        tuple: A tuple containing the number of clusters found (int) and cluster labels
+        (np.ndarray or None).
+    """
+    n_clusters = None
+    ce = clusteval(cluster=cluster_method, evaluate=cluster_evaluation, linkage=cluster_linkage)
+
+    results = ce.fit(features)
+
+    # Check if results is not None and contains 'labx'
+    if results is not None and 'labx' in results:
+        cluster_labels = results['labx']
+    else:
+        st.error('No cluster labels found. Check your clustering method and parameters.')
+        return None, None  # Early exit
+
+    # Extract optimal number of clusters
+    if cluster_method in ['kmeans', 'agglomerative']:
+        scores = results['score']['score']
+        cluster_numbers = results['score']['clusters']
+
+        # Find the index of the maximum silhouette score
+        optimal_index = np.argmax(scores)
+        n_clusters = cluster_numbers[optimal_index]
+
+    elif cluster_method == 'dbscan':
+        unique_labels = set(cluster_labels) if cluster_labels is not None else set()
+        n_clusters = len(unique_labels) - (1 if -1 in unique_labels else 0)  # Exclude noise
+
+    # Generate and display plots
+    dendrogram_plot = ce.dendrogram(X=results, linkage=cluster_linkage)['ax'].figure
+    st.subheader('Dendrogram plot')
+    st.pyplot(dendrogram_plot)
+
+    silhouette_plot, ax, _ = ce.plot_silhouette(
+        X=features,
+        dot_size=200,
+        jitter=0.01,
+        cmap='Set2',
+        savefig={'fname': None, 'format': 'png', 'dpi': 100},
+    )
+
+    st.subheader('Silhouette plot')
+    st.pyplot(fig=silhouette_plot)
+
+    # Plot the clusters
+    pca_clusters = plot_pca_scatter(
+        features, cluster_labels, contours_dict, title='PCA dimensions'
+    )
+    st.subheader('Scatterplot')
+    st.pyplot(pca_clusters)
+
+    # Show metrics
+    st.metric('Number of clusters found:', n_clusters)
+
+    # Calculate and display evaluation metrics
+    if cluster_method in ['kmeans', 'agglomerative']:
+        if n_clusters is not None and n_clusters > 1:
+            silhouette_avg = silhouette_score(features, cluster_labels)
+            davies_bouldin = davies_bouldin_score(features, cluster_labels)
+
+            st.metric(label='Silhouette Score', value=f'{silhouette_avg:.2f}')
+            st.metric(label='Davies Bouldin Score', value=f'{davies_bouldin:.2f}')
+
+    elif cluster_method == 'dbscan':
+        # Exclude noise points (-1)
+        if len(set(cluster_labels)) > 1:
+            valid_labels = cluster_labels[cluster_labels != -1]
+            if len(set(valid_labels)) > 1:  # Ensure there's more than 1 cluster
+                silhouette_avg = silhouette_score(features[cluster_labels != -1], valid_labels)
+                davies_bouldin = davies_bouldin_score(
+                    features[cluster_labels != -1], valid_labels
+                )
+
+                st.metric(label='Silhouette Score', value=f'{silhouette_avg:.2f}')
+                st.metric(label='Davies Bouldin Score', value=f'{davies_bouldin:.2f}')
+            else:
+                st.metric(label='Silhouette Score could not be computed')
+                st.metric(label='Davies Bouldin Score could not be computed')
+
+    return n_clusters, cluster_labels
+
+
+def feature_based_clustering2(
+    images: list,
+    cluster_method: str,
+    cluster_evaluation: str,
+    cluster_linkage: str,
+    contours_dict: dict,
+) -> tuple:
+    """Perform feature-based clustering using the clusteval library, aiming to
+    detect natural groups or clusters of images.
+
+    - clustering approaches can be set to agglomerative, kmeans, and dbscan.
     - cluster evaluation can be performed based on Silhouette scores,
-    Davies–Bouldin index, or Derivative method
+    Davies–Bouldin index, or Derivative method.
 
     Args:
         images (list): A list of input images.
 
     Returns:
-        dict: A dictionary containing the clustering results. The dictionary has the
-        following keys:
-            - 'scatter_plot': The scatter plot of the clustered images.
-            - 'dendrogram_plot': The dendrogram plot of the clustering hierarchy.
+        n_clusters: The optimal number of clusters found.
+        cluster_labels: The cluster labels assigned to each image.
     """
+
     imgs = preprocess_images(images)
     flattened_imgs = np.array([img.flatten() for img in imgs])
-    cl = Clustimage(method='pca', params_pca={'n_components': 0.95})
-    imported = cl.import_data(flattened_imgs)
 
-    # Preprocessing, feature extraction, embedding and detection of the
-    # optimal number of clusters
-    cl.fit_transform(
-        imported,
-        cluster=method,
-        evaluate=evaluation,
-        metric='euclidean',
-        linkage=linkage_type,
-        min_clust=1,
-        max_clust=25,
-        cluster_space='high',
+    n_clusters = None
+    ce = clusteval(cluster=cluster_method, evaluate=cluster_evaluation, linkage=cluster_linkage)
+
+    results = ce.fit(flattened_imgs)
+
+    if results is not None and 'labx' in results:
+        cluster_labels = results['labx']
+    else:
+        st.error('No cluster labels found. Check your clustering method and parameters.')
+
+    # Extract optimal number of clusters
+    if cluster_method in ['kmeans', 'agglomerative']:
+        scores = results['score']['score']
+        cluster_numbers = results['score']['clusters']
+
+        # Find the index of the maximum silhouette score
+        optimal_index = np.argmax(scores)
+        n_clusters = cluster_numbers[optimal_index]
+
+    elif cluster_method == 'dbscan':
+        unique_labels = set(cluster_labels) if cluster_labels is not None else set()
+        n_clusters = len(unique_labels) - (1 if -1 in unique_labels else 0)  # Exclude noise
+
+    # Generate and display plots
+    dendrogram_plot = ce.dendrogram(X=results, linkage=cluster_linkage)['ax'].figure
+    st.subheader('Dendrogram plot')
+    st.pyplot(dendrogram_plot)
+
+    silhouette_plot, ax, _ = ce.plot_silhouette(
+        X=flattened_imgs,
+        dot_size=200,
+        jitter=0.01,
+        cmap='Set2',
+        savefig={'fname': None, 'format': 'png', 'dpi': 100},
     )
 
-    # Get cluster labels
-    labels = cl.results['labels']
+    st.subheader('Silhouette plot')
+    st.pyplot(fig=silhouette_plot)
 
-    # Calculate performance metrics based on the evaluation method
-    metrics = {}
-
-    if evaluation == 'silhouette':
-        # Count the number of unique cluster labels
-        num_unique_labels = len(set(labels))
-
-        # Ensure that there are at least 2 and fewer than n_samples unique clusters
-        if num_unique_labels >= 2 and num_unique_labels < len(flattened_imgs):
-            metrics['Silhouette Score'] = silhouette_score(flattened_imgs, labels)
-        else:
-            st.warning(
-                f'Cannot compute silhouette score: Clustering resulted in '
-                f'{num_unique_labels} clusters.'
-                f' Valid values are between 2 and {len(flattened_imgs)-1} clusters.'
-            )
-
-    elif evaluation == 'dbindex':
-        metrics['Davies-Bouldin Index'] = davies_bouldin_score(flattened_imgs, labels)
-
-    elif evaluation == 'derivative':
-        metrics['Derivative Metric'] = cl.clusteval.elbowvalue
-
-    scatter_plot = cl.scatter(
-        zoom=1,
-        dotsize=200,
-        figsize=(25, 15),
-        args_scatter={'fontsize': 24, 'gradient': '#FFFFFF', 'cmap': 'Set2', 'legend': True},
+    pca_clusters = plot_pca_scatter(
+        flattened_imgs, cluster_labels, contours_dict, title='PCA dimensions'
     )
+    st.subheader('Scatterplot')
+    st.pyplot(pca_clusters)
 
-    dendrogram_plot = cl.dendrogram()['ax'].figure
+    # Calculate and display evaluation metrics
+    st.subheader(f'Performance metrics for {cluster_method} clustering')
+    st.metric('Number of clusters found:', n_clusters)
 
-    figures = {
-        'scatter_plot': scatter_plot,
-        'dendrogram_plot': dendrogram_plot,
-    }
+    if cluster_method in ['kmeans', 'agglomerative']:
+        if n_clusters is not None and n_clusters > 1:
+            silhouette_avg = silhouette_score(flattened_imgs, cluster_labels)
+            davies_bouldin = davies_bouldin_score(flattened_imgs, cluster_labels)
 
-    return {'labels': labels, 'metrics': metrics, 'figures': figures}
+            st.metric(label='Silhouette Score', value=f'{silhouette_avg:.2f}')
+            st.metric(label='Davies Bouldin Score', value=f'{davies_bouldin:.2f}')
+
+    elif cluster_method == 'dbscan':
+        # Exclude noise points (-1)
+        if len(set(cluster_labels)) > 1:
+            valid_labels = cluster_labels[cluster_labels != -1]
+            if len(set(valid_labels)) > 1:  # Ensure there's more than 1 cluster
+                silhouette_avg = silhouette_score(
+                    flattened_imgs[cluster_labels != -1], valid_labels
+                )
+                davies_bouldin = davies_bouldin_score(
+                    flattened_imgs[cluster_labels != -1], valid_labels
+                )
+
+                st.metric(label='Silhouette Score', value=f'{silhouette_avg:.2f}')
+                st.metric(label='Davies Bouldin Score', value=f'{davies_bouldin:.2f}')
+            else:
+                st.metric(label='Silhouette Score could not be computed')
+                st.metric(label='Davies Bouldin Score could not be computed')
+
+    return n_clusters, cluster_labels
 
 
 def extract_foreground_mask(image: np.ndarray) -> np.ndarray:
@@ -1393,7 +1510,7 @@ def reduce_dimensions(features: np.ndarray, n_components: int) -> np.ndarray:
     return reduced_features
 
 
-def plot_clusters2(
+def plot_pca_scatter(
     features: np.ndarray,
     labels: np.ndarray,
     contours_dict: dict,
