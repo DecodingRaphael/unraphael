@@ -22,6 +22,7 @@ from clusteval import clusteval
 from PIL import Image
 from pystackreg import StackReg
 from rembg import remove
+from scatterd import scatterd
 from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.interpolate import interp1d
 from scipy.spatial import procrustes
@@ -38,7 +39,8 @@ from sklearn.cluster import (
     SpectralClustering,
 )
 from sklearn.decomposition import PCA
-from sklearn.metrics import davies_bouldin_score, silhouette_score
+from sklearn.manifold import MDS
+from sklearn.metrics import calinski_harabasz_score, davies_bouldin_score, silhouette_score
 from sklearn.preprocessing import StandardScaler
 
 SIM_IMAGE_SIZE = (640, 480)
@@ -772,17 +774,26 @@ def get_cluster_metrics(
     Available metrics:
     - Silhouette coefficient: measures the quality of clustering.
     - Davies-Bouldin index: measures the separation between clusters.
+    - Calinski-Harabasz index: measures cluster dispersion.
     - Completeness score: measures the completeness of the predicted clusters.
     - Homogeneity score: measures the homogeneity of the predicted clusters.
     """
 
     metrics_dict = {}
 
+    # Interpretation:
+    # Silhouette: Higher is better (range: -1 to 1)
+    # Davies-Bouldin: Lower is better (≥ 0)
+    # Calinski-Harabasz: Higher is better (≥ 0)
+
     if len(set(labels)) > 1:
         metrics_dict['Silhouette coefficient'] = silhouette_score(
             X, labels, metric='precomputed'
         )
+        # 1 - X transforms this similarity matrix into a dissimilarity matrix, which is required
+        # for the Davies-Bouldin index to calculate meaningful results
         metrics_dict['Davies-Bouldin index'] = davies_bouldin_score(1 - X, labels)
+        metrics_dict['Calinski-Harabasz index'] = calinski_harabasz_score(X, labels)
     if labels_true is not None:
         metrics_dict['Completeness score'] = metrics.completeness_score(labels_true, labels)
         metrics_dict['Homogeneity score'] = metrics.homogeneity_score(labels_true, labels)
@@ -862,6 +873,12 @@ def determine_optimal_clusters(
         optimal_clusters = cluster_numbers[optimal_index]
 
     return optimal_clusters
+
+
+def plot_scatter(features):
+    scatterd(features[:, 0], features[:, 1])
+    fig = plt.gcf()
+    st.pyplot(fig)
 
 
 def plot_clusters(
@@ -1007,7 +1024,7 @@ def matrix_based_clustering(
 
 
 def preprocess_images(images: list, target_shape: tuple = (128, 128)) -> np.ndarray:
-    """Preprocesses a list of images by resizing them to a target shape.
+    """Preprocesses a list of images by resizing and flattening them.
 
     Parameters
     ----------
@@ -1019,17 +1036,24 @@ def preprocess_images(images: list, target_shape: tuple = (128, 128)) -> np.ndar
     Returns
     -------
     numpy.ndarray
-        An array of preprocessed images.
+        A 2D array where each row corresponds to a flattened preprocessed image.
     """
     preprocessed_images = []
     for image in images:
         resized_image = resize(image, target_shape, anti_aliasing=True)
-        preprocessed_images.append(resized_image)
+        flattened_image = resized_image.flatten()
+        preprocessed_images.append(flattened_image)
+
     return np.array(preprocessed_images)
 
 
 def feature_based_clustering(
-    features, cluster_method, cluster_evaluation, cluster_linkage, contours_dict
+    features,
+    cluster_method,
+    cluster_evaluation,
+    cluster_linkage,
+    name_dict,
+    is_similarity_matrix=False,
 ):
     """Performs clustering on the given features using the specified method and
     evaluates the results.
@@ -1041,7 +1065,11 @@ def feature_based_clustering(
         cluster_evaluation (str): The method used for cluster evaluation
         ('silhouette', 'dbindex', 'derivative').
         cluster_linkage (str): The linkage method to use for agglomerative clustering.
-        contours_dict (dict): A dictionary containing contours for plotting.
+        name_dict (dict): A dictionary containing names (image names or feature identifiers)
+        for plotting.
+        is_similarity_matrix (bool): Whether the input features are a similarity matrix
+        (defaults to False).
+
 
     Returns:
         tuple: A tuple containing the number of clusters found (int) and cluster labels
@@ -1089,23 +1117,31 @@ def feature_based_clustering(
     st.pyplot(fig=silhouette_plot)
 
     # Plot the clusters
-    pca_clusters = plot_pca_scatter(
-        features, cluster_labels, contours_dict, title='PCA dimensions'
+    pca_clusters = plot_pca_mds_scatter(
+        data=features,
+        labels=cluster_labels,
+        contours_dict=name_dict,
+        is_similarity_matrix=is_similarity_matrix,
+        title='PCA dimensions',
     )
     st.subheader('Scatterplot')
     st.pyplot(pca_clusters)
 
     # Show metrics
-    st.metric('Number of clusters found:', n_clusters)
+    st.subheader('Performance metrics')
+    col1, col2 = st.columns(2)
+    col1.metric('Number of clusters found:', n_clusters)
 
     # Calculate and display evaluation metrics
     if cluster_method in ['kmeans', 'agglomerative']:
         if n_clusters is not None and n_clusters > 1:
             silhouette_avg = silhouette_score(features, cluster_labels)
             davies_bouldin = davies_bouldin_score(features, cluster_labels)
+            ch_index = calinski_harabasz_score(features, cluster_labels)
 
-            st.metric(label='Silhouette Score', value=f'{silhouette_avg:.2f}')
-            st.metric(label='Davies Bouldin Score', value=f'{davies_bouldin:.2f}')
+            col1.metric(label='Silhouette Score', value=f'{silhouette_avg:.2f}')
+            col2.metric(label='Davies Bouldin Score', value=f'{davies_bouldin:.2f}')
+            col2.metric(label='Calinski Harabasz Score', value=f'{ch_index:.2f}')
 
     elif cluster_method == 'dbscan':
         # Exclude noise points (-1)
@@ -1116,115 +1152,15 @@ def feature_based_clustering(
                 davies_bouldin = davies_bouldin_score(
                     features[cluster_labels != -1], valid_labels
                 )
+                ch_index = calinski_harabasz_score(features[cluster_labels != -1], valid_labels)
 
-                st.metric(label='Silhouette Score', value=f'{silhouette_avg:.2f}')
-                st.metric(label='Davies Bouldin Score', value=f'{davies_bouldin:.2f}')
+                col1.metric(label='Silhouette Score', value=f'{silhouette_avg:.2f}')
+                col2.metric(label='Davies Bouldin Score', value=f'{davies_bouldin:.2f}')
+                col2.metric(label='Calinski Harabasz Score', value=f'{ch_index:.2f}')
             else:
-                st.metric(label='Silhouette Score could not be computed')
-                st.metric(label='Davies Bouldin Score could not be computed')
-
-    return n_clusters, cluster_labels
-
-
-def feature_based_clustering2(
-    images: list,
-    cluster_method: str,
-    cluster_evaluation: str,
-    cluster_linkage: str,
-    contours_dict: dict,
-) -> tuple:
-    """Perform feature-based clustering using the clusteval library, aiming to
-    detect natural groups or clusters of images.
-
-    - clustering approaches can be set to agglomerative, kmeans, and dbscan.
-    - cluster evaluation can be performed based on Silhouette scores,
-    Davies–Bouldin index, or Derivative method.
-
-    Args:
-        images (list): A list of input images.
-
-    Returns:
-        n_clusters: The optimal number of clusters found.
-        cluster_labels: The cluster labels assigned to each image.
-    """
-
-    imgs = preprocess_images(images)
-    flattened_imgs = np.array([img.flatten() for img in imgs])
-
-    n_clusters = None
-    ce = clusteval(cluster=cluster_method, evaluate=cluster_evaluation, linkage=cluster_linkage)
-
-    results = ce.fit(flattened_imgs)
-
-    if results is not None and 'labx' in results:
-        cluster_labels = results['labx']
-    else:
-        st.error('No cluster labels found. Check your clustering method and parameters.')
-
-    # Extract optimal number of clusters
-    if cluster_method in ['kmeans', 'agglomerative']:
-        scores = results['score']['score']
-        cluster_numbers = results['score']['clusters']
-
-        # Find the index of the maximum silhouette score
-        optimal_index = np.argmax(scores)
-        n_clusters = cluster_numbers[optimal_index]
-
-    elif cluster_method == 'dbscan':
-        unique_labels = set(cluster_labels) if cluster_labels is not None else set()
-        n_clusters = len(unique_labels) - (1 if -1 in unique_labels else 0)  # Exclude noise
-
-    # Generate and display plots
-    dendrogram_plot = ce.dendrogram(X=results, linkage=cluster_linkage)['ax'].figure
-    st.subheader('Dendrogram plot')
-    st.pyplot(dendrogram_plot)
-
-    silhouette_plot, ax, _ = ce.plot_silhouette(
-        X=flattened_imgs,
-        dot_size=200,
-        jitter=0.01,
-        cmap='Set2',
-        savefig={'fname': None, 'format': 'png', 'dpi': 100},
-    )
-
-    st.subheader('Silhouette plot')
-    st.pyplot(fig=silhouette_plot)
-
-    pca_clusters = plot_pca_scatter(
-        flattened_imgs, cluster_labels, contours_dict, title='PCA dimensions'
-    )
-    st.subheader('Scatterplot')
-    st.pyplot(pca_clusters)
-
-    # Calculate and display evaluation metrics
-    st.subheader(f'Performance metrics for {cluster_method} clustering')
-    st.metric('Number of clusters found:', n_clusters)
-
-    if cluster_method in ['kmeans', 'agglomerative']:
-        if n_clusters is not None and n_clusters > 1:
-            silhouette_avg = silhouette_score(flattened_imgs, cluster_labels)
-            davies_bouldin = davies_bouldin_score(flattened_imgs, cluster_labels)
-
-            st.metric(label='Silhouette Score', value=f'{silhouette_avg:.2f}')
-            st.metric(label='Davies Bouldin Score', value=f'{davies_bouldin:.2f}')
-
-    elif cluster_method == 'dbscan':
-        # Exclude noise points (-1)
-        if len(set(cluster_labels)) > 1:
-            valid_labels = cluster_labels[cluster_labels != -1]
-            if len(set(valid_labels)) > 1:  # Ensure there's more than 1 cluster
-                silhouette_avg = silhouette_score(
-                    flattened_imgs[cluster_labels != -1], valid_labels
-                )
-                davies_bouldin = davies_bouldin_score(
-                    flattened_imgs[cluster_labels != -1], valid_labels
-                )
-
-                st.metric(label='Silhouette Score', value=f'{silhouette_avg:.2f}')
-                st.metric(label='Davies Bouldin Score', value=f'{davies_bouldin:.2f}')
-            else:
-                st.metric(label='Silhouette Score could not be computed')
-                st.metric(label='Davies Bouldin Score could not be computed')
+                col1.metric(label='Silhouette Score could not be computed')
+                col2.metric(label='Davies Bouldin Score could not be computed')
+                col2.metric(label='Calinski Harabasz Score could not be computed')
 
     return n_clusters, cluster_labels
 
@@ -1336,6 +1272,29 @@ def visualize_outer_contours(
         show_images_widget(
             contour_images, n_cols=4, key='contour_images', message='Contour Images Only'
         )
+
+
+def visualize_clusters(
+    labels, image_names, image_list, name_dict, title='Cluster visualization'
+):
+    """Helper function to visualize clusters of images."""
+    if labels is not None:
+        st.subheader(title)
+        num_clusters = len(set(labels))
+
+        for n in range(num_clusters):
+            cluster_label = n + 1
+            st.write(f'\n --- Images from cluster #{cluster_label} ---')
+
+            cluster_indices = np.argwhere(labels == n).flatten()
+            cluster_images_dict = {image_names[i]: image_list[i] for i in cluster_indices}
+
+            # Use the provided dictionary (name_dict) for visualizing the images
+            show_images_widget(
+                cluster_images_dict,
+                key=f'cluster_{cluster_label}_images',
+                message=f'Images from Cluster #{cluster_label}',
+            )
 
 
 def compute_fourier_descriptors(contour: np.ndarray, num_coeff: int = 10) -> np.ndarray:
@@ -1510,32 +1469,118 @@ def reduce_dimensions(features: np.ndarray, n_components: int) -> np.ndarray:
     return reduced_features
 
 
-def plot_pca_scatter(
-    features: np.ndarray,
+# def plot_pca_scatter(
+#     features: np.ndarray,
+#     labels: np.ndarray,
+#     contours_dict: dict,
+#     title: str = 'DBSCAN Clustering of Image Contours',
+# ) -> plt.Figure:
+#     """Plot clusters of image contours based on extracted features.
+
+#     Parameters:
+#         features (np.ndarray): The feature array used for clustering.
+#         labels (np.ndarray): The labels resulting from clustering (e.g., from DBSCAN).
+#         contours_dict (dict): Dictionary of contours where keys are image names
+#         and values are np.ndarrays of contours.
+#         title (str): Title of the plot.
+
+#     Returns:
+#         plt.Figure: The figure containing the scatter plot.
+#     """
+#     # Reduce dimensions using PCA
+#     pca = PCA(n_components=2)
+#     reduced_features = pca.fit_transform(features)
+#     print('PCA Explained Variance Ratio:', pca.explained_variance_ratio_)
+
+#     unique_labels = set(labels)
+
+#     # Create a figure for plotting
+#     fig, ax = plt.subplots(figsize=(10, 8))
+
+#     # Plot each cluster
+#     for label in unique_labels:
+#         if label == -1:
+#             color = 'k'  # Noise points
+#             marker = 'x'
+#         else:
+#             color = plt.cm.jet(float(label) / (max(unique_labels) + 1))
+#             marker = 'o'
+
+#         members = labels == label
+#         ax.scatter(
+#             reduced_features[members, 0], reduced_features[members, 1], c=color, marker=marker
+#         )
+
+#     # Annotate each point with the corresponding image name
+#     for i, (x, y) in enumerate(reduced_features):
+#         # Use the key of contours_dict to get the image name
+#         image_name = list(contours_dict.keys())[
+#             i
+#         ]  # Get the image name corresponding to the index
+#         ax.annotate(
+#             image_name,
+#             (x, y),
+#             xytext=(5, 2),
+#             textcoords='offset points',
+#             ha='left',
+#             va='bottom',
+#             bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.5),
+#             fontsize=8,
+#         )
+
+#     ax.set_title(title)
+#     ax.set_xlabel('PCA 1')
+#     ax.set_ylabel('PCA 2')
+#     ax.grid(True)
+
+#     return fig
+
+
+def plot_pca_mds_scatter(
+    data: np.ndarray,  # image features or similarity matrix
     labels: np.ndarray,
     contours_dict: dict,
-    title: str = 'DBSCAN Clustering of Image Contours',
+    is_similarity_matrix: bool = False,
+    title: str = 'Clustering of Images',
 ) -> plt.Figure:
-    """Plot clusters of image contours based on extracted features.
+    """Plot clusters of image contours, feature vectors, or similarity matrix
+    data based on dimensionality reduction.
+
+    This function can visualize:
+    - Clusters of image contours based on extracted features (e.g., Fourier descriptors,
+    Hu moments).
+    - Clusters of features directly if they are passed as input.
+    - Clusters based on similarity matrices (e.g., similarity between images or contours).
+    Dimensionality reduction is performed using PCA (Principal Component Analysis) or
+    MDS (Multidimensional Scaling) depending on the input type.
 
     Parameters:
-        features (np.ndarray): The feature array used for clustering.
-        labels (np.ndarray): The labels resulting from clustering (e.g., from DBSCAN).
-        contours_dict (dict): Dictionary of contours where keys are image names
-        and values are np.ndarrays of contours.
-        title (str): Title of the plot.
+        data (np.ndarray): The feature array, similarity matrix, or raw image data
+        used for clustering.
+        labels (np.ndarray): The labels resulting from clustering (e.g., from DBSCAN,
+        KMeans).
+        contours_dict (dict): Dictionary of image names or feature identifiers mapped
+        to data points or contours.
+        is_similarity_matrix (bool): Flag to indicate whether the input is a similarity
+        matrix (default: False).
+        title (str): Title of the plot (default: 'Clustering Visualization').
 
     Returns:
-        plt.Figure: The figure containing the scatter plot.
+        plt.Figure: The figure containing the scatter plot of clusters with
+        PCA or MDS dimensions.
     """
-    # Reduce dimensions using PCA
-    pca = PCA(n_components=2)
-    reduced_features = pca.fit_transform(features)
-    print('PCA Explained Variance Ratio:', pca.explained_variance_ratio_)
+    if is_similarity_matrix:
+        # If input is a similarity matrix, apply MDS
+        # dissimilarity=='precomputed' -> the input should be the dissimilarity matrix
+        mds = MDS(n_components=2, dissimilarity='precomputed')
+        reduced_features = mds.fit_transform(data)
+    else:
+        # If input is feature data, apply PCA
+        pca = PCA(n_components=2)
+        reduced_features = pca.fit_transform(data)  # (n_samples, n_features)
+        print('PCA Explained Variance Ratio:', pca.explained_variance_ratio_)
 
     unique_labels = set(labels)
-
-    # Create a figure for plotting
     fig, ax = plt.subplots(figsize=(10, 8))
 
     # Plot each cluster
@@ -1555,9 +1600,7 @@ def plot_pca_scatter(
     # Annotate each point with the corresponding image name
     for i, (x, y) in enumerate(reduced_features):
         # Use the key of contours_dict to get the image name
-        image_name = list(contours_dict.keys())[
-            i
-        ]  # Get the image name corresponding to the index
+        image_name = list(contours_dict.keys())[i]
         ax.annotate(
             image_name,
             (x, y),
@@ -1569,9 +1612,9 @@ def plot_pca_scatter(
             fontsize=8,
         )
 
-    ax.set_title(title)
-    ax.set_xlabel('PCA 1')
-    ax.set_ylabel('PCA 2')
+    ax.set_title(f'{title}')
+    ax.set_xlabel('Dimension 1')
+    ax.set_ylabel('Dimension 2')
     ax.grid(True)
 
     return fig

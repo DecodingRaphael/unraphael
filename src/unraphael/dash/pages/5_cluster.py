@@ -2,11 +2,8 @@ from __future__ import annotations
 
 from typing import Optional
 
-import cv2
-import matplotlib.pyplot as plt
 import numpy as np
 import streamlit as st
-from scatterd import scatterd
 from styling import set_custom_css
 from widgets import load_images_widget
 
@@ -18,11 +15,13 @@ from unraphael.dash.image_clustering import (
     extract_and_scale_features,
     extract_outer_contours_from_aligned_images,
     feature_based_clustering,
-    feature_based_clustering2,
     matrix_based_clustering,
-    plot_clusters,
     plot_dendrogram,
+    plot_pca_mds_scatter,
+    plot_scatter,
+    preprocess_images,
     show_images_widget,
+    visualize_clusters,
     visualize_outer_contours,
 )
 
@@ -58,10 +57,22 @@ def cached_matrix_based_clustering(image_list, algorithm, n_clusters, method):
 
 @st.cache_data
 def cached_feature_based_clustering(
-    features, cluster_method, cluster_evaluation, cluster_linkage, contours_dict
+    features,
+    cluster_method,
+    cluster_evaluation,
+    cluster_linkage,
+    name_dict,
+    is_similarity_matrix=False,
 ):
+    """Caches the feature- or matrix based clustering process and passes the
+    relevant arguments."""
     return feature_based_clustering(
-        features, cluster_method, cluster_evaluation, cluster_linkage, contours_dict
+        features,
+        cluster_method,
+        cluster_evaluation,
+        cluster_linkage,
+        name_dict,
+        is_similarity_matrix,
     )
 
 
@@ -303,19 +314,18 @@ def cluster_image_widget(images: dict[str, np.ndarray]) -> None:
     image_list = list(images.values())
     image_names = list(images.keys())
 
-    st.subheader('Select object for clustering')
+    st.subheader('Cluster on outer contours or complete figures')
     st.write(
         (
-            'Select whether you want to cluster on the outer contours or on '
-            'the complete figures. The choice between them depends on the '
-            'specifics of your dataset and the aspects of similarity that '
-            'matter most for your specific use case.'
+            'The choice between them depends on the specifics of your dataset '
+            'and the aspects of similarity that matter most for your specific use case.'
         )
     )
 
     cluster_approach = st.selectbox(
         'Please choose what you want to cluster on:',
         [
+            'Select an option',
             'Outer contours',
             'Complete figures',
         ],
@@ -325,13 +335,13 @@ def cluster_image_widget(images: dict[str, np.ndarray]) -> None:
 
     if cluster_approach in ['Outer contours']:
         st.write('Extracting outer contours from the aligned images...')
+        st.markdown('---')
         contours_dict = cached_extract_outer_contours(images)
-
-        image_shape = next(iter(images.values())).shape
 
         st.subheader('Outer contours of the aligned images')
         visualize_outer_contours(images, contours_dict)
 
+        st.markdown('---')
         st.subheader('Select components used for examining contour similarity')
         st.write(
             (
@@ -365,29 +375,32 @@ def cluster_image_widget(images: dict[str, np.ndarray]) -> None:
             selected_features.append('procrustes')
 
         # Extract and scale features from contours
+        image_shape = next(iter(images.values())).shape
+
         if selected_features:
             st.write('Extracting and scaling features...')
             features, _ = cached_extract_and_scale_features(
                 contours_dict, selected_features, image_shape
             )
 
-            # Before clustering, visualize the data using a scatter plot
-            # or similar to understand the distribution.
-            def plot_scatter(features):
-                scatterd(features[:, 0], features[:, 1])
-                fig = plt.gcf()
-                st.pyplot(fig)
+            st.write(
+                'Before the actual clustering below, you can use the '
+                'following scatter plot to understand the distribution '
+                'of the image data based on the selected features above. '
+                'This can help to inform your clustering decisions.'
+            )
 
             plot_scatter(features)
 
-            st.subheader('Clustering Outer Contours')
+            st.markdown('---')
+            st.subheader('Select cluster method and evaluation')
 
             cluster_method = st.selectbox(
                 'Please choose the clustering algorithm:',
                 [
-                    'kmeans',
                     'agglomerative',
                     'dbscan',
+                    'kmeans',
                 ],
                 help='The cluster method defines the way in which the images are grouped.',
                 key='cluster_method',
@@ -417,40 +430,38 @@ def cluster_image_widget(images: dict[str, np.ndarray]) -> None:
                 help='Select the linkage method used for clustering the images:',
             )
 
+            st.markdown('---')
+            st.title('Results')
             n_clusters, labels = cached_feature_based_clustering(
-                features, cluster_method, cluster_evaluation, cluster_linkage, contours_dict
+                features,
+                cluster_method,
+                cluster_evaluation,
+                cluster_linkage,
+                name_dict=contours_dict,
+                is_similarity_matrix=False,
             )
 
-            if labels is not None:
-                st.subheader('Visualizing the clusters')
-                for n in range(n_clusters):
-                    cluster_label = n + 1
-                    st.write(f'\n --- Images from cluster #{cluster_label} ---')
-
-                    cluster_indices = np.argwhere(labels == n).flatten()
-                    cluster_images_dict = {
-                        image_names[i]: image_list[i] for i in cluster_indices
-                    }
-
-                    show_images_widget(
-                        cluster_images_dict,
-                        # contours_dict,
-                        key=f'cluster_{cluster_label}_images',
-                        message=f'Images from cluster #{cluster_label}',
-                    )
+            visualize_clusters(labels, image_names, image_list, contours_dict)
 
     # clustering images based on complete figures
     if cluster_approach in ['Complete figures']:
+        st.markdown('---')
+        st.subheader('The aligned images')
+        show_images_widget(images, message='The aligned images')
+
+        st.markdown('---')
+        st.subheader('Select cluster method and evaluation')
+
         cluster_method = st.selectbox(
             'Please choose the clustering algorithm:',
             [
+                'Select an option',
                 'SpectralClustering',
                 'AffinityPropagation',
                 'DBSCAN',
                 'agglomerative',
-                'kmeans',
                 'dbscan',
-                'hdbscan',
+                'kmeans',
             ],
             help='The cluster method defines the way in which the images are grouped.',
             key='cluster_method',
@@ -475,6 +486,7 @@ def cluster_image_widget(images: dict[str, np.ndarray]) -> None:
                 key='similarity_measure',
             )
 
+            st.markdown('---')
             st.title('Results')
 
             st.subheader(f'Similarity matrix based on pairwise {measure} indices')
@@ -492,49 +504,34 @@ def cluster_image_widget(images: dict[str, np.ndarray]) -> None:
                 st.error('Clustering failed. Please check the parameters and try again.')
                 return
 
-            num_clusters = len(set(labels))
+            dendrogram = plot_dendrogram(
+                images, labels, title=f'{cluster_method}-{measure} Dendrogram'
+            )
+            st.subheader('Dendrogram')
+            st.pyplot(dendrogram)
+
+            pca_clusters = plot_pca_mds_scatter(
+                data=matrix,
+                labels=labels,
+                contours_dict=images,
+                is_similarity_matrix=True,  # run MDS
+                title=f'{cluster_method}-{measure} MDS Dimensions',
+            )
+
+            st.subheader('Scatterplot')
+            st.pyplot(pca_clusters)
 
             st.subheader(f'Performance metrics for {cluster_method}')
-
+            num_clusters = len(set(labels))
             st.metric('Number of clusters found:', num_clusters)
 
             for metric_name, metric_value in metrics.items():
                 metric_str = f'{metric_value:.2f}'
                 st.metric(metric_name, metric_str)
 
-            st.subheader('Visualizing the clusters')
-            for n in range(num_clusters):
-                cluster_label = n + 1
-                st.write(f'\n --- Images from cluster #{cluster_label} ---')
+            visualize_clusters(labels, image_names, image_list, image_names)
 
-                cluster_indices = np.argwhere(labels == n).flatten()
-                cluster_images_dict = {image_names[i]: image_list[i] for i in cluster_indices}
-                show_images_widget(
-                    cluster_images_dict,
-                    key=f'cluster_{cluster_label}_images',
-                    message=f'Images from Cluster #{cluster_label}',
-                )
-
-            col1, col2 = st.columns(2)
-
-            images_dict = dict(zip(image_names, image_list))
-
-            pca_clusters = plot_clusters(
-                images_dict,
-                labels,
-                n_clusters,
-                title=f'{cluster_method}-{measure} PCA dimensions',
-            )
-            col1.subheader('Scatterplot')
-            col1.pyplot(pca_clusters)
-
-            dendrogram = plot_dendrogram(
-                images_dict, labels, title=f'{cluster_method}-{measure} Dendrogram'
-            )
-            col2.subheader('Dendrogram')
-            col2.pyplot(dendrogram)
-
-        if cluster_method in ['agglomerative', 'kmeans', 'dbscan']:
+        if cluster_method in ['agglomerative', 'dbscan', 'kmeans']:
             cluster_evaluation = st.selectbox(
                 'Select the cluster evaluation method:',
                 ['silhouette', 'dbindex', 'derivative'],
@@ -547,30 +544,21 @@ def cluster_image_widget(images: dict[str, np.ndarray]) -> None:
                 help='Select the linkage method used for clustering the images:',
             )
 
-            n_clusters, labels = feature_based_clustering2(
-                images=image_list,
-                cluster_method=cluster_method,
-                cluster_evaluation=cluster_evaluation,
-                cluster_linkage=cluster_linkage,
-                contours_dict=images,
+            st.markdown('---')
+            st.title('Results')
+            # extracts features from the raw image data
+            features = preprocess_images(image_list)
+
+            n_clusters, labels = cached_feature_based_clustering(
+                features,
+                cluster_method,
+                cluster_evaluation,
+                cluster_linkage,
+                name_dict=images,
+                is_similarity_matrix=False,
             )
 
-            if labels is not None:
-                st.subheader('Visualizing the clusters')
-                for n in range(n_clusters):
-                    cluster_label = n + 1
-                    st.write(f'\n --- Images from cluster #{cluster_label} ---')
-
-                    cluster_indices = np.argwhere(labels == n).flatten()
-                    cluster_images_dict = {
-                        image_names[i]: image_list[i] for i in cluster_indices
-                    }
-
-                    show_images_widget(
-                        cluster_images_dict,
-                        key=f'cluster_{cluster_label}_images',
-                        message=f'Images from cluster #{cluster_label}',
-                    )
+            visualize_clusters(labels, image_names, image_list, images)
 
 
 def main():
@@ -602,38 +590,35 @@ def main():
 
     images = equalize_images_widget(images=images)
 
-    # Prompt user to select "Yes" or "No" for aligning images
-    alignment_option = st.radio('Are your images already aligned?', ('Yes', 'No'))
+    st.markdown('---')
 
-    if alignment_option == 'No':
-        # aligned images will be in similar size and in grayscale
+    # Silent check for alignment (grayscale and size consistency)
+    unaligned_images = []
+
+    # Check if all images are in grayscale (not RGB)
+    for name, image in images.items():
+        if len(image.shape) == 3 and image.shape[2] == 3:
+            unaligned_images.append(name)  # This image is not grayscale
+
+    # Check if all images have the same size
+    image_shape = None
+    for name, image in images.items():
+        if image_shape is None:
+            image_shape = image.shape
+        elif image.shape != image_shape:
+            unaligned_images.append(name)
+
+    # Automatically align if there are unaligned images
+    if unaligned_images:
+        st.warning(
+            "It appears your images are not aligned yet. Let's do that in the following step..."
+        )
         aligned_images = align_to_mean_image_widget(images=images)
-    elif alignment_option == 'Yes':
-        # Check if all images are in grayscale
-        for name, image in images.items():
-            if (
-                len(image.shape) == 3 and image.shape[2] == 3
-            ):  # Image has 3 channels (i.e., it's in RGB format)
-                images[name] = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)  # Convert to grayscale
-
-        # Check if all images have the same dimension
-        image_shape = None
-        for name, image in images.items():
-            if image_shape is None:
-                image_shape = image.shape
-            else:
-                if image.shape != image_shape:
-                    st.error(
-                        f'Image {name} has a different size ({image.shape}) '
-                        f'compared to others ({image_shape}).'
-                    )
-                    st.stop()
-
-        # Assume images are already aligned if they pass the grayscale and size checks
-        aligned_images = images
     else:
-        st.error("Please select either 'Yes' or 'No' to proceed.")
-        st.stop()
+        st.success(
+            "All images appear to be already aligned. Let's proceed to the following step..."
+        )
+        aligned_images = images
 
     if aligned_images:
         # Convert to uint8 if necessary
@@ -643,11 +628,6 @@ def main():
             else image.astype(np.uint8)
             for name, image in aligned_images.items()
         }
-
-        st.markdown('---')
-        st.subheader('The aligned images')
-
-        show_images_widget(aligned_images, message='The aligned images')
 
         st.markdown('---')
         cluster_image_widget(aligned_images)
