@@ -26,7 +26,7 @@ from scatterd import scatterd
 from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.interpolate import interp1d
 from scipy.spatial import procrustes
-from scipy.spatial.distance import directed_hausdorff
+from scipy.spatial.distance import directed_hausdorff, squareform
 from skimage import color, transform
 from skimage.feature import hog
 from skimage.metrics import structural_similarity as ssim
@@ -35,7 +35,6 @@ from sklearn import metrics
 from sklearn.cluster import (
     DBSCAN,
     AffinityPropagation,
-    KMeans,
     SpectralClustering,
 )
 from sklearn.decomposition import PCA
@@ -802,75 +801,44 @@ def get_cluster_metrics(
 
 
 def determine_optimal_clusters(
-    matrix: np.ndarray,
-    method: str = 'elbow',
-    cluster_method: str = 'agglomerative',
-    metric: str = 'euclidean',
-    linkage: str = 'ward',
-    min_clust: int = 2,
-    max_clust: int = 10,
+    matrix: np.ndarray, method: str = 'silhouette', min_clust: int = 2, max_clust: int = 10
 ) -> int:
-    """Determines the optimal number of clusters using the elbow or silhoutte
-    methods. To be used in case of similarity matrix as imput for the cluster
-    process.
+    """Determines the optimal number of clusters using Spectral Clustering on a
+    similarity matrix. After clustering, evaluates the clustering using
+    Silhouette score.
 
     Parameters
     ----------
     matrix : numpy.ndarray
-        The input matrix for clustering.
+        The input similarity matrix (n_samples, n_samples).
     method : str
-        The cluster evaluation method. Options are 'elbow', 'silhouette'
-    cluster_method : str
-        The clustering method to use. Options are 'kmeans', 'agglomerative'
-    metric : str
-        The distance metric to use.
-    linkage : str
-        The linkage method for agglomerative clustering.
+        The cluster evaluation method. Currently only 'silhouette' is supported.
     min_clust : int
         The minimum number of clusters to evaluate.
     max_clust : int
         The maximum number of clusters to evaluate.
 
     Returns
+    -------
+    int
         The optimal number of clusters.
     """
-
     optimal_clusters = min_clust
 
-    if method == 'elbow':
-        inertias = []
+    if method == 'silhouette':
+        spectral_scores = []
         for k in range(min_clust, max_clust + 1):
-            kmeans = KMeans(n_clusters=k, random_state=42).fit(matrix)
-            inertias.append(kmeans.inertia_)
+            spectral_clustering = SpectralClustering(
+                n_clusters=k, affinity='precomputed', random_state=42
+            )
+            labels = spectral_clustering.fit_predict(matrix)  # Use similarity matrix directly
 
-        # Calculate the second derivative to find the elbow point
-        if len(inertias) > 2:
-            diffs = np.diff(inertias, 2)
-            optimal_clusters = (
-                np.argmin(diffs) + min_clust + 1
-            )  # +1 due to the way np.diff works
-        else:
-            optimal_clusters = (
-                min_clust + 1
-            )  # Fallback if not enough points for second derivative
+            # Evaluate clustering using silhouette score
+            silhouette_avg = silhouette_score(matrix, labels, metric='precomputed')
+            spectral_scores.append(silhouette_avg)
 
-    elif method == 'silhouette':
-        ce = clusteval(
-            cluster=cluster_method,
-            evaluate=method,
-            metric=metric,
-            linkage=linkage,
-            min_clust=min_clust,
-            max_clust=max_clust,
-        )
-
-        results = ce.fit(matrix)
-        scores = results['score']['score']
-        cluster_numbers = results['score']['clusters']
-
-        # Find the index of the maximum silhouette score
-        optimal_index = np.argmax(scores)
-        optimal_clusters = cluster_numbers[optimal_index]
+        # Find the optimal number of clusters by selecting the maximum silhouette score
+        optimal_clusters = np.argmax(spectral_scores) + min_clust
 
     return optimal_clusters
 
@@ -922,29 +890,44 @@ def plot_clusters(
 
 
 def plot_dendrogram(
-    images: dict, labels: np.ndarray, method: str = 'ward', title: str = 'Dendrogram'
+    similarity_matrix: np.ndarray, labels: np.ndarray, method: str = 'ward', title: str = ''
 ) -> plt.Figure:
     """Plots a dendrogram for the clustering results.
 
     Parameters
     ----------
-    images : list
-        A list of images to be clustered.
+    similarity_matrix : np.ndarray
+        The similarity or distance matrix used for hierarchical clustering.
+    labels : np.ndarray
+        The cluster labels.
     method : str, optional
         The linkage method to be used for the hierarchical clustering.
         Default is 'ward'.
     title : str
         The title of the plot.
     """
-    # Flatten the images for clustering
-    flattened_images = np.array([img.flatten() for img in images.values()])
 
-    # Compute the linkage matrix
-    linked = linkage(flattened_images, method=method)
+    # Check if the similarity matrix is normalized between 0 and 1
+    min_value = np.min(similarity_matrix)
+    max_value = np.max(similarity_matrix)
+
+    if min_value < 0 or max_value > 1:
+        # If not normalized, normalize the matrix to be between 0 and 1
+        similarity_matrix = (similarity_matrix - min_value) / (max_value - min_value)
+
+    # Compute the distance matrix if given a similarity matrix (1 - similarity for distance)
+    distance_matrix = 1 - similarity_matrix
+    np.fill_diagonal(distance_matrix, 0)
+
+    # Convert the 2-D distance matrix to a 1-D condensed distance matrix
+    condensed_distance_matrix = squareform(distance_matrix)
+
+    # Compute the linkage matrix based on 1-D condensed distance matrix
+    linked = linkage(condensed_distance_matrix, method)
 
     # Plot the dendrogram
     fig, ax = plt.subplots(figsize=(10, 8))
-    dendrogram(linked, ax=ax)
+    dendrogram(linked, ax=ax, labels=labels)
 
     ax.set_title(title)
     ax.set_xlabel('Sample index')
@@ -1077,15 +1060,13 @@ def feature_based_clustering(
     """
     n_clusters = None
     ce = clusteval(cluster=cluster_method, evaluate=cluster_evaluation, linkage=cluster_linkage)
-
     results = ce.fit(features)
 
-    # Check if results is not None and contains 'labx'
     if results is not None and 'labx' in results:
         cluster_labels = results['labx']
     else:
         st.error('No cluster labels found. Check your clustering method and parameters.')
-        return None, None  # Early exit
+        return None, None
 
     # Extract optimal number of clusters
     if cluster_method in ['kmeans', 'agglomerative']:
@@ -1469,73 +1450,6 @@ def reduce_dimensions(features: np.ndarray, n_components: int) -> np.ndarray:
     return reduced_features
 
 
-# def plot_pca_scatter(
-#     features: np.ndarray,
-#     labels: np.ndarray,
-#     contours_dict: dict,
-#     title: str = 'DBSCAN Clustering of Image Contours',
-# ) -> plt.Figure:
-#     """Plot clusters of image contours based on extracted features.
-
-#     Parameters:
-#         features (np.ndarray): The feature array used for clustering.
-#         labels (np.ndarray): The labels resulting from clustering (e.g., from DBSCAN).
-#         contours_dict (dict): Dictionary of contours where keys are image names
-#         and values are np.ndarrays of contours.
-#         title (str): Title of the plot.
-
-#     Returns:
-#         plt.Figure: The figure containing the scatter plot.
-#     """
-#     # Reduce dimensions using PCA
-#     pca = PCA(n_components=2)
-#     reduced_features = pca.fit_transform(features)
-#     print('PCA Explained Variance Ratio:', pca.explained_variance_ratio_)
-
-#     unique_labels = set(labels)
-
-#     # Create a figure for plotting
-#     fig, ax = plt.subplots(figsize=(10, 8))
-
-#     # Plot each cluster
-#     for label in unique_labels:
-#         if label == -1:
-#             color = 'k'  # Noise points
-#             marker = 'x'
-#         else:
-#             color = plt.cm.jet(float(label) / (max(unique_labels) + 1))
-#             marker = 'o'
-
-#         members = labels == label
-#         ax.scatter(
-#             reduced_features[members, 0], reduced_features[members, 1], c=color, marker=marker
-#         )
-
-#     # Annotate each point with the corresponding image name
-#     for i, (x, y) in enumerate(reduced_features):
-#         # Use the key of contours_dict to get the image name
-#         image_name = list(contours_dict.keys())[
-#             i
-#         ]  # Get the image name corresponding to the index
-#         ax.annotate(
-#             image_name,
-#             (x, y),
-#             xytext=(5, 2),
-#             textcoords='offset points',
-#             ha='left',
-#             va='bottom',
-#             bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.5),
-#             fontsize=8,
-#         )
-
-#     ax.set_title(title)
-#     ax.set_xlabel('PCA 1')
-#     ax.set_ylabel('PCA 2')
-#     ax.grid(True)
-
-#     return fig
-
-
 def plot_pca_mds_scatter(
     data: np.ndarray,  # image features or similarity matrix
     labels: np.ndarray,
@@ -1569,16 +1483,28 @@ def plot_pca_mds_scatter(
         plt.Figure: The figure containing the scatter plot of clusters with
         PCA or MDS dimensions.
     """
-    if is_similarity_matrix:
-        # If input is a similarity matrix, apply MDS
-        # dissimilarity=='precomputed' -> the input should be the dissimilarity matrix
+    if is_similarity_matrix:  # apply MDS
+        # Normalize the similarity matrix if it is not between 0 and 1
+        min_value = np.min(data)
+        max_value = np.max(data)
+
+        if min_value < 0 or max_value > 1:
+            # If not normalized, normalize the matrix to be between 0 and 1
+            data = (data - min_value) / (max_value - min_value)
+
+        # Convert similarity matrix to dissimilarity matrix (1 - similarity)
+        dissimilarity_matrix = 1 - data
+        np.fill_diagonal(dissimilarity_matrix, 0)
+
+        # Apply MDS with the dissimilarity matrix where dissimilarity=='precomputed'
+        # -> the input should be the dissimilarity matrix
         mds = MDS(n_components=2, dissimilarity='precomputed')
-        reduced_features = mds.fit_transform(data)
-    else:
-        # If input is feature data, apply PCA
+        reduced_features = mds.fit_transform(dissimilarity_matrix)
+
+    else:  # feature data: apply PCA
         pca = PCA(n_components=2)
         reduced_features = pca.fit_transform(data)  # (n_samples, n_features)
-        print('PCA Explained Variance Ratio:', pca.explained_variance_ratio_)
+        # print('PCA Explained Variance Ratio:', pca.explained_variance_ratio_)
 
     unique_labels = set(labels)
     fig, ax = plt.subplots(figsize=(10, 8))

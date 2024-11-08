@@ -456,12 +456,12 @@ def cluster_image_widget(images: dict[str, np.ndarray]) -> None:
             'Please choose the clustering algorithm:',
             [
                 'Select an option',
-                'SpectralClustering',
-                'AffinityPropagation',
-                'DBSCAN',
-                'agglomerative',
-                'dbscan',
-                'kmeans',
+                'SpectralClustering',  # matrix-based
+                'AffinityPropagation',  # matrix-based
+                'DBSCAN',  # matrix-based
+                'agglomerative',  # features-based
+                'dbscan',  # features-based
+                'kmeans',  # features-based
             ],
             help='The cluster method defines the way in which the images are grouped.',
             key='cluster_method',
@@ -494,7 +494,7 @@ def cluster_image_widget(images: dict[str, np.ndarray]) -> None:
             st.write(np.round(matrix, decimals=2))
 
             labels, metrics, n_clusters = cached_matrix_based_clustering(
-                image_list,
+                image_list,  # TODO: use matrix instead of image_list
                 algorithm=measure,
                 n_clusters=n_clusters,
                 method=cluster_method,
@@ -504,9 +504,7 @@ def cluster_image_widget(images: dict[str, np.ndarray]) -> None:
                 st.error('Clustering failed. Please check the parameters and try again.')
                 return
 
-            dendrogram = plot_dendrogram(
-                images, labels, title=f'{cluster_method}-{measure} Dendrogram'
-            )
+            dendrogram = plot_dendrogram(matrix, labels, title=f'{cluster_method}-{measure}')
             st.subheader('Dendrogram')
             st.pyplot(dendrogram)
 
@@ -517,7 +515,6 @@ def cluster_image_widget(images: dict[str, np.ndarray]) -> None:
                 is_similarity_matrix=True,  # run MDS
                 title=f'{cluster_method}-{measure} MDS Dimensions',
             )
-
             st.subheader('Scatterplot')
             st.pyplot(pca_clusters)
 
