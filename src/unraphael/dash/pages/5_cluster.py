@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import Dict, List, Optional
 
 import numpy as np
 import streamlit as st
@@ -303,259 +303,227 @@ def align_to_mean_image_widget(
     return None
 
 
-def cluster_image_widget(images: dict[str, np.ndarray]) -> None:
-    """Widget to cluster images or outer contours, using clustering methods
-    suitable for small to medium datasets.
-
-    The clustering is based on image features or a matrix of similarity
-    indices, depending on what cluster method is chosen.
-    """
-
+def cluster_image_widget(images: Dict[str, np.ndarray]) -> None:
+    """Widget to cluster images or outer contours using suitable clustering
+    methods."""
     image_list = list(images.values())
     image_names = list(images.keys())
 
-    st.subheader('Cluster on outer contours or complete figures')
-    st.write(
-        (
-            'The choice between them depends on the specifics of your dataset '
-            'and the aspects of similarity that matter most for your specific use case.'
-        )
-    )
+    # Step 1: Selection of cluster approach
+    cluster_approach = select_cluster_approach()
 
-    cluster_approach = st.selectbox(
-        'Please choose what you want to cluster on:',
-        [
-            'Select an option',
-            'Outer contours',
-            'Complete figures',
-        ],
-        help='The cluster method defines the way in which the images are grouped.',
+    if cluster_approach == 'Outer contours':
+        cluster_on_outer_contours(images, image_names, image_list)
+    elif cluster_approach == 'Complete figures':
+        cluster_on_complete_figures(images, image_names, image_list)
+
+
+def select_cluster_approach() -> str:
+    """Select the cluster approach (outer contours or complete figures)."""
+    st.subheader('Cluster on outer contours or complete figures')
+    return st.selectbox(
+        'Choose clustering basis:',
+        ['Select an option', 'Outer contours', 'Complete figures'],
+        help='Defines the basis for grouping images.',
         key='cluster_approach',
     )
 
-    if cluster_approach in ['Outer contours']:
-        st.write('Extracting outer contours from the aligned images...')
-        st.markdown('---')
-        contours_dict = cached_extract_outer_contours(images)
 
-        st.subheader('Outer contours of the aligned images')
-        visualize_outer_contours(images, contours_dict)
+def cluster_on_outer_contours(
+    images: Dict[str, np.ndarray], image_names: List[str], image_list: List[np.ndarray]
+) -> None:
+    """Handle clustering based on outer contours."""
+    st.write('Extracting outer contours from the aligned images...')
+    contours_dict = cached_extract_outer_contours(images)
 
-        st.markdown('---')
-        st.subheader('Select components used for examining contour similarity')
-        st.write(
-            (
-                'Select components to include for the clustering process. '
-                'By extracting various (combinations of) shape descriptors '
-                'like the ones below, you create a multidimensional '
-                'representation of the contours. This captures different '
-                'aspects of the shape and allows you to differentiate '
-                'between contours effectively.'
-            )
-        )
+    st.subheader('Outer contours of the aligned images')
+    visualize_outer_contours(images, contours_dict)
 
-        components = display_components_options()
-        selected_features = []
+    selected_features = select_contour_features()
 
-        if components['fourier_descriptors']:
-            selected_features.append('fd')
-        if components['hu_moments']:
-            selected_features.append('hu')
-        if components['hog_features']:
-            selected_features.append('hog')
-        if components['aspect_ratio']:
-            selected_features.append('aspect_ratio')
-        if components['contour_length']:
-            selected_features.append('contour_length')
-        if components['centroid_distance']:
-            selected_features.append('centroid_distance')
-        if components['hausdorff_distance']:
-            selected_features.append('hd')
-        if components['procrustes']:
-            selected_features.append('procrustes')
-
-        # Extract and scale features from contours
+    if selected_features:
+        st.write('Extracting and scaling features...')
         image_shape = next(iter(images.values())).shape
-
-        if selected_features:
-            st.write('Extracting and scaling features...')
-            features, _ = cached_extract_and_scale_features(
-                contours_dict, selected_features, image_shape
-            )
-
-            st.write(
-                'Before the actual clustering below, you can use the '
-                'following scatter plot to understand the distribution '
-                'of the image data based on the selected features above. '
-                'This can help to inform your clustering decisions.'
-            )
-
-            plot_scatter(features)
-
-            st.markdown('---')
-            st.subheader('Select cluster method and evaluation')
-
-            cluster_method = st.selectbox(
-                'Please choose the clustering algorithm:',
-                [
-                    'agglomerative',
-                    'dbscan',
-                    'kmeans',
-                ],
-                help='The cluster method defines the way in which the images are grouped.',
-                key='cluster_method',
-            )
-
-            # Evaluation method selection
-            if cluster_method == 'dbscan':
-                # Freeze the selection for dbscan
-                cluster_evaluation = 'silhouette'
-                st.selectbox(
-                    'Select the cluster evaluation method:',
-                    ['silhouette', 'dbindex', 'derivative'],
-                    index=0,  # Always select the first option
-                    disabled=True,  # Make it disabled so it can't be changed
-                )
-            else:
-                # Allow selection for other methods
-                cluster_evaluation = st.selectbox(
-                    'Select the cluster evaluation method:',
-                    ['silhouette', 'dbindex', 'derivative'],
-                    help='Select the method used as the basis for clustering the images:',
-                )
-
-            cluster_linkage = st.selectbox(
-                'Select the cluster linkage method:',
-                ['ward', 'single', 'complete', 'average', 'weighted', 'centroid', 'median'],
-                help='Select the linkage method used for clustering the images:',
-            )
-
-            st.markdown('---')
-            st.title('Results')
-            n_clusters, labels = cached_feature_based_clustering(
-                features,
-                cluster_method,
-                cluster_evaluation,
-                cluster_linkage,
-                name_dict=contours_dict,
-                is_similarity_matrix=False,
-            )
-
-            visualize_clusters(labels, image_names, image_list, contours_dict)
-
-    # clustering images based on complete figures
-    if cluster_approach in ['Complete figures']:
-        st.markdown('---')
-        st.subheader('The aligned images')
-        show_images_widget(images, message='The aligned images')
-
-        st.markdown('---')
-        st.subheader('Select cluster method and evaluation')
-
-        cluster_method = st.selectbox(
-            'Please choose the clustering algorithm:',
-            [
-                'Select an option',
-                'SpectralClustering',  # matrix-based
-                'AffinityPropagation',  # matrix-based
-                'DBSCAN',  # matrix-based
-                'agglomerative',  # features-based
-                'dbscan',  # features-based
-                'kmeans',  # features-based
-            ],
-            help='The cluster method defines the way in which the images are grouped.',
-            key='cluster_method',
+        features, _ = cached_extract_and_scale_features(
+            contours_dict, selected_features, image_shape
         )
 
-        if cluster_method in ['SpectralClustering', 'AffinityPropagation', 'DBSCAN']:
-            n_clusters = None
+        st.write('Scatter plot to understand feature distribution.')
+        plot_scatter(features)
 
-            if cluster_method == 'SpectralClustering':
-                specify_clusters = st.checkbox(
-                    'Do you want to specify the number of clusters beforehand?', value=False
+        cluster_on_features(features, contours_dict, image_names, image_list)
+
+
+def select_contour_features() -> List[str]:
+    """Select features for clustering based on outer contours."""
+    st.subheader('Select components for contour similarity')
+    components = display_components_options()
+    feature_map = {
+        'fourier_descriptors': 'fd',
+        'hu_moments': 'hu',
+        'hog_features': 'hog',
+        'aspect_ratio': 'aspect_ratio',
+        'contour_length': 'contour_length',
+        'centroid_distance': 'centroid_distance',
+        'hausdorff_distance': 'hd',
+        'procrustes': 'procrustes',
+    }
+    return [feature_map[key] for key, value in components.items() if value]
+
+
+def cluster_on_features(
+    features: np.ndarray,
+    contours_dict: Dict,
+    image_names: List[str],
+    image_list: List[np.ndarray],
+) -> None:
+    """Handle clustering based on selected features."""
+    st.subheader('Select cluster method and evaluation')
+
+    cluster_method = st.selectbox(
+        'Choose clustering algorithm:',
+        ['agglomerative', 'dbscan', 'kmeans'],
+        help='Defines the grouping method.',
+        key='cluster_method',
+    )
+
+    cluster_evaluation = select_cluster_evaluation(cluster_method)
+    cluster_linkage = select_cluster_linkage()
+
+    n_clusters, labels = cached_feature_based_clustering(
+        features,
+        cluster_method,
+        cluster_evaluation,
+        cluster_linkage,
+        name_dict=contours_dict,
+        is_similarity_matrix=False,
+    )
+
+    visualize_clusters(labels, image_names, image_list, contours_dict)
+
+
+def select_cluster_evaluation(cluster_method: str) -> str:
+    """Select the cluster evaluation method based on the clustering
+    algorithm."""
+    if cluster_method == 'dbscan':
+        st.selectbox('Cluster evaluation method:', ['silhouette'], index=0, disabled=True)
+        return 'silhouette'
+    else:
+        return st.selectbox(
+            'Cluster evaluation method:', ['silhouette', 'dbindex', 'derivative']
+        )
+
+
+def select_cluster_linkage() -> str:
+    """Select the linkage method for clustering."""
+    return st.selectbox(
+        'Select linkage method:',
+        ['ward', 'single', 'complete', 'average', 'weighted', 'centroid', 'median'],
+        help='Linkage method for clustering.',
+    )
+
+
+def cluster_on_complete_figures(
+    images: Dict[str, np.ndarray], image_names: List[str], image_list: List[np.ndarray]
+) -> None:
+    """Handle clustering based on complete figures."""
+    st.subheader('The aligned images')
+    show_images_widget(images, message='The aligned images')
+
+    cluster_method = select_cluster_method_for_complete_figures()
+
+    if cluster_method in ['SpectralClustering', 'AffinityPropagation', 'DBSCAN']:
+        n_clusters = None
+        if cluster_method == 'SpectralClustering':
+            specify_clusters = st.checkbox('Specify number of clusters?', value=False)
+            if specify_clusters:
+                n_clusters = st.number_input(
+                    'Number of clusters:', min_value=2, step=1, value=4
                 )
-                if specify_clusters:
-                    n_clusters = st.number_input(
-                        'Number of clusters:', min_value=2, step=1, value=4
-                    )
 
-            measure = st.selectbox(
-                'Select the similarity measure to cluster on:',
-                ['SIFT', 'SSIM', 'CW-SSIM', 'IW-SSIM', 'FSIM', 'MSE', 'Brushstrokes'],
-                help='Select a similarity measure used as the basis for clustering the images:',
-                key='similarity_measure',
-            )
+        measure = select_similarity_measure()
 
-            st.markdown('---')
-            st.title('Results')
+        matrix = cached_build_similarity_matrix(np.array(image_list), algorithm=measure)
+        labels, metrics, n_clusters = cached_matrix_based_clustering(
+            matrix, algorithm=measure, n_clusters=n_clusters, method=cluster_method
+        )
 
-            st.subheader(f'Similarity matrix based on pairwise {measure} indices')
-            matrix = cached_build_similarity_matrix(np.array(image_list), algorithm=measure)
-            st.write(np.round(matrix, decimals=2))
+        if labels is None:
+            st.error('Clustering failed. Check parameters and try again.')
+            return
 
-            labels, metrics, n_clusters = cached_matrix_based_clustering(
-                image_list,  # TODO: use matrix instead of image_list
-                algorithm=measure,
-                n_clusters=n_clusters,
-                method=cluster_method,
-            )
+        dendrogram = plot_dendrogram(matrix, labels, title=f'{cluster_method}-{measure}')
+        st.subheader('Dendrogram')
+        st.pyplot(dendrogram)
 
-            if labels is None:
-                st.error('Clustering failed. Please check the parameters and try again.')
-                return
+        pca_clusters = plot_pca_mds_scatter(
+            data=matrix,
+            labels=labels,
+            contours_dict=images,
+            is_similarity_matrix=True,
+            title=f'{cluster_method}-{measure} MDS Dimensions',
+        )
+        st.subheader('Scatterplot')
+        st.pyplot(pca_clusters)
 
-            dendrogram = plot_dendrogram(matrix, labels, title=f'{cluster_method}-{measure}')
-            st.subheader('Dendrogram')
-            st.pyplot(dendrogram)
+        st.subheader(f'Performance metrics for {cluster_method}')
+        num_clusters = len(set(labels))
+        st.metric('Number of clusters found:', num_clusters)
 
-            pca_clusters = plot_pca_mds_scatter(
-                data=matrix,
-                labels=labels,
-                contours_dict=images,
-                is_similarity_matrix=True,  # run MDS
-                title=f'{cluster_method}-{measure} MDS Dimensions',
-            )
-            st.subheader('Scatterplot')
-            st.pyplot(pca_clusters)
+        for metric_name, metric_value in metrics.items():
+            st.metric(metric_name, f'{metric_value:.2f}')
 
-            st.subheader(f'Performance metrics for {cluster_method}')
-            num_clusters = len(set(labels))
-            st.metric('Number of clusters found:', num_clusters)
+        visualize_clusters(labels, image_names, image_list, image_names)
 
-            for metric_name, metric_value in metrics.items():
-                metric_str = f'{metric_value:.2f}'
-                st.metric(metric_name, metric_str)
+    elif cluster_method in ['agglomerative', 'dbscan', 'kmeans']:
+        cluster_evaluation = st.selectbox(
+            'Cluster evaluation method:', ['silhouette', 'dbindex', 'derivative']
+        )
+        cluster_linkage = st.selectbox(
+            'Linkage method:',
+            ['ward', 'single', 'complete', 'average', 'weighted', 'centroid', 'median'],
+        )
 
-            visualize_clusters(labels, image_names, image_list, image_names)
+        features = preprocess_images(image_list)
 
-        if cluster_method in ['agglomerative', 'dbscan', 'kmeans']:
-            cluster_evaluation = st.selectbox(
-                'Select the cluster evaluation method:',
-                ['silhouette', 'dbindex', 'derivative'],
-                help='Select the method used as the basis for clustering the images:',
-            )
+        n_clusters, labels = cached_feature_based_clustering(
+            features,
+            cluster_method,
+            cluster_evaluation,
+            cluster_linkage,
+            name_dict=images,
+            is_similarity_matrix=False,
+        )
 
-            cluster_linkage = st.selectbox(
-                'Select the cluster linkage method:',
-                ['ward', 'single', 'complete', 'average', 'weighted', 'centroid', 'median'],
-                help='Select the linkage method used for clustering the images:',
-            )
+        visualize_clusters(labels, image_names, image_list, images)
 
-            st.markdown('---')
-            st.title('Results')
-            # extracts features from the raw image data
-            features = preprocess_images(image_list)
 
-            n_clusters, labels = cached_feature_based_clustering(
-                features,
-                cluster_method,
-                cluster_evaluation,
-                cluster_linkage,
-                name_dict=images,
-                is_similarity_matrix=False,
-            )
+def select_cluster_method_for_complete_figures() -> str:
+    """Select the cluster method for clustering complete figures."""
+    return st.selectbox(
+        'Choose clustering algorithm:',
+        [
+            'Select an option',
+            'SpectralClustering',
+            'AffinityPropagation',
+            'DBSCAN',
+            'agglomerative',
+            'dbscan',
+            'kmeans',
+        ],
+        help='Defines the grouping method.',
+        key='cluster_method',
+    )
 
-            visualize_clusters(labels, image_names, image_list, images)
+
+def select_similarity_measure() -> str:
+    """Select the similarity measure for clustering complete figures."""
+    return st.selectbox(
+        'Select similarity measure:',
+        ['SIFT', 'SSIM', 'CW-SSIM', 'IW-SSIM', 'FSIM', 'MSE', 'Brushstrokes'],
+        help='Basis for clustering images.',
+        key='similarity_measure',
+    )
 
 
 def main():

@@ -937,7 +937,7 @@ def plot_dendrogram(
 
 
 def matrix_based_clustering(
-    images: list[np.ndarray],
+    matrix: np.ndarray,
     algorithm: str,
     n_clusters: int,
     method: str,
@@ -949,8 +949,8 @@ def matrix_based_clustering(
 
     Parameters
     ----------
-    images : dict[str, np.ndarray]
-        A dictionary of images to be clustered.
+    matrix : np.ndarray
+        A precomputed similarity matrix to be used for clustering.
     algorithm : str, optional
         The algorithm used to calculate the similarity between images.
         Default is 'SSIM'.
@@ -973,9 +973,6 @@ def matrix_based_clustering(
     using the metric='precomputed' parameter ensures that the input is not
     raw data points but rather a similarity matrix.
     """
-
-    # main input for the clustering algorithm
-    matrix = build_similarity_matrix(images, algorithm=algorithm)
 
     # Determine number of clusters
     if n_clusters is None and method != 'DBSCAN':
@@ -1027,7 +1024,7 @@ def preprocess_images(images: list, target_shape: tuple = (128, 128)) -> np.ndar
         flattened_image = resized_image.flatten()
         preprocessed_images.append(flattened_image)
 
-    return np.array(preprocessed_images)
+    return StandardScaler().fit_transform(np.array(preprocessed_images))
 
 
 def feature_based_clustering(
@@ -1058,46 +1055,49 @@ def feature_based_clustering(
         tuple: A tuple containing the number of clusters found (int) and cluster labels
         (np.ndarray or None).
     """
-    n_clusters = None
     ce = clusteval(cluster=cluster_method, evaluate=cluster_evaluation, linkage=cluster_linkage)
     results = ce.fit(features)
 
-    if results is not None and 'labx' in results:
-        cluster_labels = results['labx']
-    else:
+    if results is None or 'labx' not in results:
         st.error('No cluster labels found. Check your clustering method and parameters.')
         return None, None
 
-    # Extract optimal number of clusters
+    # Get cluster labels from results
+    cluster_labels = results['labx']
+
+    # Extract number of clusters directly from results
     if cluster_method in ['kmeans', 'agglomerative']:
-        scores = results['score']['score']
-        cluster_numbers = results['score']['clusters']
-
-        # Find the index of the maximum silhouette score
-        optimal_index = np.argmax(scores)
-        n_clusters = cluster_numbers[optimal_index]
-
+        n_clusters = len(np.unique(cluster_labels))
     elif cluster_method == 'dbscan':
         unique_labels = set(cluster_labels) if cluster_labels is not None else set()
-        n_clusters = len(unique_labels) - (1 if -1 in unique_labels else 0)  # Exclude noise
+        n_clusters = len(unique_labels) - (
+            1 if -1 in unique_labels else 0
+        )  # Exclude noise points
 
-    # Generate and display plots
-    dendrogram_plot = ce.dendrogram(X=results, linkage=cluster_linkage)['ax'].figure
-    st.subheader('Dendrogram plot')
-    st.pyplot(dendrogram_plot)
+    # Generate and display dendrogram if applicable
+    if cluster_method != 'kmeans':
+        try:
+            dendrogram_plot = ce.dendrogram(X=features, linkage=cluster_linkage)['ax'].figure
+            st.subheader('Dendrogram plot')
+            st.pyplot(dendrogram_plot)
+        except Exception as e:
+            st.error(f'Error in generating dendrogram plot: {e}')
 
-    silhouette_plot, ax, _ = ce.plot_silhouette(
-        X=features,
-        dot_size=200,
-        jitter=0.01,
-        cmap='Set2',
-        savefig={'fname': None, 'format': 'png', 'dpi': 100},
-    )
+    # Generate and display silhouette plot
+    try:
+        silhouette_plot, ax, _ = ce.plot_silhouette(
+            X=features,
+            dot_size=200,
+            jitter=0.01,
+            cmap='Set2',
+            savefig={'fname': None, 'format': 'png', 'dpi': 100},
+        )
+        st.subheader('Silhouette plot')
+        st.pyplot(fig=silhouette_plot)
+    except Exception as e:
+        st.error(f'Error in generating silhouette plot: {e}')
 
-    st.subheader('Silhouette plot')
-    st.pyplot(fig=silhouette_plot)
-
-    # Plot the clusters
+    # Plot PCA dimensions
     pca_clusters = plot_pca_mds_scatter(
         data=features,
         labels=cluster_labels,
@@ -1108,40 +1108,20 @@ def feature_based_clustering(
     st.subheader('Scatterplot')
     st.pyplot(pca_clusters)
 
-    # Show metrics
+    # Display performance metrics
     st.subheader('Performance metrics')
     col1, col2 = st.columns(2)
     col1.metric('Number of clusters found:', n_clusters)
 
-    # Calculate and display evaluation metrics
-    if cluster_method in ['kmeans', 'agglomerative']:
-        if n_clusters is not None and n_clusters > 1:
-            silhouette_avg = silhouette_score(features, cluster_labels)
-            davies_bouldin = davies_bouldin_score(features, cluster_labels)
-            ch_index = calinski_harabasz_score(features, cluster_labels)
+    # Evaluate and display other cluster metrics
+    if n_clusters > 1:
+        silhouette_avg = silhouette_score(features, cluster_labels)
+        davies_bouldin = davies_bouldin_score(features, cluster_labels)
+        ch_index = calinski_harabasz_score(features, cluster_labels)
 
-            col1.metric(label='Silhouette Score', value=f'{silhouette_avg:.2f}')
-            col2.metric(label='Davies Bouldin Score', value=f'{davies_bouldin:.2f}')
-            col2.metric(label='Calinski Harabasz Score', value=f'{ch_index:.2f}')
-
-    elif cluster_method == 'dbscan':
-        # Exclude noise points (-1)
-        if len(set(cluster_labels)) > 1:
-            valid_labels = cluster_labels[cluster_labels != -1]
-            if len(set(valid_labels)) > 1:  # Ensure there's more than 1 cluster
-                silhouette_avg = silhouette_score(features[cluster_labels != -1], valid_labels)
-                davies_bouldin = davies_bouldin_score(
-                    features[cluster_labels != -1], valid_labels
-                )
-                ch_index = calinski_harabasz_score(features[cluster_labels != -1], valid_labels)
-
-                col1.metric(label='Silhouette Score', value=f'{silhouette_avg:.2f}')
-                col2.metric(label='Davies Bouldin Score', value=f'{davies_bouldin:.2f}')
-                col2.metric(label='Calinski Harabasz Score', value=f'{ch_index:.2f}')
-            else:
-                col1.metric(label='Silhouette Score could not be computed')
-                col2.metric(label='Davies Bouldin Score could not be computed')
-                col2.metric(label='Calinski Harabasz Score could not be computed')
+        col1.metric(label='Silhouette Score', value=f'{silhouette_avg:.2f}')
+        col2.metric(label='Davies Bouldin Score', value=f'{davies_bouldin:.2f}')
+        col2.metric(label='Calinski Harabasz Score', value=f'{ch_index:.2f}')
 
     return n_clusters, cluster_labels
 
@@ -1483,6 +1463,8 @@ def plot_pca_mds_scatter(
         plt.Figure: The figure containing the scatter plot of clusters with
         PCA or MDS dimensions.
     """
+    unique_labels = np.unique(labels)
+
     if is_similarity_matrix:  # apply MDS
         # Normalize the similarity matrix if it is not between 0 and 1
         min_value = np.min(data)
@@ -1497,35 +1479,33 @@ def plot_pca_mds_scatter(
         np.fill_diagonal(dissimilarity_matrix, 0)
 
         # Apply MDS with the dissimilarity matrix where dissimilarity=='precomputed'
-        # -> the input should be the dissimilarity matrix
+        # the input should be the dissimilarity matrix
         mds = MDS(n_components=2, dissimilarity='precomputed')
         reduced_features = mds.fit_transform(dissimilarity_matrix)
 
     else:  # feature data: apply PCA
-        pca = PCA(n_components=2)
+        pca = PCA(n_components=2, random_state=42)
         reduced_features = pca.fit_transform(data)  # (n_samples, n_features)
-        # print('PCA Explained Variance Ratio:', pca.explained_variance_ratio_)
 
-    unique_labels = set(labels)
+    # Prepare the colormap based on the number of unique labels
+    colormap = plt.cm.tab20 if len(unique_labels) <= 20 else plt.cm.gist_rainbow
+
+    # Plot each cluster with unique colors
     fig, ax = plt.subplots(figsize=(10, 8))
-
-    # Plot each cluster
     for label in unique_labels:
-        if label == -1:
-            color = 'k'  # Noise points
-            marker = 'x'
-        else:
-            color = plt.cm.jet(float(label) / (max(unique_labels) + 1))
-            marker = 'o'
-
+        color = colormap(label / (max(unique_labels) + 1)) if label != -1 else 'k'
+        marker = 'o' if label != -1 else 'x'
         members = labels == label
         ax.scatter(
-            reduced_features[members, 0], reduced_features[members, 1], c=color, marker=marker
+            reduced_features[members, 0],
+            reduced_features[members, 1],
+            color=[color],
+            marker=marker,
+            label=f'Cluster {label}' if label != -1 else 'Noise',
         )
 
-    # Annotate each point with the corresponding image name
+    # Annotate each point
     for i, (x, y) in enumerate(reduced_features):
-        # Use the key of contours_dict to get the image name
         image_name = list(contours_dict.keys())[i]
         ax.annotate(
             image_name,
@@ -1538,9 +1518,8 @@ def plot_pca_mds_scatter(
             fontsize=8,
         )
 
-    ax.set_title(f'{title}')
+    ax.set_title(title)
     ax.set_xlabel('Dimension 1')
     ax.set_ylabel('Dimension 2')
     ax.grid(True)
-
     return fig
