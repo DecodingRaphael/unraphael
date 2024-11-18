@@ -306,6 +306,8 @@ def align_to_mean_image_widget(
 def cluster_image_widget(images: Dict[str, np.ndarray]) -> None:
     """Widget to cluster images or outer contours using suitable clustering
     methods."""
+
+    # input is the aligned images
     image_list = list(images.values())
     image_names = list(images.keys())
 
@@ -408,6 +410,7 @@ def select_cluster_evaluation(cluster_method: str) -> str:
     if cluster_method == 'dbscan':
         st.selectbox('Cluster evaluation method:', ['silhouette'], index=0, disabled=True)
         return 'silhouette'
+
     else:
         return st.selectbox(
             'Cluster evaluation method:', ['silhouette', 'dbindex', 'derivative']
@@ -443,7 +446,12 @@ def cluster_on_complete_figures(
 
         measure = select_similarity_measure()
 
+        st.markdown('---')
+        st.title('Results')
+
+        st.subheader(f'Similarity matrix based on pairwise {measure} indices')
         matrix = cached_build_similarity_matrix(np.array(image_list), algorithm=measure)
+        st.write(np.round(matrix, decimals=2))
         labels, metrics, n_clusters = cached_matrix_based_clustering(
             matrix, algorithm=measure, n_clusters=n_clusters, method=cluster_method
         )
@@ -452,10 +460,11 @@ def cluster_on_complete_figures(
             st.error('Clustering failed. Check parameters and try again.')
             return
 
-        dendrogram = plot_dendrogram(matrix, labels, title=f'{cluster_method}-{measure}')
         st.subheader('Dendrogram')
+        dendrogram = plot_dendrogram(matrix, labels, title=f'{cluster_method}-{measure}')
         st.pyplot(dendrogram)
 
+        st.subheader('Scatterplot')
         pca_clusters = plot_pca_mds_scatter(
             data=matrix,
             labels=labels,
@@ -463,7 +472,6 @@ def cluster_on_complete_figures(
             is_similarity_matrix=True,
             title=f'{cluster_method}-{measure} MDS Dimensions',
         )
-        st.subheader('Scatterplot')
         st.pyplot(pca_clusters)
 
         st.subheader(f'Performance metrics for {cluster_method}')
