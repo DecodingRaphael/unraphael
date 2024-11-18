@@ -13,3 +13,12 @@ seaborn
 streamlit-image-comparison
 streamlit==1.35
 ultralytics>=8.2
+typing
+PIL
+piq
+clusteval
+pyssim
+pystackreg
+cv2
+scatterd
+sklearn
