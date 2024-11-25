@@ -54,14 +54,26 @@ develop = [
     "pycodestyle",
 ]
 dash = [
-    "diplib",
-    "platformdirs",
-    "seaborn",
-    "streamlit == 1.35",
-    "streamlit-image-comparison",
-    "torch",
-    "torchaudio",
+    "torch==2.5.1",
     "torchvision",
+    "torchaudio",
+    "seaborn",
+    "streamlit",
+    "clusteval",
+    "diplib",
+    "onnxruntime",
+    "opencv-python",
+    "Pillow",
+    "piq",
+    "platformdirs",
+    "pyssim",
+    "pystackreg",
+    "scatterd",
+    "scikit-learn",
+    "scipy",
+    "seaborn",
+    "streamlit-image-comparison",
+    "streamlit==1.35",
     "ultralytics>=8.2",
 ]
 docs = [
@@ -69,7 +81,6 @@ docs = [
     "mkdocs",
     "mkdocs-material",
     "mkdocstrings[python]",
-    # "mknotebooks",
 ]
 publishing = [
     "twine",
