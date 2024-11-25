@@ -1190,21 +1190,22 @@ def visualize_outer_contours(
     Inline Documentation:
         - contour_images: Dictionary to store images with only contours.
     """
-    contour_images = {}  # Dictionary to store images with only contours
+    contour_images = []  # Dictionary to store images with only contours
 
     for name, image in aligned_images.items():
         outer_contour = contours_dict.get(name)
 
-        if outer_contour is not None:
-            # Create a blank canvas (black background) with the same size as the original image
-            contour_canvas = np.zeros_like(image)
-
-            # Draw contours on the blank canvas
-            cv2.drawContours(contour_canvas, [outer_contour], -1, (255, 255, 255), 2)
-
-            contour_images[name] = contour_canvas
-        else:
+        if outer_contour is None:
             st.write(f'No valid contour found for {name}')
+            continue
+
+        # Create a blank canvas (black background) with the same size as the original image
+        contour_canvas = np.zeros_like(image)
+
+        # Draw contours on the blank canvas
+        cv2.drawContours(contour_canvas, [outer_contour], -1, (255, 255, 255), 2)
+
+        contour_images.append(ImageType(name=name, data=contour_canvas))
 
     if contour_images:
         show_images_widget(
