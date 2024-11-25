@@ -246,8 +246,8 @@ def display_images_widget(
 
     else:
         col1, col2 = st.columns(2)
-        col1.image(base_image.data, caption=base_image.name, use_column_width=True)
-        col2.image(image.data, caption=image.name, use_column_width=True)
+        col1.image(base_image.data, caption=base_image.name, use_container_width=True)
+        col2.image(image.data, caption=image.name, use_container_width=True)
 
     col1, col2 = st.columns(2)
 

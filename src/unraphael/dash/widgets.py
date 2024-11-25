@@ -52,7 +52,7 @@ def show_images_widget(
         if image.name == selected:
             selected_image = image
 
-        col.image(image.data, use_column_width=True, caption=image.name)
+        col.image(image.data, use_container_width=True, caption=image.name)
 
     return selected_image
 
@@ -177,7 +177,7 @@ def image_downloads_widget(*, images: list[ImageType], basename: str | None = No
     cols = st.columns(len(images))
 
     for col, image in zip(cols, images):
-        col.image(image.data, caption=image.name.upper(), use_column_width=True)
+        col.image(image.data, caption=image.name.upper(), use_container_width=True)
 
         filename = f'{prefix}{image.name}.png'
 
