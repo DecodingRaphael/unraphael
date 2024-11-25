@@ -101,7 +101,7 @@ def yolo_task_widget(image: ImageType, /) -> list[ImageType]:
     add_box = col1.checkbox('Add bounding box', value=True)
     confidence = float(col1.slider('Select Model Confidence', 10, 100, 25)) / 100
 
-    col2.image(image.data, caption='Uploaded Image', use_column_width=True)
+    col2.image(image.data, caption='Uploaded Image', use_container_width=True)
 
     if not task_name:
         st.info('Select a task to continue')
@@ -122,7 +122,7 @@ def yolo_task_widget(image: ImageType, /) -> list[ImageType]:
 
     result_image = results[0].plot(boxes=add_box)
 
-    col3.image(result_image, caption='Detected Image', use_column_width=True)
+    col3.image(result_image, caption='Detected Image', use_container_width=True)
 
     if task_name == 'Detection':
         images = _detection_task(results=results)
