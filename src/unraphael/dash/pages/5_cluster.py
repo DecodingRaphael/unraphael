@@ -25,69 +25,14 @@ from widgets import load_images_widget, show_images_widget
 
 from unraphael.types import ImageType
 
-
-@st.cache_data
-def cached_compute_metrics(all_images):
-    return compute_metrics(all_images)
-
-
-@st.cache_data
-def cached_equalize_images(all_images, **preprocess_options):
-    return equalize_images(all_images, **preprocess_options)
-
-
-@st.cache_data
-def cached_align_images_to_mean(images, motion_model, feature_method):
-    return align_images_to_mean(
-        images=images, motion_model=motion_model, feature_method=feature_method
-    )
-
-
-@st.cache_data
-def cached_build_similarity_matrix(image_array, algorithm):
-    return build_similarity_matrix(image_array, algorithm=algorithm)
-
-
-@st.cache_data
-def cached_matrix_based_clustering(image_list, algorithm, n_clusters, method):
-    return matrix_based_clustering(
-        image_list, algorithm=algorithm, n_clusters=n_clusters, method=method
-    )
-
-
-@st.cache_data
-def cached_feature_based_clustering(
-    features,
-    cluster_method,
-    cluster_evaluation,
-    cluster_linkage,
-    name_dict,
-    is_similarity_matrix=False,
-):
-    """Caches the feature- or matrix based clustering process and passes the
-    relevant arguments."""
-    return feature_based_clustering(
-        features,
-        cluster_method,
-        cluster_evaluation,
-        cluster_linkage,
-        name_dict,
-        is_similarity_matrix,
-    )
-
-
-@st.cache_data
-def cached_extract_outer_contours(images: dict[str, np.ndarray]) -> dict:
-    """Cache the extraction of outer contours from aligned images."""
-    return extract_outer_contours_from_aligned_images(images)
-
-
-@st.cache_data
-def cached_extract_and_scale_features(
-    contours_dict: dict, selected_features: list, image_shape: tuple
-) -> tuple:
-    """Cache the feature extraction and scaling."""
-    return extract_and_scale_features(contours_dict, selected_features, image_shape)
+_compute_metrics = st.cache_data(compute_metrics)
+_equalize_images = st.cache_data(equalize_images)
+_align_images_to_mean = st.cache_data(align_images_to_mean)
+_build_similarity_matrix = st.cache_data(build_similarity_matrix)
+_matrix_based_clustering = st.cache_data(matrix_based_clustering)
+_feature_based_clustering = st.cache_data(feature_based_clustering)
+_extract_outer_contours = st.cache_data(extract_outer_contours_from_aligned_images)
+_extract_and_scale_features = st.cache_data(extract_and_scale_features)
 
 
 def display_components_options() -> dict[str, bool]:
@@ -192,7 +137,7 @@ def equalize_images_widget(*, images: dict[str, np.ndarray]) -> dict[str, np.nda
 
     # before equalization
     all_images = list(images.values())
-    before_metrics = cached_compute_metrics(all_images)
+    before_metrics = _compute_metrics(all_images)
     preprocess_options = display_equalization_options()
     col1, col2 = st.columns(2)
 
@@ -206,8 +151,8 @@ def equalize_images_widget(*, images: dict[str, np.ndarray]) -> dict[str, np.nda
 
         # Perform equalization if any checkbox is ticked
         if any(preprocess_options.values()):
-            equalized_images = cached_equalize_images(all_images, **preprocess_options)
-            after_metrics = cached_compute_metrics(equalized_images)
+            equalized_images = _equalize_images(all_images, **preprocess_options)
+            after_metrics = _compute_metrics(equalized_images)
             display_metrics(after_metrics, 'Metrics after equalization')
 
     # Map the equalized images back to their original names
@@ -293,7 +238,7 @@ def align_to_mean_image_widget(
         st.warning('Please select how you want to align your stack of images to proceed.')
 
     if motion_model is not None and feature_method is not None:
-        aligned_images = cached_align_images_to_mean(
+        aligned_images = _align_images_to_mean(
             images=images,
             motion_model=motion_model,
             feature_method=feature_method,
@@ -336,7 +281,7 @@ def cluster_on_outer_contours(
 ) -> None:
     """Handle clustering based on outer contours."""
     st.write('Extracting outer contours from the aligned images...')
-    contours_dict = cached_extract_outer_contours(images)
+    contours_dict = _extract_outer_contours(images)
 
     st.subheader('Outer contours of the aligned images')
     visualize_outer_contours(images, contours_dict)
@@ -346,9 +291,7 @@ def cluster_on_outer_contours(
     if selected_features:
         st.write('Extracting and scaling features...')
         image_shape = next(iter(images.values())).shape
-        features, _ = cached_extract_and_scale_features(
-            contours_dict, selected_features, image_shape
-        )
+        features, _ = _extract_and_scale_features(contours_dict, selected_features, image_shape)
 
         st.write('Scatter plot to understand feature distribution.')
         plot_scatter(features)
@@ -392,7 +335,7 @@ def cluster_on_features(
     cluster_evaluation = select_cluster_evaluation(cluster_method)
     cluster_linkage = select_cluster_linkage()
 
-    n_clusters, labels = cached_feature_based_clustering(
+    n_clusters, labels = _feature_based_clustering(
         features,
         cluster_method,
         cluster_evaluation,
@@ -454,9 +397,9 @@ def cluster_on_complete_figures(
         st.title('Results')
 
         st.subheader(f'Similarity matrix based on pairwise {measure} indices')
-        matrix = cached_build_similarity_matrix(np.array(image_list), algorithm=measure)
+        matrix = _build_similarity_matrix(np.array(image_list), algorithm=measure)
         st.write(np.round(matrix, decimals=2))
-        labels, metrics, n_clusters = cached_matrix_based_clustering(
+        labels, metrics, n_clusters = _matrix_based_clustering(
             matrix, algorithm=measure, n_clusters=n_clusters, method=cluster_method
         )
 
@@ -498,7 +441,7 @@ def cluster_on_complete_figures(
 
         features = preprocess_images(image_list)
 
-        n_clusters, labels = cached_feature_based_clustering(
+        n_clusters, labels = _feature_based_clustering(
             features,
             cluster_method,
             cluster_evaluation,
