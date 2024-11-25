@@ -73,7 +73,7 @@ dash = [
     "scipy",
     "seaborn",
     "streamlit-image-comparison",
-    "streamlit==1.35",
+    "streamlit==1.40",
     "ultralytics>=8.2",
 ]
 docs = [
