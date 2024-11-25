@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import imageio.v3 as imageio
-from skimage import img_as_ubyte
 from skimage.color import gray2rgb, rgb2gray
 from skimage.transform import resize
 
@@ -13,12 +12,27 @@ if TYPE_CHECKING:
     import numpy as np
 
 
+def resize_to_width(image: np.ndarray, *, width: int) -> np.ndarray:
+    """Resize image to given width."""
+    new_shape: tuple[int, ...]
+
+    if len(image.shape) == 2:
+        x, y = image.shape
+        k = y / width
+        new_shape = int(x / k), int(y / k)
+    else:
+        x, y, z = image.shape
+        k = y / width
+        new_shape = int(x / k), int(y / k), z
+
+    return resize(image, new_shape)
+
+
 def load_images(
     image_files: Sequence[Any],
     *,
-    width: int,
+    width: None | int = None,
     as_gray: bool = True,
-    as_ubyte: bool = False,
 ) -> dict[str, np.ndarray]:
     """Load images through `imageio.imread` and do some preprocessing."""
     images = {}
@@ -30,23 +44,12 @@ def load_images(
         if as_gray:
             if im.ndim > 2:
                 im = rgb2gray(im)
-
-            x, y = im.shape
-            k = y / width
-            new_shape2 = int(x / k), int(y / k)
-            im = resize(im, new_shape2)
-
         else:
             if im.ndim <= 2:
                 im = gray2rgb(im)
 
-            x, y, z = im.shape
-            k = y / width
-            new_shape3 = int(x / k), int(y / k), z
-            im = resize(im, new_shape3)
-
-        if as_ubyte:
-            im = img_as_ubyte(im)
+        if width:
+            im = resize_to_width(im, width=width)
 
         images[name] = im
 

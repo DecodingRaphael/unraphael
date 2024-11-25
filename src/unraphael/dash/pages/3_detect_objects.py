@@ -11,6 +11,7 @@ from ultralytics import YOLO
 from widgets import image_downloads_widget, load_image_widget
 
 from unraphael.pose import BodyDrawer
+from unraphael.types import ImageType
 
 CACHEDIR = Path(platformdirs.user_cache_dir('unraphael'))
 
@@ -32,8 +33,8 @@ def load_model(model_type: str):
     return model
 
 
-def _detection_task(*, results):
-    objects = {}
+def _detection_task(*, results) -> list[ImageType]:
+    objects = []
 
     for result in results:
         for ci, c in enumerate(result):
@@ -44,13 +45,13 @@ def _detection_task(*, results):
             # Crop the object from the image
             new_image = image[y1:y2, x1:x2]
 
-            objects[f'{label}_{ci}'] = new_image
+            objects.append(ImageType(name=f'{label}_{ci}', data=new_image))
 
     return objects
 
 
-def _segmentation_task(*, results):
-    objects = {}
+def _segmentation_task(*, results) -> list[ImageType]:
+    objects = []
 
     for result in results:
         for ci, c in enumerate(result):
@@ -66,13 +67,13 @@ def _segmentation_task(*, results):
 
             new_image = np.dstack([image, mask])
 
-            objects[f'{label}_{ci}'] = new_image
+            objects.append(ImageType(name=f'{label}_{ci}', data=new_image))
 
     return objects
 
 
-def _pose_task(*, results):
-    objects = {}
+def _pose_task(*, results) -> list[ImageType]:
+    objects = []
 
     for idx, result in enumerate(results):
         for ci, keypoints in enumerate(result.keypoints.data):
@@ -86,12 +87,12 @@ def _pose_task(*, results):
 
             BodyDrawer(keypoints).draw(image=new_image)
 
-            objects[f'{label}_{ci}'] = new_image
+            objects.append(ImageType(name=f'{label}_{ci}', data=new_image))
 
     return objects
 
 
-def yolo_task_widget(image: np.ndarray, /) -> dict[str, np.ndarray]:
+def yolo_task_widget(image: ImageType, /) -> list[ImageType]:
     """This widget takes an image and provides the user with some choices of which tasks
     to perform: Detection, Segmentation, Pose analysis."""
     col1, col2, col3 = st.columns([0.30, 0.35, 0.35])
@@ -100,7 +101,7 @@ def yolo_task_widget(image: np.ndarray, /) -> dict[str, np.ndarray]:
     add_box = col1.checkbox('Add bounding box', value=True)
     confidence = float(col1.slider('Select Model Confidence', 10, 100, 25)) / 100
 
-    col2.image(image, caption='Uploaded Image', use_column_width=True)
+    col2.image(image.data, caption='Uploaded Image', use_column_width=True)
 
     if not task_name:
         st.info('Select a task to continue')
@@ -109,7 +110,7 @@ def yolo_task_widget(image: np.ndarray, /) -> dict[str, np.ndarray]:
     model = load_model(task_name)
 
     results = model.predict(
-        image,
+        image.data,
         conf=confidence,
         show_boxes=True,
         save=True,
@@ -138,7 +139,7 @@ def main():
 
     st.title('Segmentation of figures in a painting')
 
-    name, image = load_image_widget()
+    image = load_image_widget()
 
     images = yolo_task_widget(image)
 

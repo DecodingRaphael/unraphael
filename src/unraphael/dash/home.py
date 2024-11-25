@@ -39,10 +39,10 @@ approaches for the study of artistic practice in art history.
 
 ### Pages
 
-- <a href="/image_similarity" target="_parent">Image Similarity</a>
-- <a href="/preprocess" target="_parent">Preprocess</a>
+- <a href="/image_similarity" target="_parent">Image similarity</a>
+- <a href="/preprocess" target="_parent">Preprocess images</a>
 - <a href="/detect_objects" target="_parent">Detect objects</a>
-- <a href="/detect_objects" target="_parent">Normalization</a>
+- <a href="/compare" target="_parent">Align and compare images</a>
 
 ### More information
 

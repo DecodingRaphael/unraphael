@@ -75,7 +75,6 @@ dash = [
     "streamlit-image-comparison",
     "streamlit==1.35",
     "ultralytics>=8.2",
-
 ]
 docs = [
     "markdown-include",
@@ -151,3 +150,8 @@ replace = "__version__ = '{new_version}'"
 filename = "pyproject.toml"
 search = "version = \"{current_version}\""
 replace = "version = \"{new_version}\""
+
+[[tool.bumpversion.files]]
+filename = "docs/cite.md"
+search = "(Version {current_version})"
+replace = "(Version {new_version})"

@@ -9,6 +9,8 @@ from skimage.feature import ORB, SIFT, match_descriptors
 from skimage.measure import ransac
 from skimage.transform import FundamentalMatrixTransform
 
+from .types import ImageType
+
 
 @dataclass
 class FeatureContainer:
@@ -34,7 +36,7 @@ class FeatureContainer:
 
 
 def detect_and_extract(
-    images: dict[str, np.ndarray], *, method: str, **kwargs
+    images: list[ImageType], *, method: str, **kwargs
 ) -> dict[str, FeatureContainer]:
     """`extractor` must have `detect_and_extract` method."""
     features = {}
@@ -46,12 +48,12 @@ def detect_and_extract(
     else:
         raise ValueError(method)
 
-    for i, (name, im) in enumerate(images.items()):
-        extractor.detect_and_extract(im)
+    for i, image in enumerate(images):
+        extractor.detect_and_extract(image.data)
 
-        features[name] = FeatureContainer(
-            name=name,
-            image=im,
+        features[image.name] = FeatureContainer(
+            name=image.name,
+            image=image.data,
             keypoints=extractor.keypoints,
             descriptors=extractor.descriptors,
             scales=extractor.scales,
