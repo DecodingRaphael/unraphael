@@ -4,10 +4,7 @@ from typing import Dict, List, Optional
 
 import numpy as np
 import streamlit as st
-from styling import set_custom_css
-from widgets import load_images_widget
-
-from unraphael.dash.image_clustering import (
+from image_clustering import (
     align_images_to_mean,
     build_similarity_matrix,
     compute_metrics,
@@ -20,10 +17,13 @@ from unraphael.dash.image_clustering import (
     plot_pca_mds_scatter,
     plot_scatter,
     preprocess_images,
-    show_images_widget,
     visualize_clusters,
     visualize_outer_contours,
 )
+from styling import set_custom_css
+from widgets import load_images_widget, show_images_widget
+
+from unraphael.types import ImageType
 
 
 @st.cache_data
@@ -431,7 +431,11 @@ def cluster_on_complete_figures(
 ) -> None:
     """Handle clustering based on complete figures."""
     st.subheader('The aligned images')
-    show_images_widget(images, message='The aligned images')
+
+    show_images_widget(
+        [ImageType(name=name, data=data) for name, data in images.items()],
+        message='The aligned images',
+    )
 
     cluster_method = select_cluster_method_for_complete_figures()
 
@@ -557,7 +561,7 @@ def main():
     st.subheader('The images')
     show_images_widget(images, key='original_images', message='Your selected images')
 
-    images = {name: image for name, image in images.items()}
+    images = {image.name: image.data for image in images}
 
     st.markdown('---')
 

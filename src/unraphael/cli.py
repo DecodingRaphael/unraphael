@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import sys
 
-import toml
+import tomllib
 
 from .locations import dash_directory
 
@@ -19,7 +19,8 @@ def dash_entry(**kwargs):
     dashboard_path = dash_directory / 'home.py'
 
     config_file = dash_directory / '.streamlit' / 'config.toml'
-    config = toml.load(config_file)
+    with open(config_file, 'rb') as f:
+        config = tomllib.load(f)
 
     opts = []
     for group, options in config.items():

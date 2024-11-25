@@ -41,37 +41,14 @@ from sklearn.decomposition import PCA
 from sklearn.manifold import MDS
 from sklearn.metrics import calinski_harabasz_score, davies_bouldin_score, silhouette_score
 from sklearn.preprocessing import StandardScaler
+from widgets import show_images_widget
+
+from unraphael.types import ImageType
 
 SIM_IMAGE_SIZE = (640, 480)
 SIFT_RATIO = 0.7
 MSE_NUMERATOR = 1000.0
 NUM_THREADS = 8
-
-
-def show_images_widget(
-    images: dict[str, np.ndarray],
-    *,
-    n_cols: int = 4,
-    key: str = 'show_images',
-    message: str = 'Select image',
-) -> None | str:
-    """Widget to show images with given number of columns."""
-
-    col1, col2 = st.columns(2)
-    n_cols = col1.number_input(
-        'Number of columns for display', value=4, min_value=1, step=1, key=f'{key}_cols'
-    )
-
-    cols = st.columns(n_cols)
-
-    for i, (name, im) in enumerate(images.items()):
-        if i % n_cols == 0:
-            cols = st.columns(n_cols)
-        col = cols[i % n_cols]
-
-        col.image(im, use_column_width=True, caption=name, clamp=True)
-
-    return None
 
 
 # Equalization of brightness, contrast and sharpness
@@ -1245,14 +1222,16 @@ def visualize_clusters(
 
         for n in range(num_clusters):
             cluster_label = n + 1
-            st.write(f'\n --- Images from cluster #{cluster_label} ---')
+            st.write(f'#### Images from cluster #{cluster_label}')
 
             cluster_indices = np.argwhere(labels == n).flatten()
-            cluster_images_dict = {image_names[i]: image_list[i] for i in cluster_indices}
+            cluster_images = [
+                ImageType(name=image_names[i], data=image_list[i]) for i in cluster_indices
+            ]
 
             # Use the provided dictionary (name_dict) for visualizing the images
             show_images_widget(
-                cluster_images_dict,
+                cluster_images,
                 key=f'cluster_{cluster_label}_images',
                 message=f'Images from Cluster #{cluster_label}',
             )
