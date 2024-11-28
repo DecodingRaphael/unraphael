@@ -8,6 +8,7 @@ import numpy as np
 import streamlit as st
 from align import align_image_to_base, homography_matrix
 from equalize import equalize_image_with_base
+from image_clustering import calculate_cw_ssim_similarity, calculate_ssim_similarity
 from rembg import remove
 from skimage import img_as_ubyte, transform
 from streamlit_image_comparison import image_comparison
@@ -310,11 +311,27 @@ def display_images_widget(
 
     image = images[st.session_state.count]
 
+    # Ensure grayscale images before SSIM calculation
+    def to_grayscale(img: np.ndarray) -> np.ndarray:
+        """Convert an image to grayscale if it is not already."""
+        if img.ndim == 3 and img.shape[-1] in [3, 4]:  # Likely RGB or RGBA
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        return img
+
+    base_gray = to_grayscale(base_image.data)
+    image_gray = to_grayscale(image.data)
+
     if display_mode == 'slider':
         col1, col2 = st.columns((0.20, 0.80))
 
         for key, value in image.metrics.items():
             col1.metric(key, f'{value:.2f}')
+
+        similarity = calculate_ssim_similarity(base_gray, image_gray)
+        col1.metric('SSIM Similarity', f'{similarity:.2f}')
+
+        cwsim_similarity = calculate_cw_ssim_similarity(base_gray, image_gray)
+        col1.metric('CWSIM Similarity', f'{cwsim_similarity:.2f}')
 
         with col2:
             image_comparison(
