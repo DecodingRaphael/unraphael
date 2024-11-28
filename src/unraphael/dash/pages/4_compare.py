@@ -46,8 +46,8 @@ def overlay_contours(image1, image2, name1, name2, contours1, contours2):
     contour_overlay = np.zeros((h, w, 3), dtype=np.uint8)
 
     # Define the colors for each contour
-    color1 = (255, 0, 0)  # Red
-    color2 = (0, 0, 255)  # Blue
+    color1 = (255, 165, 0)  # Orange
+    color2 = (255, 255, 255)  # White
 
     cv2.drawContours(contour_overlay, contours1, -1, color1, thickness=2)
     cv2.drawContours(contour_overlay, contours2, -1, color2, thickness=2)
