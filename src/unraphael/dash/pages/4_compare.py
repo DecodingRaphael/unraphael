@@ -8,8 +8,21 @@ import numpy as np
 import streamlit as st
 from align import align_image_to_base, homography_matrix
 from equalize import equalize_image_with_base
-from image_clustering import calculate_cw_ssim_similarity, calculate_ssim_similarity
-from rembg import remove
+from image_clustering import (
+    calculate_brushstroke_similarity,
+    calculate_cw_ssim_similarity,
+    calculate_fsim_similarity,
+    calculate_iw_ssim_similarity,
+    calculate_mse_similarity,
+    calculate_ssim_similarity,
+    compute_fourier_distance,
+    compute_frechet_distance,
+    compute_hausdorff_distance,
+    compute_procrustes_distance,
+    extract_foreground_mask,
+    extract_outer_contour_from_mask,
+    to_torch,
+)
 from skimage import img_as_ubyte, transform
 from streamlit_image_comparison import image_comparison
 from styling import set_custom_css
@@ -19,25 +32,6 @@ from unraphael.types import ImageType
 
 _align_image_to_base = st.cache_data(align_image_to_base)
 _equalize_image_with_base = st.cache_data(equalize_image_with_base)
-
-
-# Define the function to extract contours
-def extract_foreground_mask(image: np.ndarray) -> np.ndarray:
-    """Extract the foreground mask using rembg."""
-    return remove(image, mask=True)
-
-
-def extract_outer_contour_from_mask(mask: np.ndarray, min_area: int = 25) -> list:
-    """Extract the outer contour from the mask."""
-    gray_mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
-    _, thresh = cv2.threshold(
-        gray_mask, 1, 255, cv2.THRESH_BINARY
-    )  # threshold to get binary mask
-    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    # Filter out small contours based on area
-    filtered_contours = [cnt for cnt in contours if cv2.contourArea(cnt) > min_area]
-    return filtered_contours
 
 
 def overlay_contours(image1, image2, name1, name2, contours1, contours2):
@@ -321,19 +315,51 @@ def display_images_widget(
     base_gray = to_grayscale(base_image.data)
     image_gray = to_grayscale(image.data)
 
+    base_tensor = to_torch(base_gray)
+    image_tensor = to_torch(image_gray)
+
     if display_mode == 'slider':
         col1, col2 = st.columns((0.20, 0.80))
 
-        for key, value in image.metrics.items():
-            col1.metric(key, f'{value:.2f}')
+        # Metrics
+        with col1:
+            st.markdown('<br>', unsafe_allow_html=True)
+            st.markdown(
+                '<h5 style="color: gray; font-weight: normal;">'
+                'Structural Similarity Metrics</h5>',
+                unsafe_allow_html=True,
+            )
+            st.markdown('<br>', unsafe_allow_html=True)
 
-        similarity = calculate_ssim_similarity(base_gray, image_gray)
-        col1.metric('SSIM Similarity', f'{similarity:.2f}')
+            # angle difference
+            for key, value in image.metrics.items():
+                col1.metric(key, f'{value:.2f}')
 
-        cwsim_similarity = calculate_cw_ssim_similarity(base_gray, image_gray)
-        col1.metric('CWSIM Similarity', f'{cwsim_similarity:.2f}')
+            mse_similarity = calculate_mse_similarity(base_gray, image_gray)
+            col1.metric('MSE Similarity', f'{mse_similarity:.2f}')
+
+            ssim_similarity = calculate_ssim_similarity(base_gray, image_gray)
+            col1.metric('SSIM Similarity', f'{ssim_similarity:.2f}')
+
+            cwsim_similarity = calculate_cw_ssim_similarity(base_gray, image_gray)
+            col1.metric('CWSIM Similarity', f'{cwsim_similarity:.2f}')
+
+            iw_ssim_similarity = calculate_iw_ssim_similarity(base_tensor, image_tensor)
+            col1.metric('IW-SSIM Similarity', f'{iw_ssim_similarity:.2f}')
+
+            fsim_similarity = calculate_fsim_similarity(base_tensor, image_tensor)
+            col1.metric('FSIM Similarity', f'{fsim_similarity:.2f}')
+
+            brushstroke_similarity = calculate_brushstroke_similarity(base_gray, image_gray)
+            col1.metric('Brushstroke Similarity', f'{brushstroke_similarity:.2f}')
 
         with col2:
+            st.markdown('<br>', unsafe_allow_html=True)
+            st.markdown(
+                '<h5 style="color: gray; font-weight: normal;">The slider can be used to'
+                'compare images side by side</h5>',
+                unsafe_allow_html=True,
+            )
             image_comparison(
                 img1=base_image.data,
                 label1=base_image.name,
@@ -355,18 +381,72 @@ def display_images_widget(
         st.components.v1.html(html_animation, height=1500)
 
     elif display_mode == 'contour comparison':
+        col1, col2 = st.columns((0.20, 0.80))
+
         mask1 = extract_foreground_mask(base_image.data)
         mask2 = extract_foreground_mask(image.data)
 
-        contours1 = extract_outer_contour_from_mask(mask1)
-        contours2 = extract_outer_contour_from_mask(mask2)
+        contours1 = extract_outer_contour_from_mask(mask1, approx_method=cv2.CHAIN_APPROX_NONE)
+        contours2 = extract_outer_contour_from_mask(mask2, approx_method=cv2.CHAIN_APPROX_NONE)
 
-        contour_overlay, color1, color2 = overlay_contours(
-            base_image.data, image.data, base_image.name, image.name, contours1, contours2
-        )
-
-        col1, col2 = st.columns(2)
+        # Metrics
         with col1:
+            st.markdown('<br>', unsafe_allow_html=True)
+            st.markdown(
+                '<h5 style="color: gray; font-weight: normal;">Similarity Metrics</h5>',
+                unsafe_allow_html=True,
+            )
+            st.markdown('<br>', unsafe_allow_html=True)
+            st.markdown('<br>', unsafe_allow_html=True)
+
+            if contours1 is not None and contours2 is not None:
+                haus_dist = compute_hausdorff_distance(contours1, contours2)
+                st.metric(
+                    'Hausdorff Distance',
+                    f'{haus_dist:.2f}',
+                    help='Smaller values indicate greater similarity. Value of 0 means '
+                    'identical contours.',
+                )
+
+                procrust_dist = compute_procrustes_distance(contours1, contours2)
+                st.metric(
+                    'Procrustes Distance',
+                    f'{procrust_dist:.2f}',
+                    help='Smaller values indicate more similarity after optimal alignment. '
+                    'Value of 0 means perfect match.',
+                )
+
+                frechet_dist = compute_frechet_distance(contours1, contours2)
+                st.metric(
+                    'Fréchet Distance',
+                    f'{frechet_dist:.2f}',
+                    help='Smaller values indicate greater similarity. Higher values suggest '
+                    'larger differences in shape.',
+                )
+
+                fourier_dist = compute_fourier_distance(contours1, contours2)
+                st.metric(
+                    'Fourier Distance',
+                    f'{fourier_dist:.2f}',
+                    help='Smaller values indicate greater similarity. Based on the Fourier '
+                    'descriptors of the contours.',
+                )
+
+            else:
+                st.error('Failed to extract contours for one or both images.')
+
+        # Contour overlay
+        with col2:
+            st.markdown('<br>', unsafe_allow_html=True)
+            st.markdown(
+                '<h5 style="color: gray; font-weight: normal;">Overlayed Contours</h5>',
+                unsafe_allow_html=True,
+            )
+
+            contour_overlay, color1, color2 = overlay_contours(
+                base_image.data, image.data, base_image.name, image.name, contours1, contours2
+            )
+
             st.markdown(
                 f'<span style="color: rgb{color1}; font-size: 20px;">{base_image.name}</span>',
                 unsafe_allow_html=True,
@@ -375,11 +455,9 @@ def display_images_widget(
                 f'<span style="color: rgb{color2}; font-size: 20px;">{image.name}</span>',
                 unsafe_allow_html=True,
             )
-
-        col1.image(contour_overlay, caption='Contour Comparison', use_column_width=True)
+            st.image(contour_overlay, use_column_width=True)
 
     col1, col2 = st.columns(2)
-
     col1.download_button(
         label=f'Download {base_image.name}.png',
         data=imageio.imwrite('<bytes>', base_image.data, extension='.png'),
