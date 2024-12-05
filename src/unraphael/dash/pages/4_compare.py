@@ -34,6 +34,57 @@ _align_image_to_base = st.cache_data(align_image_to_base)
 _equalize_image_with_base = st.cache_data(equalize_image_with_base)
 
 
+def add_text_to_image(
+    image: np.ndarray, text1: str, text2: str, color1: tuple, color2: tuple
+) -> np.ndarray:
+    """Add two contour names below each other on the image with the given
+    colors."""
+    # Get image dimensions
+    height, width = image.shape[:2]
+
+    # Set font properties
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    font_scale = 0.8
+    thickness = 1
+
+    # Calculate the size of the text to ensure it fits at the bottom
+    (text_width1, text_height1), baseline1 = cv2.getTextSize(text1, font, font_scale, thickness)
+    (text_width2, text_height2), baseline2 = cv2.getTextSize(text2, font, font_scale, thickness)
+
+    # Position the first text at the bottom-center of the image
+    text_x1 = (width - text_width1) // 2
+    text_y1 = height - text_height1 - 20  # Adjust this value for vertical positioning
+
+    # Position the second text just below the first one
+    text_x2 = (width - text_width2) // 2
+    text_y2 = text_y1 + text_height1 + 5  # Add a bit of spacing between the lines
+
+    # Add the text to the image with the specified colors
+    image_with_text = cv2.putText(
+        image.copy(),  # Copy the image to avoid modifying the original
+        text1,
+        (text_x1, text_y1),  # Position of the first text
+        font,
+        font_scale,
+        color1,  # Use the provided color for the text
+        thickness,
+        lineType=cv2.LINE_AA,
+    )
+
+    image_with_text = cv2.putText(
+        image_with_text,  # Add second text on the already modified image
+        text2,
+        (text_x2, text_y2),  # Position of the second text below the first one
+        font,
+        font_scale,
+        color2,
+        thickness,
+        lineType=cv2.LINE_AA,
+    )
+
+    return image_with_text
+
+
 def overlay_contours(image1, image2, name1, name2, contours1, contours2):
     """Overlay the contours from two images and return the combined image."""
     # Create a black canvas with the same size as the images
@@ -158,21 +209,33 @@ def align_images_widget(*, base_image: ImageType, images: list[ImageType]) -> li
         ),
     )
 
+    if align_method is None:
+        st.warning('Please select an alignment procedure to proceed.')
+        st.stop()
+
     if align_method == 'Feature based alignment':
         motion_model = st.selectbox(
             'Algorithm:',
-            ['SIFT', 'SURF', 'ORB'],
+            [None, 'SIFT', 'SURF', 'ORB'],
         )
+        if motion_model is None:
+            st.warning('Please select a transformation procedure to proceed.')
+            st.stop()
+
     elif align_method == 'Enhanced Correlation Coefficient Maximization':
         motion_model = st.selectbox(
             'Motion model:',
-            ['translation', 'euclidian', 'affine', 'homography'],
+            [None, 'translation', 'euclidian', 'affine', 'homography'],
             help=(
                 'The motion model defines the transformation between the base '
                 'image and the input images. Translation is the simplest model, '
                 'while homography is the most complex.'
             ),
         )
+        if motion_model is None:
+            st.warning('Please select a transformation procedure to proceed.')
+            st.stop()
+
     elif align_method == 'Fourier Mellin Transform':
         motion_model = st.selectbox(
             'Normalization method for cross correlation',
@@ -356,7 +419,7 @@ def display_images_widget(
         with col2:
             st.markdown('<br>', unsafe_allow_html=True)
             st.markdown(
-                '<h5 style="color: gray; font-weight: normal;">The slider can be used to'
+                '<h5 style="color: gray; font-weight: normal;">The slider can be used to '
                 'compare images side by side</h5>',
                 unsafe_allow_html=True,
             )
@@ -370,8 +433,8 @@ def display_images_widget(
 
     elif display_mode == 'side-by-side':
         col1, col2 = st.columns(2)
-        col1.image(base_image.data, caption=base_image.name, use_column_width=True)
-        col2.image(image.data, caption=image.name, use_column_width=True)
+        col1.image(base_image.data, caption=base_image.name, use_container_width=True)
+        col2.image(image.data, caption=image.name, use_container_width=True)
 
     elif display_mode == 'animation':
         homo_matrix = homography_matrix(image=image, base_image=base_image)
@@ -400,37 +463,15 @@ def display_images_widget(
             st.markdown('<br>', unsafe_allow_html=True)
 
             if contours1 is not None and contours2 is not None:
-                haus_dist = compute_hausdorff_distance(contours1, contours2)
-                st.metric(
-                    'Hausdorff Distance',
-                    f'{haus_dist:.2f}',
-                    help='Smaller values indicate greater similarity. Value of 0 means '
-                    'identical contours.',
-                )
-
-                procrust_dist = compute_procrustes_distance(contours1, contours2)
-                st.metric(
-                    'Procrustes Distance',
-                    f'{procrust_dist:.2f}',
-                    help='Smaller values indicate more similarity after optimal alignment. '
-                    'Value of 0 means perfect match.',
-                )
-
-                frechet_dist = compute_frechet_distance(contours1, contours2)
-                st.metric(
-                    'Fréchet Distance',
-                    f'{frechet_dist:.2f}',
-                    help='Smaller values indicate greater similarity. Higher values suggest '
-                    'larger differences in shape.',
-                )
-
-                fourier_dist = compute_fourier_distance(contours1, contours2)
-                st.metric(
-                    'Fourier Distance',
-                    f'{fourier_dist:.2f}',
-                    help='Smaller values indicate greater similarity. Based on the Fourier '
-                    'descriptors of the contours.',
-                )
+                # Smaller values -> greater similarity. Value of 0 means identical contours
+                metrics = {
+                    'Hausdorff Distance': compute_hausdorff_distance(contours1, contours2),
+                    'Procrustes Distance': compute_procrustes_distance(contours1, contours2),
+                    'Fréchet Distance': compute_frechet_distance(contours1, contours2),
+                    'Fourier Distance': compute_fourier_distance(contours1, contours2),
+                }
+                for metric, value in metrics.items():
+                    st.metric(metric, f'{value:.2f}')
 
             else:
                 st.error('Failed to extract contours for one or both images.')
@@ -455,21 +496,33 @@ def display_images_widget(
                 f'<span style="color: rgb{color2}; font-size: 20px;">{image.name}</span>',
                 unsafe_allow_html=True,
             )
-            st.image(contour_overlay, use_column_width=True)
+            st.image(contour_overlay, use_container_width=True)
+
+            # Add contour names below each other with corresponding colors
+            contour_overlay_with_text = add_text_to_image(
+                contour_overlay, base_image.name, image.name, color1=color1, color2=color2
+            )
+            col2.download_button(
+                label='Download Overlay Contours',
+                data=imageio.imwrite('<bytes>', contour_overlay_with_text, extension='.png'),
+                file_name=f'{base_image.name}_{image.name}_contours.png',
+                key=f'contour_{base_image.name}_{image.name}',
+            )
 
     col1, col2 = st.columns(2)
-    col1.download_button(
-        label=f'Download {base_image.name}.png',
-        data=imageio.imwrite('<bytes>', base_image.data, extension='.png'),
-        file_name=base_image.name + '.png',
-        key=base_image.name,
-    )
-    col2.download_button(
-        label=f'Download {image.name}.png',
-        data=imageio.imwrite('<bytes>', image.data, extension='.png'),
-        file_name=image.name + '.png',
-        key=image.name,
-    )
+    if display_mode in ['side-by-side', 'slider']:
+        col1.download_button(
+            label=f'Download {base_image.name}.png',
+            data=imageio.imwrite('<bytes>', base_image.data, extension='.png'),
+            file_name=base_image.name + '.png',
+            key=f'{base_image.name}_download',
+        )
+        col2.download_button(
+            label=f'Download {image.name}.png',
+            data=imageio.imwrite('<bytes>', image.data, extension='.png'),
+            file_name=image.name + '.png',
+            key=f'{image.name}_download',
+        )
 
 
 def main():
