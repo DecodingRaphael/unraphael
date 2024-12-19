@@ -7,20 +7,21 @@ nav:
   - Home: index.md
   - background.md
   - pipeline.md
-  - Tutorials:
-    - tutorials/image_processing.md
-    - tutorials/image_clustering.md
   - Image Processing Steps:
     - steps/preprocessing.md
     - steps/segmentation.md
     - steps/alignment.md
     - steps/clustering.md
     - steps/analysis.md
+  - Tutorials:
+    - tutorials/image_processing.md
+    - tutorials/image_clustering.md
   - CONTRIBUTING.md
   - cite.md
   - Code of Conduct: CODE_OF_CONDUCT.md
   - 🔗 Source code: https://github.com/DecodingRaphael/unraphael
   - 🔗 Issues: https://github.com/DecodingRaphael/unraphael/issues
+  - credits.md
 
 theme:
   name: material
