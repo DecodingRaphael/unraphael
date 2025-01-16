@@ -19,8 +19,8 @@ def dash_entry(**kwargs):
     dashboard_path = dash_directory / 'home.py'
 
     config_file = dash_directory / '.streamlit' / 'config.toml'
-
-    with open(config_file, 'rb') as f:  # type: ignore
+    
+    with open(config_file, 'rb') as f:
         config = tomllib.load(f)
 
     opts = []

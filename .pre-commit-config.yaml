@@ -18,7 +18,7 @@ repos:
       - id: debug-statements
       - id: double-quote-string-fixer
   - repo: https://github.com/myint/docformatter
-    rev: v1.7.5
+    rev: master
     hooks:
       - id: docformatter
   - repo: https://github.com/charliermarsh/ruff-pre-commit

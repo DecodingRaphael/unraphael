@@ -15,7 +15,9 @@ _align_image_to_base = st.cache_data(align_image_to_base)
 _equalize_image_with_base = st.cache_data(equalize_image_with_base)
 
 
-def equalize_images_widget(*, base_image: np.ndarray, images: dict[str, np.ndarray]):
+def equalize_images_widget(
+    *, base_image: np.ndarray, images: dict[str, np.ndarray]
+) -> list[np.ndarray]:
     """This widget helps with equalizing images."""
     st.subheader('Equalization parameters')
 
@@ -40,7 +42,16 @@ def equalize_images_widget(*, base_image: np.ndarray, images: dict[str, np.ndarr
 
 
 def align_images_widget(*, base_image: ImageType, images: list[ImageType]) -> list[ImageType]:
-    """This widget helps with aligning images."""
+    """This widget helps with aligning images.
+
+    Parameters:
+    - base_image: The base image to which other images will be aligned
+    - images: List of images to be aligned
+
+    Returns:
+    - List of aligned images
+    """
+
     st.subheader('Alignment parameters')
 
     options = [
@@ -181,48 +192,77 @@ def alignment_help_widget():
     )
 
 
-def comparison_widget(
-    base_image: ImageType,
+def display_images_widget(
+    base_image: np.ndarray,
     images: list[ImageType],
 ):
-    """Widget to compare processed images."""
-    st.subheader('Comparison')
+    """Generalized widget to display and navigate through images with various
+    options.
 
-    col1, col2 = st.columns((0.3, 0.7))
+    Parameters:
+    - base_image: The base image for comparison or alignment
+    - images: List of images to display or compare
+    """
+    st.subheader('Image comparison')
 
-    options = [image.name for image in images]
-    selected_name = col1.selectbox('Pick image', options=options)
+    col1, col2, col3 = st.columns((2, 1, 1))
 
-    for image in images:
-        if image.name == selected_name:
-            break
+    display_mode = col1.radio(
+        'Select Display Option',
+        options=('slider', 'side-by-side'),
+        # captions=('Compare with slider', 'Alongside each other'),
+        format_func=str.capitalize,
+        horizontal=True,
+    )
 
-    with col1:
+    if 'count' not in st.session_state:
+        st.session_state.count = 0
+
+    def next_image():
+        st.session_state.count = (st.session_state.count + 1) % len(images)
+
+    def previous_image():
+        st.session_state.count = (st.session_state.count - 1) % len(images)
+
+    col2.button('⏮️ Previous', on_click=previous_image, use_container_width=True, type='primary')
+    col3.button('⏭️ Next', on_click=next_image, use_container_width=True, type='primary')
+
+    image = images[st.session_state.count]
+
+    if display_mode == 'slider':
+        col1, col2 = st.columns((0.20, 0.80))
+
         for key, value in image.metrics.items():
-            st.metric(key, f'{value:.2f}')
+            col1.metric(key, f'{value:.2f}')
 
-        st.download_button(
-            label='Download left',
-            data=imageio.imwrite('<bytes>', base_image.data, extension='.png'),
-            file_name=base_image.name + '.png',
-            key=base_image.name,
-        )
+        with col2:
+            image_comparison(
+                img1=base_image.data,
+                label1=base_image.name,
+                img2=image.data,
+                label2=image.name,
+                width=450,
+            )
 
-        st.download_button(
-            label='Download right',
-            data=imageio.imwrite('<bytes>', image.data, extension='.png'),
-            file_name=image.name + '.png',
-            key=image.name,
-        )
+    else:
+        col1, col2 = st.columns(2)
+        col1.image(base_image.data, caption=base_image.name, use_container_width=True)
+        col2.image(image.data, caption=image.name, use_container_width=True)
 
-    with col2:
-        image_comparison(
-            img1=base_image.data,
-            label1=base_image.name,
-            img2=image.data,
-            label2=image.name,
-            width=450,
-        )
+    col1, col2 = st.columns(2)
+
+    col1.download_button(
+        label=f'Download {base_image.name}.png',
+        data=imageio.imwrite('<bytes>', base_image.data, extension='.png'),
+        file_name=base_image.name + '.png',
+        key=base_image.name,
+    )
+    col2.download_button(
+        label=f'Download {image.name}.png',
+        data=imageio.imwrite('<bytes>', image.data, extension='.png'),
+        file_name=image.name + '.png',
+        key=image.name,
+    )
 
 
 def main():
@@ -256,10 +296,7 @@ def main():
     with st.expander('Help for parameters for aligning images', expanded=False):
         alignment_help_widget()
 
-    comparison_widget(
-        base_image=base_image,
-        images=images,
-    )
+    display_images_widget(base_image=base_image, images=images)
 
 
 if __name__ == '__main__':

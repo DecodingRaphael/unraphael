@@ -1,15 +1,25 @@
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.3.1+cpu
+torch==2.5.1+cpu
 torchvision
 torchaudio
 git+https://github.com/DecodingRaphael/unraphael.git
+clusteval
 diplib
 numpy
+onnxruntime
+opencv-python
+Pillow
+piq
 platformdirs
+pyssim
+pystackreg
+PyYAML
 rembg
+scatterd
 scikit-image
+scikit-learn
 scipy
 seaborn
 streamlit-image-comparison
-streamlit==1.35
+streamlit==1.40
 ultralytics>=8.2
