@@ -1109,13 +1109,15 @@ def extract_foreground_mask(image: np.ndarray) -> np.ndarray:
 
 
 def extract_outer_contour_from_mask(
-    mask: np.ndarray, min_area: int = 25
+    mask: np.ndarray, min_area: int = 25, approx_method: int = cv2.CHAIN_APPROX_SIMPLE
 ) -> Optional[np.ndarray]:
     """Extract the outer contour from the mask.
 
     Args:
         mask (np.ndarray): Input binary mask (BGR or grayscale).
         min_area (int): Minimum area threshold for contours to be considered.
+        approx_method (int): Contour approximation method (e.g.,
+        cv2.CHAIN_APPROX_SIMPLE or cv2.CHAIN_APPROX_NONE).
 
     Returns:
         Optional[np.ndarray]: The largest contour as a NumPy array if found,
@@ -1126,7 +1128,7 @@ def extract_outer_contour_from_mask(
     _, thresh = cv2.threshold(
         gray_mask, 1, 255, cv2.THRESH_BINARY
     )  # threshold to get binary mask
-    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, approx_method)
 
     # Filter out small contours based on area
     filtered_contours = [cnt for cnt in contours if cv2.contourArea(cnt) > min_area]
@@ -1249,6 +1251,19 @@ def compute_fourier_descriptors(contour: np.ndarray, num_coeff: int = 10) -> np.
     return np.pad(descriptors, (0, max(0, num_coeff - len(descriptors))), 'constant')
 
 
+def compute_fourier_distance(
+    contour1: np.ndarray, contour2: np.ndarray, num_coeff: int = 10
+) -> float:
+    """Compute the distance between the Fourier descriptors of two contours."""
+    # Compute the Fourier descriptors for both contours
+    fd1 = compute_fourier_descriptors(contour1, num_coeff)
+    fd2 = compute_fourier_descriptors(contour2, num_coeff)
+
+    # Compute the Euclidean distance between the two descriptor sets
+    distance = np.linalg.norm(fd1 - fd2)
+    return distance
+
+
 def compute_hu_moments(contour: np.ndarray) -> np.ndarray:
     """Compute the log-transformed Hu moments of a given contour for scale
     invariance."""
@@ -1326,6 +1341,22 @@ def compute_hausdorff_distance(contour1: np.ndarray, contour2: np.ndarray) -> fl
         directed_hausdorff(contour1[:, 0, :], contour2[:, 0, :])[0],
         directed_hausdorff(contour2[:, 0, :], contour1[:, 0, :])[0],
     )
+
+
+def compute_frechet_distance(
+    contour1: np.ndarray, contour2: np.ndarray, num_points: int = 100
+) -> float:
+    """Compute an efficient approximation of the Fréchet distance between two
+    contours."""
+    # Resample both contours to the same number of points
+    resampled_contour1 = resample_contour(contour1, num_points)
+    resampled_contour2 = resample_contour(contour2, num_points)
+
+    # Compute the maximum Euclidean distance between corresponding points
+    distances = np.linalg.norm(resampled_contour1 - resampled_contour2, axis=1)
+    frechet_distance = np.max(distances)
+
+    return frechet_distance
 
 
 def extract_and_scale_features(

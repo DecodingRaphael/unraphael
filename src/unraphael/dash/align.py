@@ -5,7 +5,7 @@ contrast, sharpness, brightness, and colour."""
 from __future__ import annotations
 
 import math
-from typing import Callable
+from typing import Callable, Tuple
 
 import cv2
 import diplib as dip
@@ -14,6 +14,109 @@ from numpy.fft import fft2, ifft2
 from skimage.color import rgb2gray
 
 from unraphael.types import ImageType
+
+
+def detect_and_compute_features(
+    image_gray: np.ndarray, method: str, maxFeatures: int
+) -> Tuple[list, np.ndarray]:
+    """Detects and computes features in the image."""
+    if method == 'SIFT':
+        feature_detector = cv2.SIFT_create()
+    elif method == 'SURF':
+        feature_detector = cv2.xfeatures2d.SURF_create()
+    elif method == 'ORB':
+        feature_detector = cv2.ORB_create(maxFeatures)
+    else:
+        raise ValueError("Method must be 'SIFT', 'ORB', or 'SURF'")
+
+    return feature_detector.detectAndCompute(image_gray, None)
+
+
+def match_features(descsA: np.ndarray, descsB: np.ndarray, method: str) -> list:
+    """Matches features between two sets of descriptors."""
+    if method == 'ORB':
+        matcher = cv2.DescriptorMatcher_create(cv2.DESCRIPTOR_MATCHER_BRUTEFORCE_HAMMING)
+    else:
+        matcher = cv2.DescriptorMatcher_create(cv2.DESCRIPTOR_MATCHER_BRUTEFORCE)
+
+    matches = matcher.match(descsA, descsB, None)
+    return sorted(matches, key=lambda x: x.distance)
+
+
+def compute_homography(matches: list, kpsA: list, kpsB: list, keepPercent: float) -> np.ndarray:
+    """Computes the homography matrix."""
+    if len(matches) < 4:
+        raise ValueError('Not enough matches between images.')
+
+    ptsA = np.zeros((len(matches), 2), dtype='float')
+    ptsB = np.zeros((len(matches), 2), dtype='float')
+
+    for i, m in enumerate(matches):
+        ptsA[i] = kpsA[m.queryIdx].pt
+        ptsB[i] = kpsB[m.trainIdx].pt
+
+    return cv2.findHomography(ptsA, ptsB, method=cv2.RANSAC)[0]
+
+
+def apply_homography(
+    target: np.ndarray, H: np.ndarray, template_shape: Tuple[int, int, int]
+) -> np.ndarray:
+    """Applies the homography matrix to the target image."""
+    h, w, c = template_shape
+    return cv2.warpPerspective(
+        target, H, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0, 0)
+    )
+
+
+def homography_matrix(
+    image: ImageType,
+    base_image: ImageType,
+    *,
+    method: str = 'ORB',
+    maxFeatures: int = 50000,
+    keepPercent: float = 0.15,
+) -> np.ndarray:
+    """Computes the homography matrix between an input image and a base image
+    using feature matching. This matrix is then used for animating or
+    visualizing how the images align over a sequence of frames.
+
+    Parameters
+    ----------
+    image : ImageType
+        The input image to be aligned.
+    base_image : ImageType
+        The template image to align the input image with.
+    method : str, optional
+        The feature detection method to use ('SIFT', 'ORB', 'SURF').
+        Default is 'ORB'.
+    maxFeatures : int, optional
+        The maximum number of features to detect and extract
+        using ORB. Default is 500.
+    keepPercent : float, optional
+        The percentage of top matches to keep. Default is 0.2.
+
+    Returns
+    -------
+    H : np.ndarray
+        The homography matrix.
+    """
+    target = image.data
+    template = base_image.data
+
+    templateGray = cv2.cvtColor(template, cv2.COLOR_RGB2GRAY)
+    imageGray = cv2.cvtColor(target, cv2.COLOR_RGB2GRAY)
+
+    # Detect and compute features
+    kpsA, descsA = detect_and_compute_features(imageGray, method, maxFeatures)
+    kpsB, descsB = detect_and_compute_features(templateGray, method, maxFeatures)
+
+    # Match features
+    matches = match_features(descsA, descsB, method)
+
+    # Compute homography matrix
+    H = compute_homography(matches, kpsA, kpsB, keepPercent)
+
+    return H
 
 
 def feature_align(
