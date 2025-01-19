@@ -182,7 +182,7 @@ def main():
                 st.write(f'Area of {name1}: {area1:.2f} sq inches')
                 st.write(f'Area of {name2}: {area2:.2f} sq inches')
             with col2:
-                st.write(f'Ratio: {area_ratio:.3f}')
+                st.write(f'Ratio: {area_ratio:.2f}')
                 if np.isclose(area_ratio, 1.0, atol=atol_value):
                     st.success('Areas are approximately equal')
                 else:
