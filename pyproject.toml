@@ -31,11 +31,11 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Image Processing",
 ]
 dependencies = [
-    "numpy",
+    "numpy < 2.0",
     "rembg",
     "scikit-image",
     "scipy",
-    'PyYAML',
+    "PyYAML",
 ]
 
 [project.urls]
@@ -54,14 +54,26 @@ develop = [
     "pycodestyle",
 ]
 dash = [
-    "diplib",
-    "platformdirs",
-    "seaborn",
-    "streamlit == 1.35",
-    "streamlit-image-comparison",
-    "torch",
-    "torchaudio",
+    "torch==2.5.1",
     "torchvision",
+    "torchaudio",
+    "seaborn",
+    "streamlit",
+    "clusteval",
+    "diplib",
+    "onnxruntime",
+    "opencv-python",
+    "Pillow",
+    "piq",
+    "platformdirs",
+    "pyssim",
+    "pystackreg",
+    "scatterd",
+    "scikit-learn",
+    "scipy",
+    "seaborn",
+    "streamlit-image-comparison",
+    "streamlit==1.40",
     "ultralytics>=8.2",
 ]
 docs = [
@@ -69,7 +81,6 @@ docs = [
     "mkdocs",
     "mkdocs-material",
     "mkdocstrings[python]",
-    # "mknotebooks",
 ]
 publishing = [
     "twine",
@@ -139,3 +150,8 @@ replace = "__version__ = '{new_version}'"
 filename = "pyproject.toml"
 search = "version = \"{current_version}\""
 replace = "version = \"{new_version}\""
+
+[[tool.bumpversion.files]]
+filename = "docs/cite.md"
+search = "(Version {current_version})"
+replace = "(Version {new_version})"
