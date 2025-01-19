@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 import io
-from typing import TYPE_CHECKING, Tuple
+from typing import TYPE_CHECKING, Optional, Tuple
 
 import imageio.v3 as imageio
+import numpy as np
 import streamlit as st
 from PIL import Image
 from rembg import remove
-from skimage import img_as_ubyte
+from skimage import img_as_ubyte, measure
 
-from unraphael.io import load_images, load_images_from_drc, resize_to_width
+from unraphael.io import load_images, load_images_from_drc
 from unraphael.locations import image_directory
 from unraphael.types import ImageType
 
@@ -18,6 +19,20 @@ if TYPE_CHECKING:
 
 _load_images = st.cache_data(load_images)
 _load_images_from_drc = st.cache_data(load_images_from_drc)
+
+
+def compute_size_in_cm(pixels: int, dpi: int) -> Optional[float]:
+    """Compute the size in centimeters based on pixels and DPI."""
+    if dpi == 0:
+        raise ValueError('DPI cannot be zero.')
+    inches = pixels / dpi
+    cm = inches * 2.54
+    return cm
+
+
+def create_mask(image):
+    binary_mask = remove(image, only_mask=True)
+    return binary_mask
 
 
 def get_image_size_resolution(image_file, name=None) -> Tuple[int, int, Tuple[float, float]]:
@@ -93,6 +108,40 @@ def process_image(image_file) -> tuple:
     return ImageType(data=image_data, name=name), metrics
 
 
+def calculate_corrected_area(image, real_size_cm, photo_size_cm, dpi):
+    """Calculate the corrected area of an image based on the real and photo
+    sizes."""
+
+    # Create mask and find the largest connected component
+    largest_contour_mask = create_mask(np.array(image))
+    labeled_image = measure.label(largest_contour_mask)
+    regions = measure.regionprops(labeled_image)
+
+    if not regions:
+        st.error('No connected components found in the image.')
+        return None
+
+    largest_region = max(regions, key=lambda r: r.area)
+    area_pixels = largest_region.area
+
+    # Calculate the real and photo areas in inches
+    real_area_inches = (real_size_cm[0] / 2.54) * (real_size_cm[1] / 2.54)
+    photo_area_inches = (photo_size_cm[0] / 2.54) * (photo_size_cm[1] / 2.54)
+
+    # The scaling factor is the ratio of the real-world painting area to
+    # the photo area, which adjusts for any size differences between
+    # the photo and the actual painting
+    scaling_factor = real_area_inches / photo_area_inches
+
+    # The corrected_area calculated by this function represents
+    # the area of the region of interest (the largest connected component)
+    # in the original painting, but it is derived from the corresponding
+    # area in the digital photo
+    corrected_area = (area_pixels / (dpi**2)) * scaling_factor
+
+    return corrected_area
+
+
 def load_images_widget(as_ubyte: bool = False, **loader_kwargs) -> tuple[list[ImageType], dict]:
     """Widget to load images and return their metrics."""
 
@@ -135,38 +184,13 @@ def load_images_widget(as_ubyte: bool = False, **loader_kwargs) -> tuple[list[Im
     if not images:
         raise ValueError('No images were loaded')
 
-    images = equalize_width_widget(images)
-
     if as_ubyte:
         images = [image.apply(img_as_ubyte) for image in images]
 
     return images, image_metrics
 
 
-def equalize_width_widget(images: list[ImageType]) -> list[ImageType]:
-    """This widget equalizes the width of the images."""
-    enabled = st.checkbox('Equalize width', value=True)
-
-    width = st.number_input(
-        'Width',
-        value=240,
-        step=10,
-        key='width',
-        disabled=(not enabled),
-    )
-
-    if enabled:
-        return [image.apply(resize_to_width, width=width) for image in images]
-
-    return images
-
-
-def create_mask(image):
-    binary_mask = remove(image, only_mask=True)
-    return binary_mask
-
-
-def show_aligned_masks_widget(
+def show_masks(
     images: list[ImageType],
     *,
     n_cols: int = 4,
