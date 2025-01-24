@@ -4,16 +4,13 @@ import io
 import struct
 from typing import TYPE_CHECKING, Optional, Tuple
 
-import imageio.v3 as imageio
 import numpy as np
 import streamlit as st
 from PIL import Image
 from rembg import remove
-from skimage import img_as_ubyte, measure
+from skimage import measure
 
 from unraphael.io import load_images, load_images_from_drc
-from unraphael.locations import image_directory
-from unraphael.types import ImageType
 
 if TYPE_CHECKING:
     pass
@@ -22,40 +19,20 @@ _load_images = st.cache_data(load_images)
 _load_images_from_drc = st.cache_data(load_images_from_drc)
 
 
-def compute_size_in_cm(pixels: int, dpi: int) -> Optional[float]:
-    """Compute the size in centimeters based on pixels and DPI."""
-    if dpi == 0:
-        raise ValueError('DPI cannot be zero.')
-    inches = pixels / dpi
-    cm = inches * 2.54
-    return cm
-
-
-def create_mask(image):
-    binary_mask = remove(image, only_mask=True)
-    return binary_mask
-
-
-def get_image_size_resolution(image_file, name=None) -> Tuple[int, int, Tuple[float, float]]:
+def get_image_size_resolution(
+    image_array: np.ndarray, name=None
+) -> Tuple[int, int, Tuple[float, float], float, float]:
     """Get the height, width, and resolution of an image from an in-memory
-    file.
-
-    This function attempts multiple methods to extract DPI information:
-    1. Basic PIL info dictionary
-    2. JFIF header parsing
-    3. EXIF data
-    4. PhotoShop resolution data
-
-    Parameters:
-    - image_file (BytesIO): The uploaded image file.
-    - name (str): Optional. The name of the image file for logging and warning purposes.
-
-    Returns:
-    - Tuple[int, int, Tuple[float, float]]: The height, width, and resolution (DPI) of
-    the image.
-    """
+    NumPy array."""
     try:
-        with Image.open(image_file) as img:
+        # Convert NumPy array to a BytesIO object
+        image_bytes = io.BytesIO()
+        # Save the NumPy array (image) into the BytesIO buffer as a PNG
+        Image.fromarray(image_array).save(image_bytes, format='PNG')
+        image_bytes.seek(0)  # Reset the buffer's position to the beginning
+
+        # Open the image from the BytesIO buffer
+        with Image.open(image_bytes) as img:
             # Get dimensions (PIL's size returns width, height, so reverse for consistency)
             height_pixels, width_pixels = img.size[::-1]
 
@@ -66,8 +43,6 @@ def get_image_size_resolution(image_file, name=None) -> Tuple[int, int, Tuple[fl
             if not dpi and hasattr(img, 'applist'):
                 for segment, content in img.applist:
                     if segment == 'APP0' and content.startswith(b'JFIF'):
-                        # JFIF header format: 'JFIF\x00\x01\x01\x00\x48\x00\x48\x00'
-                        # Resolution units and values are at offset 7
                         try:
                             unit, x_density, y_density = struct.unpack('>BHH', content[7:12])
                             if unit == 1:  # dots per inch
@@ -102,19 +77,16 @@ def get_image_size_resolution(image_file, name=None) -> Tuple[int, int, Tuple[fl
             if not dpi and 'photoshop' in img.info:
                 photoshop = img.info['photoshop']
                 try:
-                    # PhotoShop stores resolution in pixels/cm
                     if isinstance(photoshop, bytes):
-                        # Find resolution info block (ID: 0x03ED)
                         pos = photoshop.find(b'\x03\xed')
                         if pos >= 0:
                             x_res = struct.unpack('>I', photoshop[pos + 4 : pos + 8])[0]
                             y_res = struct.unpack('>I', photoshop[pos + 8 : pos + 12])[0]
-                            # Convert to DPI (1 inch = 2.54 cm)
                             dpi = (x_res * 2.54, y_res * 2.54)
                 except Exception:
                     pass
 
-            # If no DPI information found in any method, use default
+            # Default DPI if no resolution found
             if not dpi or dpi == (0, 0):
                 if name:
                     print(
@@ -123,93 +95,23 @@ def get_image_size_resolution(image_file, name=None) -> Tuple[int, int, Tuple[fl
                     )
                 dpi = (96.0, 96.0)  # Common default DPI
 
-            return height_pixels, width_pixels, dpi
+            dpi_x, dpi_y = dpi
+            dpi_x = dpi_x if dpi_x != 0 else 96.0
+            dpi_y = dpi_y if dpi_y != 0 else 96.0
+
+            # Calculate physical sizes in inches
+            height_inches = height_pixels / dpi_y
+            width_inches = width_pixels / dpi_x
+
+            return (height_pixels, width_pixels, (dpi_x, dpi_y), height_inches, width_inches)
 
     except Exception as e:
-        if name:
-            print(f'Error processing image {name}: {str(e)}')
-        return 0, 0, (0.0, 0.0)
-
-
-# def get_image_size_resolution(image_file, name=None) -> Tuple[int, int, Tuple[float, float]]:
-#     """Get the height, width, and resolution of an image from an in-memory
-#     file.
-
-#     Parameters:
-#     - image_file (BytesIO): The uploaded image file.
-#     - name (str): Optional. The name of the image file for logging and warning purposes.
-
-#     Returns:
-#     - Tuple[int, int, Tuple[float, float]]: The height, width, and resolution of the image.
-#     """
-#     try:
-#         with Image.open(image_file) as img:
-#             # Note: PIL's img.size returns (width, height), so we reverse it here
-#             height_pixels, width_pixels = img.size[::-1]
-
-#             # Attempt to get DPI from the image metadata
-#             dpi = img.info.get('dpi', (None, None))
-
-#             # Handle cases where DPI might not be available or is set to default values
-#             if dpi == (None, None) or dpi == (0, 0):
-#                 if name:
-#                     st.warning(
-#                         f'DPI information not found or default value detected '
-#                          'for image {name}.'
-#                     )
-#                 dpi = (96.0, 96.0)  # Common fallback DPI
-
-#             return height_pixels, width_pixels, dpi  # Return (height, width)
-#     except Exception as e:
-#         st.error(f'Error processing image: {e}')
-#         return 0, 0, (0.0, 0.0)
-
-
-def pixels_to_cm(pixels, dpi):
-    if dpi != 0:
-        inches = pixels / dpi
-        cm = inches * 2.54
-        return cm
-    else:
-        return None
-
-
-def process_image(image_file) -> tuple:
-    """Process a single image file and return an ImageType object and its
-    metrics."""
-
-    # Read image data into memory
-    image_bytes = image_file.read()
-    image_data = imageio.imread(io.BytesIO(image_bytes))
-
-    # Get the name from the original file
-    name, _ = image_file.name.rsplit('.', 1)
-
-    # Extract image size and DPI
-    height, width, resolution = get_image_size_resolution(io.BytesIO(image_bytes), name=name)
-
-    # Calculate size in centimeters
-    height_cm = pixels_to_cm(height, resolution[1])
-    width_cm = pixels_to_cm(width, resolution[0])
-
-    # Create metrics dictionary
-    metrics = {
-        'height': height,
-        'width': width,
-        'dpi': resolution,
-        'height_cm': height_cm,
-        'width_cm': width_cm,
-    }
-
-    # Return the ImageType and metrics separately
-    return ImageType(data=image_data, name=name), metrics
+        print(f'Error occurred while processing image: {e}')
+        raise
 
 
 def calculate_corrected_area(
-    image: np.ndarray,
-    real_size_cm: list[float],
-    # photo_size_cm: list[float],
-    dpi: float,
+    image: np.ndarray, real_size_cm: list[float], dpi: float, tolerance: float = 0.05
 ) -> Optional[float]:
     """Calculate the corrected area of an image based on real physical
     dimensions and DPI.
@@ -222,6 +124,8 @@ def calculate_corrected_area(
         Physical dimensions [height, width] in centimeters
     dpi : float
         The calculated true DPI of the image
+    tolerance : float
+        Maximum allowed difference between height and width ratios (default 5%)
 
     Returns:
     -------
@@ -229,8 +133,21 @@ def calculate_corrected_area(
         The corrected area in square inches, or None if calculation fails
     """
     try:
+        # Print input parameters
+        print('\nInput Parameters:')
+        print(
+            f'Dimensions of real painting (cm): {real_size_cm[0]:.2f} x {real_size_cm[1]:.2f}'
+        )
+        print(f'DPI: {dpi:.2f}')
+
         # Create mask of the main figure
         mask = remove(image, only_mask=True)
+
+        # Protect against mask processing failures
+        if mask is None or mask.size == 0:
+            st.error('Failed to create mask')
+            return None
+
         labeled_mask = measure.label(mask)
         regions = measure.regionprops(labeled_mask)
 
@@ -242,118 +159,159 @@ def calculate_corrected_area(
         largest_region = max(regions, key=lambda r: r.area)
         area_pixels = largest_region.area
 
-        # Convert physical dimensions from cm to inches
-        # real_height_inches = real_size_cm[0] / 2.54
-        # real_width_inches = real_size_cm[1] / 2.54
+        # Get image dimensions in pixels
+        img_height, img_width = image.shape[:2]
+        print(f'Image dimensions (pixels): {img_height} x {img_width}')
 
-        # Calculate the real and photo areas in inches
-        # real_area_inches = (real_size_cm[0] / 2.54) * (real_size_cm[1] / 2.54)
-        # photo_area_inches = (photo_size_cm[0] / 2.54) * (photo_size_cm[1] / 2.54)
+        # Calculate physical dimensions from pixels and DPI
+        photo_height_inches = img_height / dpi
+        photo_width_inches = img_width / dpi
+        print(
+            '\nPhoto dimensions (inches): '
+            '{photo_height_inches:.2f} x {photo_width_inches:.2f}'
+        )
 
-        # The scaling factor is the ratio of the real-world painting area to
-        # the photo area, which adjusts for any size differences between
-        # the photo and the actual painting
-        # scaling_factor = real_area_inches / photo_area_inches
+        # Convert real dimensions to inches
+        real_height_inches = real_size_cm[0] / 2.54
+        real_width_inches = real_size_cm[1] / 2.54
+        print('Real dimensions (inches): ' '{real_height_inches:.2f} x {real_width_inches:.2f}')
 
-        # The corrected_area calculated by this function represents
-        # the area of the region of interest (the largest connected component)
-        # in the original painting, but it is derived from the corresponding
-        # area in the digital photo
-        # area_inches = (area_pixels / (dpi**2)) * scaling_factor
+        # Calculate scaling ratios
+        height_ratio = real_height_inches / photo_height_inches
+        width_ratio = real_width_inches / photo_width_inches
+        print('\nScaling Ratios:')
+        print(f'Height ratio (real/photo): {height_ratio:.4f}')
+        print(f'Width ratio (real/photo): {width_ratio:.4f}')
 
-        # Calculate area in square inches using the true DPI
-        area_inches = area_pixels / (dpi**2)
+        # Check if scaling ratios are consistent within tolerance
+        ratio_diff = abs(height_ratio - width_ratio) / min(height_ratio, width_ratio)
+        print(f'Ratio difference: {ratio_diff:.2%}')
 
-        return area_inches
+        # If scaling ratios are too different, use the less extreme ratio
+        if ratio_diff > tolerance:
+            st.warning(
+                f'Inconsistent scaling detected with a {ratio_diff:.2%} '
+                'difference between height and width ratios. Using more '
+                'conservative scaling.'
+            )
+            # Use the ratio closer to 1.0 to minimize distortion
+            if abs(height_ratio - 1.0) < abs(width_ratio - 1.0):
+                scaling_factor = height_ratio
+            else:
+                scaling_factor = width_ratio
+        else:
+            # Use average of height and width ratios for scaling
+            scaling_factor = (height_ratio + width_ratio) / 2
+
+        print(f'Final scaling factor: {scaling_factor:.4f}')
+
+        # Calculate area in square inches using the true DPI and applying scaling
+        raw_area = area_pixels / (dpi**2)
+        corrected_area = raw_area * scaling_factor
+        print('\nArea Calculations:')
+        print(f'Raw area (sq inches): {raw_area:.2f}')
+        print(f'Corrected area (sq inches): {corrected_area:.2f}')
+
+        return corrected_area
 
     except Exception as e:
         st.error(f'Error calculating area: {e}')
+        print(f'Error in calculation: {str(e)}')
+        import traceback
+
+        traceback.print_exc()
         return None
 
 
-def load_images_widget(as_ubyte: bool = False, **loader_kwargs) -> tuple[list[ImageType], dict]:
-    """Widget to load images and return their metrics."""
+# def calculate_corrected_area(
+#     image: np.ndarray,
+#     real_size_cm: list[float],
+#     dpi: float,
+#     tolerance: float = 0.05
+# ) -> Optional[float]:
+#     """Calculate the corrected area of an image based on real physical dimensions and DPI.
 
-    load_example = st.sidebar.checkbox('Load example', value=False, key='load_example')
-    uploaded_files = st.file_uploader('Upload Images', accept_multiple_files=True)
+#     Parameters:
+#     ----------
+#     image : np.ndarray
+#         The image data
+#     real_size_cm : list[float]
+#         Physical dimensions [height, width] in centimeters
+#     dpi : float
+#         The calculated true DPI of the image
+#     tolerance : float
+#         Maximum allowed difference between height and width ratios (default 5%)
 
-    images = []
-    image_metrics = {}
+#     Returns:
+#     -------
+#     Optional[float]
+#         The corrected area in square inches, or None if calculation fails
+#     """
+#     try:
+#         # Print input parameters
+#         print("\nInput Parameters:")
+#         print(f"Real dimensions (cm): {real_size_cm[0]:.2f} x {real_size_cm[1]:.2f}")
+#         print(f"DPI: {dpi:.2f}")
 
-    if load_example:
-        loaded_images = _load_images_from_drc(image_directory, **loader_kwargs)
+#         # Create mask of the main figure
+#         mask = remove(image, only_mask=True)
+#         labeled_mask = measure.label(mask)
+#         regions = measure.regionprops(labeled_mask)
 
-        for name, data in loaded_images.items():
-            # Assuming data is image data and name is the image name
-            image = ImageType(name=name, data=data)
-            images.append(image)
+#         if not regions:
+#             st.error('No figure detected in the image.')
+#             return None
 
-            # Extract metrics
-            height, width, resolution = get_image_size_resolution(io.BytesIO(data))
-            height_cm = pixels_to_cm(height, resolution[1])
-            width_cm = pixels_to_cm(width, resolution[0])
-            metrics = {
-                'height': height,
-                'width': width,
-                'dpi': resolution,
-                'height_cm': height_cm,
-                'width_cm': width_cm,
-            }
-            image_metrics[name] = metrics
-    else:
-        if not uploaded_files:
-            st.info('Upload images to continue')
-            st.stop()
+#         # Get the largest connected component (main figure)
+#         largest_region = max(regions, key=lambda r: r.area)
+#         area_pixels = largest_region.area
+#         print(f"\nMask Area (pixels): {area_pixels}")
 
-        for file in uploaded_files:
-            image, metrics = process_image(file)
-            images.append(image)
-            image_metrics[image.name] = metrics
+#         # Get image dimensions in pixels
+#         img_height, img_width = image.shape[:2]
+#         print(f"Image dimensions (pixels): {img_height} x {img_width}")
 
-    if not images:
-        raise ValueError('No images were loaded')
+#         # Calculate physical dimensions from pixels and DPI
+#         photo_height_inches = img_height / dpi
+#         photo_width_inches = img_width / dpi
+#         print(f"\nPhoto dimensions (inches): {photo_height_inches:.2f} x
+#         {photo_width_inches:.2f}")
 
-    if as_ubyte:
-        images = [image.apply(img_as_ubyte) for image in images]
+#         # Convert real dimensions to inches
+#         real_height_inches = real_size_cm[0] / 2.54
+#         real_width_inches = real_size_cm[1] / 2.54
+#         print(f"Real dimensions (inches): {real_height_inches:.2f} x
+#         {real_width_inches:.2f}")
 
-    return images, image_metrics
+#         # Calculate scaling ratios
+#         height_ratio = real_height_inches / photo_height_inches
+#         width_ratio = real_width_inches / photo_width_inches
+#         print(f"\nScaling Ratios:")
+#         print(f"Height ratio (real/photo): {height_ratio:.4f}")
+#         print(f"Width ratio (real/photo): {width_ratio:.4f}")
 
+#         # Check if scaling ratios are consistent within tolerance
+#         ratio_diff = abs(height_ratio - width_ratio) / min(height_ratio, width_ratio)
+#         print(f"Ratio difference: {ratio_diff:.2%}")
 
-def show_masks(
-    images: list[ImageType],
-    *,
-    n_cols: int = 4,
-    key: str = 'show_images',
-    message: str = 'Select image',
-    display_masks: bool = True,  # Add parameter to choose between showing images or masks
-) -> None | ImageType:
-    """Widget to show images or their masks with a given number of columns."""
-    col1, col2 = st.columns(2)
-    n_cols = col1.number_input(
-        'Number of columns for display', value=8, min_value=1, step=1, key=f'{key}_cols'
-    )
-    options = [None] + [image.name for image in images]
-    selected = col2.selectbox(message, options=options, key=f'{key}_sel')
-    selected_image = None
+#         if ratio_diff > tolerance:
+#             st.warning(f'Inconsistent scaling detected: {ratio_diff:.1%} difference between
+#         height and width ratios')
 
-    cols = st.columns(n_cols)
+#         # Use average of height and width ratios for scaling
+#         scaling_factor = (height_ratio + width_ratio) / 2
+#         print(f"Final scaling factor (average): {scaling_factor:.4f}")
 
-    for i, image in enumerate(images):
-        if i % n_cols == 0:
-            cols = st.columns(n_cols)
-        col = cols[i % n_cols]
+#         # Calculate area in square inches using the true DPI and applying scaling
+#         raw_area = area_pixels / (dpi ** 2)
+#         area_inches = raw_area * scaling_factor
+#         print(f"\nArea Calculations:")
+#         print(f"Raw area (sq inches): {raw_area:.2f}")
+#         print(f"Corrected area (sq inches): {area_inches:.2f}")
 
-        if image.name == selected:
-            selected_image = image
+#         return area_inches
 
-        if display_masks:
-            # Create and display the mask
-            mask = create_mask(image.data)
-            col.image(
-                mask, use_column_width=True, caption=f'Mask of {image.name}', channels='GRAY'
-            )
-        else:
-            # Display the image itself
-            col.image(image.data, use_column_width=True, caption=image.name)
-
-    return selected_image
+#     except Exception as e:
+#         st.error(f'Error calculating area: {e}')
+#         print(f"Error in calculation: {str(e)}")
+#         return None

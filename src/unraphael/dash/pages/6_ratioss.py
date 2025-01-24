@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import itertools
 
 import imageio.v3 as imageio
@@ -8,14 +9,15 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import streamlit as st
-from ratio_analysis import calculate_corrected_area
+from PIL import Image
+from ratio_analysis import calculate_corrected_area, get_image_size_resolution
 from rembg import remove
 
 
 def main():
     st.title('Painting Analysis')
 
-    # First, get the Excel file with real dimensions
+    # Load information with real dimensions of paintings
     st.sidebar.header('Upload painting dimensions')
     uploaded_excel = st.sidebar.file_uploader(
         'Choose Excel file with real dimensions', type=['xlsx']
@@ -33,7 +35,7 @@ def main():
         st.sidebar.warning('Please upload Excel file with painting dimensions')
         real_sizes_df = None
 
-    # Now load images
+    # Load images with background removed
     with st.sidebar:
         uploaded_files = st.file_uploader('Upload Images', accept_multiple_files=True)
 
@@ -50,7 +52,7 @@ def main():
     image_metrics = {}
 
     for i, file in enumerate(uploaded_files):
-        # Get real dimensions from each painting from the imported Excel file
+        # Get real dimensions from each painting from the imported file
         real_height_cm = real_sizes_df.iloc[i, 1]  # height
         real_width_cm = real_sizes_df.iloc[i, 2]  # width
 
@@ -59,7 +61,6 @@ def main():
             continue
 
         # Create a copy of the file pointer for each operation
-        # file_copy = io.BytesIO(file.read())
         file.seek(0)  # Reset file pointer for next read
 
         # Read image data
@@ -73,15 +74,17 @@ def main():
         physical_height_inches = real_height_cm / 2.54
         physical_width_inches = real_width_cm / 2.54
 
-        # Calculate DPI
+        # Calculate DPI: This directly ties the digital image to its physical
+        # counterpart, ensuring consistency for analysis and scaling
         dpi_v = height_pixels / physical_height_inches
         dpi_h = width_pixels / physical_width_inches
 
-        # Use average DPI if they're close, otherwise warn about distortion
+        # Modify DPI handling for better feedback in edge cases
         if abs(dpi_v - dpi_h) > dpi_h * 0.05:  # 5% threshold
             st.warning(f'Image {name} appears to be distorted (non-uniform scaling)')
-
-        dpi = (dpi_h + dpi_v) / 2  # Use average DPI
+            dpi = max(dpi_v, dpi_h)  # Use the larger DPI to minimize errors
+        else:
+            dpi = (dpi_h + dpi_v) / 2  # Use average DPI
 
         # Create metrics
         metrics = {
@@ -96,26 +99,47 @@ def main():
         images.append({'data': image_data, 'name': name})
         image_metrics[name] = metrics
 
-    # Display image information
+    # Display image information -----
     st.subheader('Image Information')
+
     for image in images:
         metrics = image_metrics[image['name']]
-        st.write(f'**Image Name**: {image["name"]}')
-        st.write(f'**Pixel Dimensions**: {metrics["height"]} x {metrics["width"]} pixels')
-        st.write(
-            f'**Physical Size**: {metrics["height_cm"]:.2f} x {metrics["width_cm"]:.2f} cm'
+
+        # Convert NumPy array to a file-like object (BytesIO)
+        image_file = io.BytesIO()
+        image_pil = Image.fromarray(image['data'])  # Convert NumPy array to PIL Image
+        image_pil.save(image_file, format='PNG')  # Save to BytesIO in PNG format
+        image_file.seek(0)  # Rewind file pointer for reading
+
+        # Extract DPI from the image's metadata (if it exists)
+        height_pixels_meta, width_pixels_meta, (dpi_x, dpi_y), height_inches, width_inches = (
+            get_image_size_resolution(image['data'])
         )
-        st.write(f'**Calculated DPI**: {metrics["dpi"]:.1f}')
+
+        # Calculate the physical size of the photo using DPI from image metadata
+        height_photo_inches = height_pixels_meta / dpi_x  # DPI for height from image metadata
+        width_photo_inches = width_pixels_meta / dpi_y  # DPI for width from image metadata
+
+        # Convert inches to cm
+        height_photo_cm = height_photo_inches * 2.54
+        width_photo_cm = width_photo_inches * 2.54
+
+        # Display the physical size of the photograph
+        st.write(f'**Image Name**: {image["name"]}')
+        st.write(f'**Pixel Dimensions**: {height_pixels_meta} x {width_pixels_meta} pixels')
+        st.write(f'**Physical size Photo**: {height_photo_cm:.2f} x {width_photo_cm:.2f} cm')
+        st.write(f'**DPI from photograph (Metadata)**: {dpi_x:.1f} x {dpi_y:.1f}')
+
         st.write('---')
 
-    # Display masks
+    # Display masks ----
     st.subheader('Figure Masks')
     cols = st.columns(min(3, len(images)))
     for idx, image in enumerate(images):
         mask = remove(image['data'], only_mask=True)
-        cols[idx % 3].image(mask, caption=f'Mask: {image["name"]}', use_column_width=True)
+        cols[idx % 3].image(mask, caption=f'Mask for {image["name"]}', use_column_width=True)
 
-    # Calculate areas
+    # # Calculate corrected areas ----
     st.subheader('Area Analysis')
 
     atol_value = st.slider(
@@ -127,17 +151,19 @@ def main():
         help='Adjust the tolerance level for comparing areas (5% = 0.05)',
     )
 
-    # Calculate corrected areas
     corrected_areas = []
     for i, image in enumerate(images):
         real_size_cm = [real_sizes_df.iloc[i, 1], real_sizes_df.iloc[i, 2]]
         corrected_area = calculate_corrected_area(
-            image['data'], real_size_cm, image_metrics[image['name']]['dpi']
+            image['data'],
+            real_size_cm,
+            image_metrics[image['name']]['dpi'],
+            tolerance=atol_value,  # Pass the tolerance parameter
         )
         if corrected_area is not None:
             corrected_areas.append((image['name'], corrected_area))
 
-    # Visualization
+    # Results ----
     if len(corrected_areas) > 1:
         st.subheader('Area Comparisons')
 
