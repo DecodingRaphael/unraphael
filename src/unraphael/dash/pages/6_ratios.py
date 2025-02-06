@@ -12,10 +12,22 @@ import streamlit as st
 from PIL import Image
 from ratio_analysis import calculate_corrected_area, get_image_size_resolution
 from rembg import remove
+from matplotlib.colors import LinearSegmentedColormap
 
 
 def main():
     st.title('Painting Analysis')
+    
+    st.write(
+        (
+            'This page estimates and compares the areas of the main figures in the real paintings '
+            'by analyzing their photographs. While we cannot measure the real paintings directly, '
+            'we can calculate the areas from the photos and apply corrections using the real '
+            'painting dimensions and photo metadata (DPI). Similar area ratios (close to 1) between '
+            'two paintings may indicate the use of the same template.'
+        )
+    )
+
 
     # Load information with real dimensions of paintings
     st.sidebar.header('Upload painting dimensions')
@@ -137,18 +149,25 @@ def main():
     cols = st.columns(min(3, len(images)))
     for idx, image in enumerate(images):
         mask = remove(image['data'], only_mask=True)
-        cols[idx % 3].image(mask, caption=f'Mask for {image["name"]}', use_column_width=True)
+        cols[idx % 3].image(
+            mask, 
+            caption=f'Mask for {image["name"]}', 
+            use_container_width=True  # Changed from use_column_width
+        )
 
     # # Calculate corrected areas ----
     st.subheader('Area Analysis')
 
     atol_value = st.slider(
-        'Set tolerance for area comparison',
+        'Set the tolerance for area comparison. This is the maximum difference '
+        'in area surface that is allowed between two paintings to consider '
+        'them similar. The default is 5% (0.05)',
         min_value=0.01,
         max_value=0.10,
         value=0.05,
         step=0.01,
         help='Adjust the tolerance level for comparing areas (5% = 0.05)',
+
     )
 
     corrected_areas = []
@@ -178,6 +197,15 @@ def main():
                 ratio = area1 / area2 if area2 != 0 else 0
                 heatmap_data[i, j] = ratio
 
+        # Create custom colormap
+        colors = ['#FF6B6B',  # Light red/coral for extreme values
+                 '#4FB5E6',   # Light blue
+                 '#05445E',   # Dark blue (for values near 1)
+                 '#4FB5E6',   # Light blue
+                 '#FF6B6B']   # Light red/coral for extreme values
+        
+        custom_cmap = LinearSegmentedColormap.from_list('custom_blues', colors)
+
         # Create heatmap
         fig, ax = plt.subplots(figsize=(10, 8))
         sns.heatmap(
@@ -186,10 +214,10 @@ def main():
             fmt='.2f',
             xticklabels=image_names,
             yticklabels=image_names,
-            cmap='coolwarm',
+            cmap=custom_cmap,
             center=1.0,
-            vmin=0.5,
-            vmax=1.5,
+            vmin=0.4,
+            vmax=1.6,
             cbar_kws={'label': 'Area Ratio'},
         )
         plt.title('Area Ratios Between Paintings')
