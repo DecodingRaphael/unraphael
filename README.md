@@ -21,6 +21,7 @@ Features:
 - Background removal
 - Image alignment
 - Image clustering based on structural similarity
+- Ratio analysis painting - photo dimensions
 
 To install:
 
