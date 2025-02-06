@@ -1,6 +1,8 @@
 # Credits and Contact Information
 
-Unraphael is maintained by the [Netherlands eScience Center](https://www.esciencecenter.nl/) in collaboration with the [Department of History and Art History](https://www.uu.nl/en/organisation/department-of-history-and-art-history) at the [University of Utrecht](https://www.uu.nl/). If you have any questions, feedback, or need support, please feel free to reach out to us. Below are the primary contacts and useful links for your reference:
+Unraphael is maintained by the [Netherlands eScience Center](https://www.esciencecenter.nl/) in collaboration with the [Department of History and Art History](https://www.uu.nl/en/organisation/department-of-history-and-art-history) at the [University of Utrecht](https://www.uu.nl/). The work was supported through a *Small-Scale Initiatives Digital Approaches to the Humanities* grant 
+
+If you have any questions, feedback, or need support, please feel free to reach out to us. Below are the primary contacts and useful links for your reference:
 
 **General Inquiries**
 
@@ -14,10 +16,11 @@ For general questions and information, you can reach the Principal Investigator 
 
 **Technical Support**
 
-For technical support and troubleshooting, please contact our Lead Research Software Engineer Thijs Vroegh:
+For technical support and troubleshooting, please contact our Research Software Engineers Thijs Vroegh or Stef Smeets:
 
-- **Email**: [t.vroegh@esciencecenter.nl](mailto:t.vroegh@esciencecenter.nl)
+- **Email**: [t.vroegh@esciencecenter.nl](mailto:t.vroegh@esciencecenter.nl) or [s.smeets@esciencecenter.nl](mailto:s.smeets@esciencecenter.nl)
 - **Documentation**: [https://unraphael.readthedocs.io/en/latest/](https://unraphael.readthedocs.io/en/latest/)
+
 
 **Collaboration**
 
