@@ -1,6 +1,8 @@
 # Estimating the absolute area in the paintings based on photos
 
-From images/ photos of a set of paintings (i.e., original and copies), the outlines of the figures can be overlaid with information about the actual size of the paintings. Here, we offer a precise way of computing the size of the outlines and of analysing the degree in variations between the original and later copies. This allows us to verify if the same template was used to produce the outlines of figures in different paintings. Since we only have digital photos and not the physical paintings themselves, we need to estimate the areas of connected components (i.e., the grouped figures, or else the main figure when there is only one) from the photos.
+From photos of a set of paintings (including the original and copies), the outlines of the figures can be overlaid with information about the actual size of the paintings. Here, we offer a precise way of computing the size of the outlines and of analysing the degree in variations between the original and later copies. This allows us to verify if the same template was used to produce the outlines of figures in different paintings. Since we only have digital photos and not the physical paintings themselves, we need to estimate the areas of connected components (i.e., the grouped figures, or else the main figure when there is only one) from the photos.
+
+So, the corresponding tool in the app compares the areas of the figures in the photos, but applies corrections to estimate what the areas would be in the real paintings. Similar area ratios (close to 1) between two paintings may indicate the use of the same template being used to reproduce the same figure.
 
 ## Procedure
 
@@ -22,45 +24,30 @@ The scaling factor is a bit more tricky to calculate precisely, not knowing if t
 This then allows us to answer how similar the areas of the main outlines in two paintings are, after accounting for differences in the sizes of the paintings and their corresponding photos.
 
 
-## Steps to Follow
+## Steps to Follow in the App
 
-1. **Upload Images and Real Sizes:**
-   - **Upload Photos:** Start by uploading the digital photos of the paintings.
-   - **Upload Real Sizes:** Upload an Excel file containing the real dimensions of the paintings in centimeters.
+1. **Upload Data on the Sizes of the Real Paintings, and the corresponding Photos:**
+   - **Upload Painting Dimensions:** Upload an Excel file containing the real dimensions of the paintings in centimeters. Ensure that the list of images are alphabetically ordered, so that they match the order of the images loaded in the next step.
 
-2. **Overview of Image Sizes and DPI:**
+![Dimensions of paintings](painting_dimensions.png)
+
+   - **Upload Photos:** Upload the digital photos of the paintings from a folder on your computer. For now, use the *unaligned photos*, preferably with the background removed.
+   
+1. **Overview of Image Sizes and DPI:**
    - **Check Image Metrics:** Review the sizes and DPI of the uploaded images. This information helps in converting pixel measurements to physical dimensions.
 
-3. **Select and Prepare the Base Image:**
-   - **Choose Base Image:** Select a base image for alignment from the uploaded photos.
+2. The app will automatically show the main figure masks, used to compute the areas of the connected components.
 
-4. **Equalize Images (Optional):**
-   - **Equalize Image Properties:** Adjust the brightness, contrast, and other properties of the images to make them more comparable.
+3. Set the tolerance for area comparison. This tolerance is used to determine if the areas of the connected components in the two paintings are similar.
 
-5. **Align Images:**
-   - **Choose Alignment Method:** Select an alignment method from various options such as feature-based alignment, enhanced correlation, or others.
-   - **Align Images to Base:** Align all images to the chosen base image to ensure consistent size and orientation.
+4. The analysis will then show the ratio of the areas of the connected components in two real paintings. If the ratio is close to 1, then the main figures in the two paintings are similar. This is shown via a heatmap (see example image below):
 
-6. **Compute Areas of Connected Components:**
-   - **Segment Images:** Use image processing to segment the connected components in each photo.
-   - **Calculate Area in Pixels:** Measure the area of the largest connected component in pixels.
+![Heatmap of area ratios](heatmap.png)
 
-7. **Convert Pixel Areas to Physical Dimensions:**
-   - **Compute Photo Size in cm:** Convert the size of the photo from pixels to centimeters using the DPI information.
-   - **Estimate Scaling Factor:** Determine the scaling factor based on the real dimensions of the painting and the dimensions of the photo.
+- The heatmap is symmetric around 1, meaning both higher and lower ratios will be treated similarly
+- Values close to 1 appear in dark blue. As values deviate from 1, they transition to lighter blue
+- Extreme values (both high and low) will transition to the coral color
 
-8. **Calculate Corrected Areas:**
-   - **Adjust Areas for Scaling:** Convert the pixel area to the actual size of the painting using the scaling factor.
+5. More detailed information is provided in the table below the heatmap indicating whether the areas of the main figures in the two paintings are similar, given the set tolerance.
 
-9. **Compare Areas:**
-   - **Compute Area Ratios:** For each pair of paintings, calculate the ratio of their corrected areas.
-   - **Check for Similarity:** Compare the ratios to 1.0 to determine if the areas are approximately equal, using a set tolerance for minor discrepancies.
-
-## Detailed Code Overview
-
-- **Compute Size in cm:** Converts pixel dimensions to centimeters based on DPI.
-- **Create Mask:** Segments the image to isolate connected components.
-- **Calculate Corrected Area:** Adjusts the pixel area to reflect real-world dimensions.
-- **Equalize and Align Images:** Ensures consistency in image properties and alignment for accurate analysis.
-
-By following these steps, you can systematically compare the areas of connected components in different paintings, even when only digital photos are available.
+![Example of matching ares of main figure in real paintings](img_identical.png)

@@ -40,8 +40,8 @@ The app shows the resulting mask and the image with the background removed, allo
 
 After preprocessing and background removal, you can download the processed images for further analysis. The app allows you to save:
 
-- The original image.
-- The image with the background removed.
-- An extracted version, where only the subject remains, isolated from both the background and any irrelevant details.
+- The original image
+- The image with the background removed
+- An extracted version, where only the subject remains, isolated from both the background and any irrelevant details
 
 These steps ensure that the image is optimized and ready for further analysis, such as aligning the images or clustering images based on their features.

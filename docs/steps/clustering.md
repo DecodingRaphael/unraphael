@@ -1,8 +1,8 @@
 # Clustering Images
 
-This Streamlit application provides a comprehensive tool for clustering images based on their structural components, focusing on identifying similarities in image characteristics rather than semantic content.
+This page of the application provides a comprehensive tool for clustering images based on their structural components, focusing on identifying similarities in image characteristics rather than semantic content.
 
-By following the steps described below, you can effectively group your images based on their structural components. This clustering can provide valuable insights, such as identifying images created within the same workshop or using the same template, which might not be evident through visual inspection alone.
+By following the steps described below, you can effectively group your images based on their structural components. This clustering can provide valuable insights, such as identifying images created within the same workshop by having used a template for mechanical reproduction which might not be evident through visual inspection alone.
 
 # Key Features
 
@@ -13,11 +13,13 @@ By following the steps described below, you can effectively group your images ba
 
 ### Clustering Methods
 
-- We make use of functionality provided by the [clusteval package](https://erdogant.github.io/clusteval/pages/html/index.html) to derive the optimal number of clusters using silhouette, dbindex, and derivatives in combination with clustering methods, such as agglomerative, kmeans, dbscan and hdbscan
+- We make use of functionality provided by the [clusteval package](https://erdogant.github.io/clusteval/pages/html/index.html) to derive the optimal number of clusters using silhouette, dbindex, and derivatives in combination with clustering methods, such as agglomerative, kmeans, dbscan and hdbscan. 
+- For more information on the methods or interpreting the results, we highly recommend looking into the [clusteval documentation](https://erdogant.github.io/clusteval/pages/html/index.html).
 - Multiple clustering algorithms
-- Clustering based on a similarity matrix or on the images' features directly
+
+- Clustering based on a similarity matrix composed of various similarity measures, or on the images' features directly
 - Various similarity measures can be selected to compute the similarity matrix
-- Cluster based on outer contours or main figures
+- Cluster based on either outer contours or the extracted main figures
 
 # Workflow
 
@@ -42,7 +44,7 @@ Alignment is crucial when comparing images, as it ensures that all images are in
 
 How to Use the Widget
 - **Motion Model**: Choose a transformation model (i.e., translation, rigid body, scaled rotation, affine, bilinear) to align the images.
-- **Feature Method**: Select how the images should be aligned, either to the first image, the mean image, or in a sequential manner. Note that, in most cases involving the clustering of images, *aligning to the mean image is highly recommended* to ensure consistency across all images.
+- **Feature Method**: Select how the images should be aligned, either to the first image, the mean image, or in a sequential manner. Note that, in most cases involving the clustering of images, **aligning to the mean image** is highly recommended(!) to ensure consistency across all images.
 
 ### Further Explanation of Motion Models
 
@@ -54,18 +56,23 @@ How to Use the Widget
 
 - **Affine**: Affine transformation provides more flexibility by allowing rotation, scaling, translation, and skewing of the images. It preserves parallelism in the image, making it ideal for aligning images with different perspectives or distortions. This method is suitable for more complex adjustments where simple transformations are insufficient.
 
-- **Bilinear**: Bilinear transformation involves a linear mapping of the image’s coordinates, which can handle translation, scaling, and rotation. This method interpolates pixel values to maintain smoothness and is used when precise adjustments are needed without significant distortion. It is especially useful for correcting minor alignment issues in images.
+- **Bilinear**: Bilinear transformation involves a linear mapping of the image's coordinates, which can handle translation, scaling, and rotation. This method interpolates pixel values to maintain smoothness and is used when precise adjustments are needed without significant distortion. It is especially useful for correcting minor alignment issues in images.
 
 These aligned images are now prepared for clustering, having been standardized in terms of position, scale, and orientation.
 
 ### 4 Clustering Images
 
-Two primary clustering approaches are available: *Outer Contours Clustering* and *Complete Figures Clustering*. Both of these clustering processes group images based on structural similarities. Unlike semantic clustering, which might group images based on their content (e.g., animals, landscapes), structural clustering focuses on patterns, textures, and shapes.
+Two primary clustering approaches are available: 
+
+- *Outer Contours Clustering* 
+- *Complete Figures Clustering*. 
+
+Both of these clustering processes group images based on structural similarities. Unlike semantic clustering, which might group images based on their color and content (e.g., animals, landscapes), structural clustering focuses on patterns, textures, and shapes.
 
 
 ### A. Outer Contours Clustering
 
-Extracts and analyzes image outlines. The cluster process allows one or a combination of multiple feature components which are used as input for clustering:
+Extracts and analyzes image outlines. The cluster process allows one - or a combination of - the following feature components used as input:
 
 - **Fourier Descriptors:** Describes the shape of the contour using Fourier coefficients, capturing the contour's overall structure.
 - **Hu Moments:** A set of seven moments that describe the shape of the contour, providing information about its orientation, size, and shape.
@@ -77,7 +84,7 @@ Extracts and analyzes image outlines. The cluster process allows one or a combin
 - **Procrustes Distance**: The Procrustes distance quantifies the similarity between two contours by first aligning them through translation, scaling, and rotation, and then computing the Euclidean distance between corresponding points. Here, the Procrustes distance is calculated for each pair of contours, generating a matrix similar to the Hausdorff distance matrix. For each contour, the average Procrustes distance to all other contours is computed.
 
 ### B. Complete Figures Clustering
-Uses entire image for clustering, preferably with the background removed. It supports multiple algorithms:
+Uses entire image for clustering, preferably with the background removed. Multiple algorithms are supported:
 
 #### Spectral Clustering
 - **Description**: Spectral Clustering uses eigenvalues of a similarity matrix to reduce dimensionality and group images based on structural features. It works well for clusters with complex boundaries.
@@ -108,7 +115,7 @@ When clustering complete figures, various similarity indices can be used as inpu
 - **IW-SSIM (Information Content Weighted Structural Similarity Index)**: This metric extends SSIM by weighting the similarity based on local information content, making it particularly useful in high-variance regions of an image.
 - **FSIM (Feature Similarity Index Measure)**: Uses phase congruency and gradient magnitude to measure similarity, focusing on perceptually important features. Gaining traction in the field for its perceptual relevance and accuracy.
 - **MSE (Mean Squared Error)**: Traditional metric measuring the average squared difference between corresponding pixels of two images, often used as a baseline for comparing image similarity.
-- **Brushstrokes**: Focuses on the texture and style of brushstrokes, capturing fine-grained artistic techniques used in painting.
+- **Brushstrokes**: Focuses on the texture and style of brushstrokes, capturing fine-grained artistic techniques used in painting. For this, a combination of several edge detection algorithms is used.
 
 ### Cluster Evaluation
 
@@ -130,7 +137,7 @@ When clustering complete figures, various similarity indices can be used as inpu
 ### 5 Viewing Cluster Results
 After clustering, the application provides multiple visualizations:
 
-- **Silhouette plot**: depicts how well our data points fit into the clusters they’ve been assigned to, informing on the quality of fit cohesion.
+- **Silhouette plot**: depicts how well our data points fit into the clusters they've been assigned to, informing on the quality of fit cohesion.
 - **Scatter Plot**: Visualizes the clusters in a 2D space, providing insight into how the images are grouped into different clusters.
 - **Dendrogram**: A hierarchical tree diagram that shows the relationships between clusters.
 - **Performance metrics**: Displays metrics such as the silhouette_score, Davies Bouldin Score, and Calinski Harabasz Score, helping you evaluate the quality of the clustering.
