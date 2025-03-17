@@ -475,7 +475,7 @@ def select_similarity_measure() -> str:
     """Select the similarity measure for clustering complete figures."""
     return st.selectbox(
         'Select similarity measure:',
-        ['SIFT', 'SSIM', 'CW-SSIM', 'IW-SSIM', 'FSIM', 'MSE', 'Brushstrokes'],
+        ['SIFT', 'SSIM', 'IW-SSIM', 'FSIM', 'MSE', 'Brushstrokes'],
         help='Basis for clustering images.',
         key='similarity_measure',
     )

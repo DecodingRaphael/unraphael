@@ -27,6 +27,7 @@ from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.interpolate import interp1d
 from scipy.spatial import procrustes
 from scipy.spatial.distance import directed_hausdorff, squareform
+from scipy import signal
 from skimage import color, transform
 from skimage.feature import hog
 from skimage.metrics import structural_similarity as ssim
@@ -49,6 +50,10 @@ SIM_IMAGE_SIZE = (640, 480)
 SIFT_RATIO = 0.7
 MSE_NUMERATOR = 1000.0
 NUM_THREADS = 8
+
+import os
+torch.classes.__path__ = []  # Simple fix
+# Alternatively: torch.classes.__path__ = [os.path.join(torch.__path__[0], torch.classes.__file__)]
 
 
 # Equalization of brightness, contrast and sharpness
@@ -541,10 +546,62 @@ def calculate_cw_ssim_similarity(i1: np.ndarray, i2: np.ndarray) -> float:
 
     Strong for handling small geometric distortions in structural
     comparison.
+    
+    Implementation follows the original CW-SSIM algorithm from Wang and Simoncelli.
     """
-    pil_img1 = Image.fromarray(i1)
-    pil_img2 = Image.fromarray(i2)
-    return pyssim.SSIM(pil_img1).cw_ssim_value(pil_img2)
+        
+    # Convert images to grayscale if needed
+    if len(i1.shape) == 3:
+        i1_gray = np.mean(i1, axis=2).astype(np.float32)
+    else:
+        i1_gray = i1.astype(np.float32)
+    
+    if len(i2.shape) == 3:
+        i2_gray = np.mean(i2, axis=2).astype(np.float32)
+    else:
+        i2_gray = i2.astype(np.float32)
+    
+    # Flatten the arrays for wavelet transform
+    sig1 = i1_gray.flatten()
+    sig2 = i2_gray.flatten()
+    
+    # Use the correct wavelet function (handle both old and new SciPy versions)
+    try:
+        # Try new SciPy version (windows module)
+        from scipy.signal.windows import ricker
+        wavelet = ricker
+    except ImportError:
+        # Fall back to old SciPy version
+        wavelet = signal.ricker
+    
+    # Set width parameter for the wavelet transform
+    widths = np.arange(1, 30)
+    
+    # Perform the continuous wavelet transform
+    cwtmatr1 = signal.cwt(sig1, wavelet, widths)
+    cwtmatr2 = signal.cwt(sig2, wavelet, widths)
+    
+    # Small constant for stability
+    k = 0.01
+    
+    # Compute the first term (magnitude)
+    c1c2 = np.multiply(abs(cwtmatr1), abs(cwtmatr2))
+    c1_2 = np.square(abs(cwtmatr1))
+    c2_2 = np.square(abs(cwtmatr2))
+    num_ssim_1 = 2 * np.sum(c1c2, axis=0) + k
+    den_ssim_1 = np.sum(c1_2, axis=0) + np.sum(c2_2, axis=0) + k
+    
+    # Compute the second term (phase)
+    c1c2_conj = np.multiply(cwtmatr1, np.conjugate(cwtmatr2))
+    num_ssim_2 = 2 * np.abs(np.sum(c1c2_conj, axis=0)) + k
+    den_ssim_2 = 2 * np.sum(np.abs(c1c2_conj), axis=0) + k
+    
+    # Construct the result
+    ssim_map = (num_ssim_1 / den_ssim_1) * (num_ssim_2 / den_ssim_2)
+    
+    # Average the per pixel results
+    index = np.average(ssim_map)
+    return index
 
 
 def calculate_iw_ssim_similarity(i1_torch: torch.Tensor, i2_torch: torch.Tensor) -> float:
