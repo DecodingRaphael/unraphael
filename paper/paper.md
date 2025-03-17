@@ -6,7 +6,7 @@ tags:
   - computational art analysis
   - paintings
   - image-processing
-  authors:
+authors:
   - name: Thijs Vroegh^[Corresponding author]
     corresponding: true
     orcid: 0000-0002-6311-0798
