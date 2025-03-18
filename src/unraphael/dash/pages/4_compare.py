@@ -404,8 +404,8 @@ def display_images_widget(
             ssim_similarity = calculate_ssim_similarity(base_gray, image_gray)
             col1.metric('SSIM Similarity', f'{ssim_similarity:.2f}')
 
-            cwsim_similarity = calculate_cw_ssim_similarity(base_gray, image_gray)
-            col1.metric('CWSIM Similarity', f'{cwsim_similarity:.2f}')
+            #cwsim_similarity = calculate_cw_ssim_similarity(base_gray, image_gray)
+            #col1.metric('CWSIM Similarity', f'{cwsim_similarity:.2f}')
 
             iw_ssim_similarity = calculate_iw_ssim_similarity(base_tensor, image_tensor)
             col1.metric('IW-SSIM Similarity', f'{iw_ssim_similarity:.2f}')
