@@ -565,14 +565,34 @@ def calculate_cw_ssim_similarity(i1: np.ndarray, i2: np.ndarray) -> float:
     sig1 = i1_gray.flatten()
     sig2 = i2_gray.flatten()
     
+    # Define custom ricker wavelet function as fallback
+    def custom_ricker(points, a):
+        """
+        Return a Ricker wavelet (Mexican hat wavelet) of length 'points' with parameter 'a'.
+        
+        This is a custom implementation that can be used when scipy.signal.ricker 
+        or scipy.signal.windows.ricker are not available.
+        """
+        A = 2 / (np.sqrt(3 * a) * np.pi**0.25)
+        wsq = a**2
+        vec = np.arange(0, points) - (points - 1.0) / 2
+        xsq = vec**2
+        mod = (1.0 - xsq / wsq)
+        gauss = np.exp(-xsq / (2 * wsq))
+        return A * mod * gauss
+    
     # Use the correct wavelet function (handle both old and new SciPy versions)
     try:
         # Try new SciPy version (windows module)
         from scipy.signal.windows import ricker
         wavelet = ricker
     except ImportError:
-        # Fall back to old SciPy version
-        wavelet = signal.ricker
+        try:
+            # Fall back to old SciPy version
+            wavelet = signal.ricker
+        except AttributeError:
+            # Fall back to custom implementation if neither is available
+            wavelet = custom_ricker
     
     # Set width parameter for the wavelet transform
     widths = np.arange(1, 30)
