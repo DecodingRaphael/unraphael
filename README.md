@@ -75,3 +75,65 @@ unraphael-dash
 Check out our [Contributing Guidelines](CONTRIBUTING.md#Getting-started-with-development) to get started with development.
 
 Suggestions, improvements, and edits are most welcome.
+
+## Self hosted deployment
+
+To run on dashboard with [uv](https://docs.astral.sh/uv/) installed:
+
+```shell
+uvx -p 3.12 --from \
+'unraphael[dash]@git+https://github.com/DecodingRaphael/unraphael.git@0.3' \
+unraphael-dash
+```
+
+Healthcheck url at http://localhost:8501/_stcore/health
+
+<details>
+  <summary>Systemd service</summary>
+
+To run unraphael as a service, you can create a systemd service file. This will allow you to start, stop, and restart unraphael using systemd.
+
+1.  Create a service file for unraphael, for example `/etc/systemd/system/unraphael.service`:
+
+```
+[Unit]
+Description=Unraphael dashboard
+After=network.target
+
+[Service]
+User=youruser
+WorkingDirectory=/home/youruser
+ExecStart=/home/youruser/.local/bin/unraphael-dash
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Replace `youruser` with your actual username.  Also, make sure that the path to `unraphael-dash` is correct. You can find the correct path using `which unraphael-dash`.
+
+2.  Enable the service:
+
+```console
+sudo systemctl enable unraphael.service
+```
+
+3.  Start the service:
+
+```console
+sudo systemctl start unraphael.service
+```
+
+4.  Check the status of the service:
+
+```console
+sudo systemctl status unraphael.service
+```
+
+5.  To stop the service:
+
+```console
+sudo systemctl stop unraphael.service
+```
+
+</details>
