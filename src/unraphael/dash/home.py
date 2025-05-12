@@ -13,12 +13,7 @@ st.set_page_config(
     menu_items={
         'Get Help': 'https://unraphael.readthedocs.io',
         'Report a bug': 'https://github.com/DedodingRaphael/unraphael/issues',
-        'About': (
-            f'**unraphael**: a dashboard for unraphael ({__version__}). '
-            '\n\nPython toolkit for *unraveling* image similarity with a focus '
-            'on artistic practice. '
-            '\n\nFor more information, see: https://github.com/DedodingRaphael/unraphael'
-        ),
+        'About': (f'**unraphael**: a dashboard for unraphael ({__version__}). ' '\n\nPython toolkit for *unraveling* image similarity with a focus ' 'on artistic practice. ' '\n\nFor more information, see: https://github.com/DedodingRaphael/unraphael'),
     },
 )
 

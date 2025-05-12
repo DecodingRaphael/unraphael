@@ -30,9 +30,7 @@ def main():
 
     # Load information with real dimensions of paintings
     st.sidebar.header('Upload painting dimensions')
-    uploaded_excel = st.sidebar.file_uploader(
-        'Choose Excel file with real dimensions', type=['xlsx']
-    )
+    uploaded_excel = st.sidebar.file_uploader('Choose Excel file with real dimensions', type=['xlsx'])
 
     if uploaded_excel:
         try:
@@ -123,9 +121,7 @@ def main():
         image_file.seek(0)  # Rewind file pointer for reading
 
         # Extract DPI from the image's metadata (if it exists)
-        height_pixels_meta, width_pixels_meta, (dpi_x, dpi_y), height_inches, width_inches = (
-            get_image_size_resolution(image['data'])
-        )
+        height_pixels_meta, width_pixels_meta, (dpi_x, dpi_y), height_inches, width_inches = get_image_size_resolution(image['data'])
 
         # Calculate the physical size of the photo using DPI from image metadata
         height_photo_inches = height_pixels_meta / dpi_x  # DPI for height from image metadata
@@ -158,9 +154,7 @@ def main():
     st.subheader('Area Analysis')
 
     atol_value = st.slider(
-        'Set the tolerance for area comparison. This is the maximum difference '
-        'in area surface that is allowed between two paintings to consider '
-        'them similar. The default is 5% (0.05)',
+        'Set the tolerance for area comparison. This is the maximum difference ' 'in area surface that is allowed between two paintings to consider ' 'them similar. The default is 5% (0.05)',
         min_value=0.01,
         max_value=0.10,
         value=0.05,

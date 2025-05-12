@@ -35,9 +35,7 @@ class FeatureContainer:
         return fig
 
 
-def detect_and_extract(
-    images: list[ImageType], *, method: str, **kwargs
-) -> dict[str, FeatureContainer]:
+def detect_and_extract(images: list[ImageType], *, method: str, **kwargs) -> dict[str, FeatureContainer]:
     """`extractor` must have `detect_and_extract` method."""
     features = {}
 
