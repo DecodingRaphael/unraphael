@@ -13,7 +13,7 @@ By following the steps described below, you can effectively group your images ba
 
 ### Clustering Methods
 
-- We make use of functionality provided by the [clusteval package](https://erdogant.github.io/clusteval/pages/html/index.html) to derive the optimal number of clusters using silhouette, dbindex, and derivatives in combination with clustering methods, such as agglomerative, kmeans, dbscan and hdbscan. 
+- We make use of functionality provided by the [clusteval package](https://erdogant.github.io/clusteval/pages/html/index.html) to derive the optimal number of clusters using silhouette, dbindex, and derivatives in combination with clustering methods, such as agglomerative, kmeans, dbscan and hdbscan.
 - For more information on the methods or interpreting the results, we highly recommend looking into the [clusteval documentation](https://erdogant.github.io/clusteval/pages/html/index.html).
 - Multiple clustering algorithms
 
@@ -62,10 +62,10 @@ These aligned images are now prepared for clustering, having been standardized i
 
 ### 4 Clustering Images
 
-Two primary clustering approaches are available: 
+Two primary clustering approaches are available:
 
-- *Outer Contours Clustering* 
-- *Complete Figures Clustering*. 
+- *Outer Contours Clustering*
+- *Complete Figures Clustering*.
 
 Both of these clustering processes group images based on structural similarities. Unlike semantic clustering, which might group images based on their color and content (e.g., animals, landscapes), structural clustering focuses on patterns, textures, and shapes.
 

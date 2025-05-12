@@ -10,7 +10,6 @@ from align import align_image_to_base, homography_matrix
 from equalize import equalize_image_with_base
 from image_clustering import (
     calculate_brushstroke_similarity,
-    calculate_cw_ssim_similarity,
     calculate_fsim_similarity,
     calculate_iw_ssim_similarity,
     calculate_mse_similarity,
@@ -34,9 +33,7 @@ _align_image_to_base = st.cache_data(align_image_to_base)
 _equalize_image_with_base = st.cache_data(equalize_image_with_base)
 
 
-def add_text_to_image(
-    image: np.ndarray, text1: str, text2: str, color1: tuple, color2: tuple
-) -> np.ndarray:
+def add_text_to_image(image: np.ndarray, text1: str, text2: str, color1: tuple, color2: tuple) -> np.ndarray:
     """Add two contour names below each other on the image with the given
     colors."""
     # Get image dimensions
@@ -103,9 +100,7 @@ def overlay_contours(image1, image2, name1, name2, contours1, contours2):
 
 def warp_image_skimage(img, H, output_shape):
     """Warp the image using the given transformation matrix."""
-    warped_image = transform.warp(
-        img, inverse_map=H, output_shape=output_shape, mode='constant', cval=0
-    )
+    warped_image = transform.warp(img, inverse_map=H, output_shape=output_shape, mode='constant', cval=0)
     return img_as_ubyte(warped_image)
 
 
@@ -136,15 +131,11 @@ def animate_images(img1, img2, H, num_frames=50):
         im.set_array(blended_image)
         ax.set_title(f'Frame {frame + 1}/{num_frames}', fontsize=16, color='white', pad=20)
 
-    ani = animation.FuncAnimation(
-        fig, update, frames=num_frames, interval=25, repeat=True, repeat_delay=1000
-    )
+    ani = animation.FuncAnimation(fig, update, frames=num_frames, interval=25, repeat=True, repeat_delay=1000)
     return ani
 
 
-def equalize_images_widget(
-    *, base_image: np.ndarray, images: dict[str, np.ndarray]
-) -> list[np.ndarray]:
+def equalize_images_widget(*, base_image: np.ndarray, images: dict[str, np.ndarray]) -> list[np.ndarray]:
     """This widget helps with equalizing images."""
     st.subheader('Equalization parameters')
 
@@ -162,10 +153,7 @@ def equalize_images_widget(
         'reinhard': reinhard,
     }
 
-    return [
-        _equalize_image_with_base(base_image=base_image, image=image, **preprocess_options)
-        for image in images
-    ]
+    return [_equalize_image_with_base(base_image=base_image, image=image, **preprocess_options) for image in images]
 
 
 def align_images_widget(*, base_image: ImageType, images: list[ImageType]) -> list[ImageType]:
@@ -226,11 +214,7 @@ def align_images_widget(*, base_image: ImageType, images: list[ImageType]) -> li
         motion_model = st.selectbox(
             'Motion model:',
             [None, 'translation', 'euclidian', 'affine', 'homography'],
-            help=(
-                'The motion model defines the transformation between the base '
-                'image and the input images. Translation is the simplest model, '
-                'while homography is the most complex.'
-            ),
+            help=('The motion model defines the transformation between the base ' 'image and the input images. Translation is the simplest model, ' 'while homography is the most complex.'),
         )
         if motion_model is None:
             st.warning('Please select a transformation procedure to proceed.')
@@ -308,27 +292,10 @@ def alignment_help_widget():
         )
     )
     st.write(
-        (
-            '- **Fourier Mellin Transform (FMT) Method**: Logarithm of the Fourier '
-            'magnitude of an image followed by another Fourier transform to obtain a '
-            'log-polar transform. Rotation and scale invariant but computationally '
-            'intensive compared to other methods.'
-        )
+        ('- **Fourier Mellin Transform (FMT) Method**: Logarithm of the Fourier ' 'magnitude of an image followed by another Fourier transform to obtain a ' 'log-polar transform. Rotation and scale invariant but computationally ' 'intensive compared to other methods.')
     )
-    st.write(
-        (
-            '- **Rotation Alignment Method**: Aligns images by finding the '
-            'optimal rotation to minimize the difference between them. Suited when '
-            'rotation is the primary misalignment source and computational cost '
-            'is not a major concern.'
-        )
-    )
-    st.write(
-        (
-            '- **User-provided keypoints** (from pose estimation): '
-            'Aligns images based on user-provided keypoints obtained from pose estimation.'
-        )
-    )
+    st.write(('- **Rotation Alignment Method**: Aligns images by finding the ' 'optimal rotation to minimize the difference between them. Suited when ' 'rotation is the primary misalignment source and computational cost ' 'is not a major concern.'))
+    st.write(('- **User-provided keypoints** (from pose estimation): ' 'Aligns images based on user-provided keypoints obtained from pose estimation.'))
 
 
 def display_images_widget(
@@ -388,8 +355,7 @@ def display_images_widget(
         with col1:
             st.markdown('<br>', unsafe_allow_html=True)
             st.markdown(
-                '<h5 style="color: gray; font-weight: normal;">'
-                'Structural Similarity Metrics</h5>',
+                '<h5 style="color: gray; font-weight: normal;">' 'Structural Similarity Metrics</h5>',
                 unsafe_allow_html=True,
             )
             st.markdown('<br>', unsafe_allow_html=True)
@@ -404,8 +370,8 @@ def display_images_widget(
             ssim_similarity = calculate_ssim_similarity(base_gray, image_gray)
             col1.metric('SSIM Similarity', f'{ssim_similarity:.2f}')
 
-            #cwsim_similarity = calculate_cw_ssim_similarity(base_gray, image_gray)
-            #col1.metric('CWSIM Similarity', f'{cwsim_similarity:.2f}')
+            # cwsim_similarity = calculate_cw_ssim_similarity(base_gray, image_gray)
+            # col1.metric('CWSIM Similarity', f'{cwsim_similarity:.2f}')
 
             iw_ssim_similarity = calculate_iw_ssim_similarity(base_tensor, image_tensor)
             col1.metric('IW-SSIM Similarity', f'{iw_ssim_similarity:.2f}')
@@ -419,8 +385,7 @@ def display_images_widget(
         with col2:
             st.markdown('<br>', unsafe_allow_html=True)
             st.markdown(
-                '<h5 style="color: gray; font-weight: normal;">The slider can be used to '
-                'compare images side by side</h5>',
+                '<h5 style="color: gray; font-weight: normal;">The slider can be used to ' 'compare images side by side</h5>',
                 unsafe_allow_html=True,
             )
             image_comparison(
@@ -484,9 +449,7 @@ def display_images_widget(
                 unsafe_allow_html=True,
             )
 
-            contour_overlay, color1, color2 = overlay_contours(
-                base_image.data, image.data, base_image.name, image.name, contours1, contours2
-            )
+            contour_overlay, color1, color2 = overlay_contours(base_image.data, image.data, base_image.name, image.name, contours1, contours2)
 
             st.markdown(
                 f'<span style="color: rgb{color1}; font-size: 20px;">{base_image.name}</span>',
@@ -499,9 +462,7 @@ def display_images_widget(
             st.image(contour_overlay, use_container_width=True)
 
             # Add contour names below each other with corresponding colors
-            contour_overlay_with_text = add_text_to_image(
-                contour_overlay, base_image.name, image.name, color1=color1, color2=color2
-            )
+            contour_overlay_with_text = add_text_to_image(contour_overlay, base_image.name, image.name, color1=color1, color2=color2)
             col2.download_button(
                 label='Download Overlay Contours',
                 data=imageio.imwrite('<bytes>', contour_overlay_with_text, extension='.png'),

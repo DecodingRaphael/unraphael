@@ -15,12 +15,7 @@ _remove_background = st.cache_data(remove_background)
 def preprocess_image_widget(image: ImageType) -> ImageType:
     """Widget to preprocess image with user input options."""
     st.title(f'Preprocessing {image.name}')
-    st.write(
-        'The processed image is shown with a preset of parameters. '
-        'Use the sliders to explore the effects of image filters, or to'
-        'refine the adjustment. When you are happy with the result, '
-        'download the processed image.'
-    )
+    st.write('The processed image is shown with a preset of parameters. ' 'Use the sliders to explore the effects of image filters, or to' 'refine the adjustment. When you are happy with the result, ' 'download the processed image.')
 
     col1, col2, col3, col4 = st.columns(4)
 
@@ -120,10 +115,7 @@ def remove_background_widget(image: ImageType) -> tuple[ImageType, ImageType]:
     background_params['alpha_matting'] = col1.checkbox(
         'Use Alpha matting',
         value=False,
-        help=(
-            'Alpha matting is a post processing step that can be used to '
-            'improve the quality of the output.'
-        ),
+        help=('Alpha matting is a post processing step that can be used to ' 'improve the quality of the output.'),
     )
     background_params['only_mask'] = col1.checkbox('Keep mask only', value=False)
     background_params['post_process_mask'] = col1.checkbox('Postprocess mask', value=False)
@@ -138,10 +130,7 @@ def remove_background_widget(image: ImageType) -> tuple[ImageType, ImageType]:
         'Background color',
         bgmap.keys(),
         format_func=lambda x: bgmap[x],
-        help=(
-            'You can use the post_process_mask argument to post process the '
-            'mask to get better results.'
-        ),
+        help=('You can use the post_process_mask argument to post process the ' 'mask to get better results.'),
     )
 
     background_params['bg_threshold'] = col2.slider(

@@ -1,3 +1,9 @@
+# Build:
+# docker build -t ghcr.io/decodingraphael/unraphael .
+# Push to GitHub Container Registry:
+# docker push ghcr.io/decodingraphael/unraphael
+# Run:
+# docker run -p 8501:8501 ghcr.io/decodingraphael/unraphael
 FROM python:3.12-slim
 
 RUN pip install torch==2.3.1+cpu torchvision torchaudio 'numpy<2.0' --extra-index-url https://download.pytorch.org/whl/cpu

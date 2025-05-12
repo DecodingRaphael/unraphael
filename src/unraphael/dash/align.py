@@ -16,9 +16,7 @@ from skimage.color import rgb2gray
 from unraphael.types import ImageType
 
 
-def detect_and_compute_features(
-    image_gray: np.ndarray, method: str, maxFeatures: int
-) -> Tuple[list, np.ndarray]:
+def detect_and_compute_features(image_gray: np.ndarray, method: str, maxFeatures: int) -> Tuple[list, np.ndarray]:
     """Detects and computes features in the image."""
     if method == 'SIFT':
         feature_detector = cv2.SIFT_create()
@@ -58,14 +56,10 @@ def compute_homography(matches: list, kpsA: list, kpsB: list, keepPercent: float
     return cv2.findHomography(ptsA, ptsB, method=cv2.RANSAC)[0]
 
 
-def apply_homography(
-    target: np.ndarray, H: np.ndarray, template_shape: Tuple[int, int, int]
-) -> np.ndarray:
+def apply_homography(target: np.ndarray, H: np.ndarray, template_shape: Tuple[int, int, int]) -> np.ndarray:
     """Applies the homography matrix to the target image."""
     h, w, c = template_shape
-    return cv2.warpPerspective(
-        target, H, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0, 0)
-    )
+    return cv2.warpPerspective(target, H, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0, 0))
 
 
 def homography_matrix(
@@ -205,9 +199,7 @@ def feature_align(
 
     # apply the homography matrix to align the images, including the rotation
     h, w, c = template.shape
-    aligned = cv2.warpPerspective(
-        target, H, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0, 0)
-    )
+    aligned = cv2.warpPerspective(target, H, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0, 0))
 
     out = image.replace(data=aligned)
     out.metrics.update(angle=angle)

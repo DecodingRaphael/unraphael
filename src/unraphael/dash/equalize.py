@@ -54,9 +54,7 @@ def normalize_brightness(
 
     # Adjust the L channel (brightness) of the target image based
     # on the mean brightness of the template
-    l_target = (
-        (l_target * (np.mean(l_template) / np.mean(l_target))).clip(0, 255).astype(np.uint8)
-    )
+    l_target = (l_target * (np.mean(l_template) / np.mean(l_target))).clip(0, 255).astype(np.uint8)
 
     # Merge LAB channels back for the adjusted target image
     equalized_img_lab = cv2.merge([l_target, a_target, b_target])
@@ -133,9 +131,7 @@ def normalize_contrast(
         std_target = np.std(target_lab[:, :, 0])
 
         # Adjust contrast of target image to match template image
-        l_target = (
-            (target_lab[:, :, 0] * (std_template / std_target)).clip(0, 255).astype(np.uint8)
-        )
+        l_target = (target_lab[:, :, 0] * (std_template / std_target)).clip(0, 255).astype(np.uint8)
         normalized_img_lab = cv2.merge([l_target, target_lab[:, :, 1], target_lab[:, :, 2]])
 
         # Convert the adjusted LAB image back to RGB
@@ -207,17 +203,11 @@ def normalize_sharpness(
     mean_grad_target = np.mean(grad_target)
 
     # Adjust sharpness of target image to match template image
-    normalized_img = (
-        (target * (mean_grad_template / mean_grad_target)).clip(0, 255).astype(np.uint8)
-    )
+    normalized_img = (target * (mean_grad_template / mean_grad_target)).clip(0, 255).astype(np.uint8)
 
     # Calculate sharpness value for the normalized image
-    grad_x_normalized = cv2.Sobel(
-        cv2.cvtColor(normalized_img, cv2.COLOR_RGB2GRAY), cv2.CV_64F, 1, 0, ksize=3
-    )
-    grad_y_normalized = cv2.Sobel(
-        cv2.cvtColor(normalized_img, cv2.COLOR_RGB2GRAY), cv2.CV_64F, 0, 1, ksize=3
-    )
+    grad_x_normalized = cv2.Sobel(cv2.cvtColor(normalized_img, cv2.COLOR_RGB2GRAY), cv2.CV_64F, 1, 0, ksize=3)
+    grad_y_normalized = cv2.Sobel(cv2.cvtColor(normalized_img, cv2.COLOR_RGB2GRAY), cv2.CV_64F, 0, 1, ksize=3)
     grad_normalized = cv2.magnitude(grad_x_normalized, grad_y_normalized)
     mean_grad_normalized = np.mean(grad_normalized)
 

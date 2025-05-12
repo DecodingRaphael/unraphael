@@ -36,9 +36,7 @@ def show_images_widget(
 ) -> None | ImageType:
     """Widget to show images with given number of columns."""
     col1, col2 = st.columns(2)
-    n_cols = col1.number_input(
-        'Number of columns for display', value=8, min_value=1, step=1, key=f'{key}_cols'
-    )
+    n_cols = col1.number_input('Number of columns for display', value=8, min_value=1, step=1, key=f'{key}_cols')
     options = [None] + [image.name for image in images]
     selected = col2.selectbox(message, options=options, key=f'{key}_sel')
     selected_image = None

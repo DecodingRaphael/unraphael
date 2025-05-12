@@ -159,9 +159,7 @@ def equalize_images_widget(*, images: dict[str, np.ndarray]) -> dict[str, np.nda
     return {name: equalized_images[i] for i, name in enumerate(images.keys())}
 
 
-def align_to_mean_image_widget(
-    *, images: dict[str, np.ndarray]
-) -> Optional[dict[str, np.ndarray]]:
+def align_to_mean_image_widget(*, images: dict[str, np.ndarray]) -> Optional[dict[str, np.ndarray]]:
     """This widget aligns a set of images to a reference image using various
     transformation models, typically to their mean value, but other aligning
     options are also available. The aligned images are used for later
@@ -210,10 +208,7 @@ def align_to_mean_image_widget(
         'Transformation model:',
         [None, 'translation', 'rigid body', 'scaled rotation', 'affine', 'bilinear'],
         index=0,  # default to none
-        help=(
-            'The transformation model defines the geometric transformation'
-            'one wants to apply.'
-        ),
+        help=('The transformation model defines the geometric transformationone wants to apply.'),
     )
 
     if motion_model is None:
@@ -276,9 +271,7 @@ def select_cluster_approach() -> str:
     )
 
 
-def cluster_on_outer_contours(
-    images: Dict[str, np.ndarray], image_names: List[str], image_list: List[np.ndarray]
-) -> None:
+def cluster_on_outer_contours(images: Dict[str, np.ndarray], image_names: List[str], image_list: List[np.ndarray]) -> None:
     """Handle clustering based on outer contours."""
     st.write('Extracting outer contours from the aligned images...')
     contours_dict = _extract_outer_contours(images)
@@ -355,9 +348,7 @@ def select_cluster_evaluation(cluster_method: str) -> str:
         return 'silhouette'
 
     else:
-        return st.selectbox(
-            'Cluster evaluation method:', ['silhouette', 'dbindex', 'derivative']
-        )
+        return st.selectbox('Cluster evaluation method:', ['silhouette', 'dbindex', 'derivative'])
 
 
 def select_cluster_linkage() -> str:
@@ -369,9 +360,7 @@ def select_cluster_linkage() -> str:
     )
 
 
-def cluster_on_complete_figures(
-    images: Dict[str, np.ndarray], image_names: List[str], image_list: List[np.ndarray]
-) -> None:
+def cluster_on_complete_figures(images: Dict[str, np.ndarray], image_names: List[str], image_list: List[np.ndarray]) -> None:
     """Handle clustering based on complete figures."""
     st.subheader('The aligned images')
 
@@ -387,9 +376,7 @@ def cluster_on_complete_figures(
         if cluster_method == 'SpectralClustering':
             specify_clusters = st.checkbox('Specify number of clusters?', value=False)
             if specify_clusters:
-                n_clusters = st.number_input(
-                    'Number of clusters:', min_value=2, step=1, value=4
-                )
+                n_clusters = st.number_input('Number of clusters:', min_value=2, step=1, value=4)
 
         measure = select_similarity_measure()
 
@@ -399,9 +386,7 @@ def cluster_on_complete_figures(
         st.subheader(f'Similarity matrix based on pairwise {measure} indices')
         matrix = _build_similarity_matrix(np.array(image_list), algorithm=measure)
         st.write(np.round(matrix, decimals=2))
-        labels, metrics, n_clusters = _matrix_based_clustering(
-            matrix, algorithm=measure, n_clusters=n_clusters, method=cluster_method
-        )
+        labels, metrics, n_clusters = _matrix_based_clustering(matrix, algorithm=measure, n_clusters=n_clusters, method=cluster_method)
 
         if labels is None:
             st.error('Clustering failed. Check parameters and try again.')
@@ -431,9 +416,7 @@ def cluster_on_complete_figures(
         visualize_clusters(labels, image_names, image_list, image_names)
 
     elif cluster_method in ['agglomerative', 'dbscan', 'kmeans']:
-        cluster_evaluation = st.selectbox(
-            'Cluster evaluation method:', ['silhouette', 'dbindex', 'derivative']
-        )
+        cluster_evaluation = st.selectbox('Cluster evaluation method:', ['silhouette', 'dbindex', 'derivative'])
         cluster_linkage = st.selectbox(
             'Linkage method:',
             ['ward', 'single', 'complete', 'average', 'weighted', 'centroid', 'median'],
@@ -530,24 +513,15 @@ def main():
 
     # Automatically align if there are unaligned images
     if unaligned_images:
-        st.warning(
-            "It appears your images are not aligned yet. Let's do that in the following step..."
-        )
+        st.warning("It appears your images are not aligned yet. Let's do that in the following step...")
         aligned_images = align_to_mean_image_widget(images=images)
     else:
-        st.success(
-            "All images appear to be already aligned. Let's proceed to the following step..."
-        )
+        st.success("All images appear to be already aligned. Let's proceed to the following step...")
         aligned_images = images
 
     if aligned_images:
         # Convert to uint8 if necessary
-        aligned_images = {
-            name: (image * 255).astype(np.uint8)
-            if image.dtype == np.float64
-            else image.astype(np.uint8)
-            for name, image in aligned_images.items()
-        }
+        aligned_images = {name: (image * 255).astype(np.uint8) if image.dtype == np.float64 else image.astype(np.uint8) for name, image in aligned_images.items()}
 
         st.markdown('---')
         cluster_image_widget(aligned_images)

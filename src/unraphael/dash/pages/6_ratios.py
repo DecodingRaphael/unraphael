@@ -9,15 +9,15 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import streamlit as st
+from matplotlib.colors import LinearSegmentedColormap
 from PIL import Image
 from ratio_analysis import calculate_corrected_area, get_image_size_resolution
 from rembg import remove
-from matplotlib.colors import LinearSegmentedColormap
 
 
 def main():
     st.title('Painting Analysis')
-    
+
     st.write(
         (
             'This page estimates and compares the areas of the main figures in the real paintings '
@@ -28,12 +28,9 @@ def main():
         )
     )
 
-
     # Load information with real dimensions of paintings
     st.sidebar.header('Upload painting dimensions')
-    uploaded_excel = st.sidebar.file_uploader(
-        'Choose Excel file with real dimensions', type=['xlsx']
-    )
+    uploaded_excel = st.sidebar.file_uploader('Choose Excel file with real dimensions', type=['xlsx'])
 
     if uploaded_excel:
         try:
@@ -124,9 +121,7 @@ def main():
         image_file.seek(0)  # Rewind file pointer for reading
 
         # Extract DPI from the image's metadata (if it exists)
-        height_pixels_meta, width_pixels_meta, (dpi_x, dpi_y), height_inches, width_inches = (
-            get_image_size_resolution(image['data'])
-        )
+        height_pixels_meta, width_pixels_meta, (dpi_x, dpi_y), height_inches, width_inches = get_image_size_resolution(image['data'])
 
         # Calculate the physical size of the photo using DPI from image metadata
         height_photo_inches = height_pixels_meta / dpi_x  # DPI for height from image metadata
@@ -150,24 +145,21 @@ def main():
     for idx, image in enumerate(images):
         mask = remove(image['data'], only_mask=True)
         cols[idx % 3].image(
-            mask, 
-            caption=f'Mask for {image["name"]}', 
-            use_container_width=True  # Changed from use_column_width
+            mask,
+            caption=f'Mask for {image["name"]}',
+            use_container_width=True,  # Changed from use_column_width
         )
 
     # # Calculate corrected areas ----
     st.subheader('Area Analysis')
 
     atol_value = st.slider(
-        'Set the tolerance for area comparison. This is the maximum difference '
-        'in area surface that is allowed between two paintings to consider '
-        'them similar. The default is 5% (0.05)',
+        'Set the tolerance for area comparison. This is the maximum difference ' 'in area surface that is allowed between two paintings to consider ' 'them similar. The default is 5% (0.05)',
         min_value=0.01,
         max_value=0.10,
         value=0.05,
         step=0.01,
         help='Adjust the tolerance level for comparing areas (5% = 0.05)',
-
     )
 
     corrected_areas = []
@@ -198,12 +190,14 @@ def main():
                 heatmap_data[i, j] = ratio
 
         # Create custom colormap
-        colors = ['#FF6B6B',  # Light red/coral for extreme values
-                 '#4FB5E6',   # Light blue
-                 '#05445E',   # Dark blue (for values near 1)
-                 '#4FB5E6',   # Light blue
-                 '#FF6B6B']   # Light red/coral for extreme values
-        
+        colors = [
+            '#FF6B6B',  # Light red/coral for extreme values
+            '#4FB5E6',  # Light blue
+            '#05445E',  # Dark blue (for values near 1)
+            '#4FB5E6',  # Light blue
+            '#FF6B6B',
+        ]  # Light red/coral for extreme values
+
         custom_cmap = LinearSegmentedColormap.from_list('custom_blues', colors)
 
         # Create heatmap

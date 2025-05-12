@@ -19,9 +19,7 @@ _load_images = st.cache_data(load_images)
 _load_images_from_drc = st.cache_data(load_images_from_drc)
 
 
-def get_image_size_resolution(
-    image_array: np.ndarray, name=None
-) -> Tuple[int, int, Tuple[float, float], float, float]:
+def get_image_size_resolution(image_array: np.ndarray, name=None) -> Tuple[int, int, Tuple[float, float], float, float]:
     """Get the height, width, and resolution of an image from an in-memory
     NumPy array."""
     try:
@@ -89,10 +87,7 @@ def get_image_size_resolution(
             # Default DPI if no resolution found
             if not dpi or dpi == (0, 0):
                 if name:
-                    print(
-                        f'DPI information not found in any metadata for image {name}. '
-                        'Using default.'
-                    )
+                    print(f'DPI information not found in any metadata for image {name}. ' 'Using default.')
                 dpi = (96.0, 96.0)  # Common default DPI
 
             dpi_x, dpi_y = dpi
@@ -110,9 +105,7 @@ def get_image_size_resolution(
         raise
 
 
-def calculate_corrected_area(
-    image: np.ndarray, real_size_cm: list[float], dpi: float, tolerance: float = 0.05
-) -> Optional[float]:
+def calculate_corrected_area(image: np.ndarray, real_size_cm: list[float], dpi: float, tolerance: float = 0.05) -> Optional[float]:
     """Calculate the corrected area of an image based on real physical
     dimensions and DPI.
 
@@ -135,9 +128,7 @@ def calculate_corrected_area(
     try:
         # Print input parameters
         print('\nInput Parameters:')
-        print(
-            f'Dimensions of real painting (cm): {real_size_cm[0]:.2f} x {real_size_cm[1]:.2f}'
-        )
+        print(f'Dimensions of real painting (cm): {real_size_cm[0]:.2f} x {real_size_cm[1]:.2f}')
         print(f'DPI: {dpi:.2f}')
 
         # Create mask of the main figure
@@ -166,15 +157,12 @@ def calculate_corrected_area(
         # Calculate physical dimensions from pixels and DPI
         photo_height_inches = img_height / dpi
         photo_width_inches = img_width / dpi
-        print(
-            '\nPhoto dimensions (inches): '
-            '{photo_height_inches:.2f} x {photo_width_inches:.2f}'
-        )
+        print('\nPhoto dimensions (inches): {photo_height_inches:.2f} x {photo_width_inches:.2f}')
 
         # Convert real dimensions to inches
         real_height_inches = real_size_cm[0] / 2.54
         real_width_inches = real_size_cm[1] / 2.54
-        print('Real dimensions (inches): ' '{real_height_inches:.2f} x {real_width_inches:.2f}')
+        print('Real dimensions (inches): {real_height_inches:.2f} x {real_width_inches:.2f}')
 
         # Calculate scaling ratios
         height_ratio = real_height_inches / photo_height_inches
@@ -189,11 +177,7 @@ def calculate_corrected_area(
 
         # If scaling ratios are too different, use the less extreme ratio
         if ratio_diff > tolerance:
-            st.warning(
-                f'Inconsistent scaling detected with a {ratio_diff:.2%} '
-                'difference between height and width ratios. Using more '
-                'conservative scaling.'
-            )
+            st.warning(f'Inconsistent scaling detected with a {ratio_diff:.2%} ' 'difference between height and width ratios. Using more ' 'conservative scaling.')
             # Use the ratio closer to 1.0 to minimize distortion
             if abs(height_ratio - 1.0) < abs(width_ratio - 1.0):
                 scaling_factor = height_ratio

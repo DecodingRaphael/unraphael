@@ -15,19 +15,17 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import piq
-import ssim.ssimlib as pyssim
 import streamlit as st
 import torch
 from clusteval import clusteval
-from PIL import Image
 from pystackreg import StackReg
 from rembg import remove
 from scatterd import scatterd
+from scipy import signal
 from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.interpolate import interp1d
 from scipy.spatial import procrustes
 from scipy.spatial.distance import directed_hausdorff, squareform
-from scipy import signal
 from skimage import color, transform
 from skimage.feature import hog
 from skimage.metrics import structural_similarity as ssim
@@ -51,7 +49,7 @@ SIFT_RATIO = 0.7
 MSE_NUMERATOR = 1000.0
 NUM_THREADS = 8
 
-import os
+
 torch.classes.__path__ = []  # Simple fix
 # Alternatively: torch.classes.__path__ = [os.path.join(torch.__path__[0], torch.classes.__file__)]
 
@@ -103,9 +101,7 @@ def compute_mean_sharpness(images: list[np.ndarray]) -> float:
     return mean_sharpness / len(images)
 
 
-def normalize_brightness_set(
-    images: list[np.ndarray], mean_brightness: float
-) -> list[np.ndarray]:
+def normalize_brightness_set(images: list[np.ndarray], mean_brightness: float) -> list[np.ndarray]:
     """Normalize brightness of all images in the set to the mean brightness."""
     normalized_images = []
     for img in images:
@@ -114,11 +110,7 @@ def normalize_brightness_set(
             l_channel, a_channel, b_channel = cv2.split(img_lab)
             current_brightness = np.mean(l_channel)
             print(f'Original brightness: {current_brightness}')
-            l_channel = (
-                (l_channel * (mean_brightness / current_brightness))
-                .clip(0, 255)
-                .astype(np.uint8)
-            )
+            l_channel = (l_channel * (mean_brightness / current_brightness)).clip(0, 255).astype(np.uint8)
             normalized_img_lab = cv2.merge([l_channel, a_channel, b_channel])
             normalized_img = cv2.cvtColor(normalized_img_lab, cv2.COLOR_LAB2BGR)
             print(f'Normalized brightness: {np.mean(l_channel)}')
@@ -127,11 +119,7 @@ def normalize_brightness_set(
             l_channel = img
             current_brightness = np.mean(l_channel)
             print(f'Original brightness: {current_brightness}')
-            normalized_img = (
-                (l_channel * (mean_brightness / current_brightness))
-                .clip(0, 255)
-                .astype(np.uint8)
-            )
+            normalized_img = (l_channel * (mean_brightness / current_brightness)).clip(0, 255).astype(np.uint8)
             print(f'Normalized brightness: {np.mean(normalized_img)}')
 
         normalized_images.append(normalized_img)
@@ -148,9 +136,7 @@ def normalize_contrast_set(images: list[np.ndarray], mean_contrast: float) -> li
             l_channel, a_channel, b_channel = cv2.split(img_lab)
             current_contrast = np.std(l_channel)
             print(f'Original contrast: {current_contrast}')
-            l_channel = (
-                (l_channel * (mean_contrast / current_contrast)).clip(0, 255).astype(np.uint8)
-            )
+            l_channel = (l_channel * (mean_contrast / current_contrast)).clip(0, 255).astype(np.uint8)
             normalized_img_lab = cv2.merge([l_channel, a_channel, b_channel])
             normalized_img = cv2.cvtColor(normalized_img_lab, cv2.COLOR_LAB2BGR)
             print(f'Normalized contrast: {np.std(l_channel)}')
@@ -159,9 +145,7 @@ def normalize_contrast_set(images: list[np.ndarray], mean_contrast: float) -> li
             l_channel = img
             current_contrast = np.std(l_channel)
             print(f'Original contrast: {current_contrast}')
-            normalized_img = (
-                (l_channel * (mean_contrast / current_contrast)).clip(0, 255).astype(np.uint8)
-            )
+            normalized_img = (l_channel * (mean_contrast / current_contrast)).clip(0, 255).astype(np.uint8)
             print(f'Normalized contrast: {np.std(normalized_img)}')
 
         normalized_images.append(normalized_img)
@@ -169,9 +153,7 @@ def normalize_contrast_set(images: list[np.ndarray], mean_contrast: float) -> li
     return normalized_images
 
 
-def normalize_sharpness_set(
-    images: list[np.ndarray], target_sharpness: float
-) -> list[np.ndarray]:
+def normalize_sharpness_set(images: list[np.ndarray], target_sharpness: float) -> list[np.ndarray]:
     """Normalize sharpness of all images in the set to the sharpness of the
     target."""
     normalized_images = []
@@ -205,11 +187,7 @@ def normalize_sharpness_set(
         else:
             normalized_img = sharpened
 
-        normalized_sharpness = compute_sharpness(
-            cv2.cvtColor(normalized_img, cv2.COLOR_BGR2GRAY)
-            if len(img.shape) == 3
-            else normalized_img
-        )
+        normalized_sharpness = compute_sharpness(cv2.cvtColor(normalized_img, cv2.COLOR_BGR2GRAY) if len(img.shape) == 3 else normalized_img)
         print(f'Normalized sharpness: {normalized_sharpness}')
 
         normalized_images.append(normalized_img)
@@ -325,9 +303,7 @@ def align_images_to_mean(
     """
 
     def resize_image(image: np.ndarray, target_size: tuple[int, int]) -> np.ndarray:
-        return transform.resize(
-            image, target_size, anti_aliasing=True, preserve_range=True
-        ).astype(image.dtype)
+        return transform.resize(image, target_size, anti_aliasing=True, preserve_range=True).astype(image.dtype)
 
     def ensure_grayscale(image: np.ndarray) -> np.ndarray:
         # make grayscale if in color
@@ -335,10 +311,7 @@ def align_images_to_mean(
             return color.rgb2gray(image)
         return image
 
-    resized_images = {
-        name: resize_image(ensure_grayscale(image), target_size)
-        for name, image in images.items()
-    }
+    resized_images = {name: resize_image(ensure_grayscale(image), target_size) for name, image in images.items()}
     image_stack = np.stack(list(resized_images.values()), axis=0)
 
     if image_stack.ndim != 3:
@@ -546,45 +519,48 @@ def calculate_cw_ssim_similarity(i1: np.ndarray, i2: np.ndarray) -> float:
 
     Strong for handling small geometric distortions in structural
     comparison.
-    
-    Implementation follows the original CW-SSIM algorithm from Wang and Simoncelli.
+
+    Implementation follows the original CW-SSIM algorithm from Wang and
+    Simoncelli.
     """
-        
+
     # Convert images to grayscale if needed
     if len(i1.shape) == 3:
         i1_gray = np.mean(i1, axis=2).astype(np.float32)
     else:
         i1_gray = i1.astype(np.float32)
-    
+
     if len(i2.shape) == 3:
         i2_gray = np.mean(i2, axis=2).astype(np.float32)
     else:
         i2_gray = i2.astype(np.float32)
-    
+
     # Flatten the arrays for wavelet transform
     sig1 = i1_gray.flatten()
     sig2 = i2_gray.flatten()
-    
+
     # Define custom ricker wavelet function as fallback
     def custom_ricker(points, a):
-        """
-        Return a Ricker wavelet (Mexican hat wavelet) of length 'points' with parameter 'a'.
-        
-        This is a custom implementation that can be used when scipy.signal.ricker 
-        or scipy.signal.windows.ricker are not available.
+        """Return a Ricker wavelet (Mexican hat wavelet) of length 'points'
+        with parameter 'a'.
+
+        This is a custom implementation that can be used when
+        scipy.signal.ricker or scipy.signal.windows.ricker are not
+        available.
         """
         A = 2 / (np.sqrt(3 * a) * np.pi**0.25)
         wsq = a**2
         vec = np.arange(0, points) - (points - 1.0) / 2
         xsq = vec**2
-        mod = (1.0 - xsq / wsq)
+        mod = 1.0 - xsq / wsq
         gauss = np.exp(-xsq / (2 * wsq))
         return A * mod * gauss
-    
+
     # Use the correct wavelet function (handle both old and new SciPy versions)
     try:
         # Try new SciPy version (windows module)
         from scipy.signal.windows import ricker
+
         wavelet = ricker
     except ImportError:
         try:
@@ -593,32 +569,32 @@ def calculate_cw_ssim_similarity(i1: np.ndarray, i2: np.ndarray) -> float:
         except AttributeError:
             # Fall back to custom implementation if neither is available
             wavelet = custom_ricker
-    
+
     # Set width parameter for the wavelet transform
     widths = np.arange(1, 30)
-    
+
     # Perform the continuous wavelet transform
     cwtmatr1 = signal.cwt(sig1, wavelet, widths)
     cwtmatr2 = signal.cwt(sig2, wavelet, widths)
-    
+
     # Small constant for stability
     k = 0.01
-    
+
     # Compute the first term (magnitude)
     c1c2 = np.multiply(abs(cwtmatr1), abs(cwtmatr2))
     c1_2 = np.square(abs(cwtmatr1))
     c2_2 = np.square(abs(cwtmatr2))
     num_ssim_1 = 2 * np.sum(c1c2, axis=0) + k
     den_ssim_1 = np.sum(c1_2, axis=0) + np.sum(c2_2, axis=0) + k
-    
+
     # Compute the second term (phase)
     c1c2_conj = np.multiply(cwtmatr1, np.conjugate(cwtmatr2))
     num_ssim_2 = 2 * np.abs(np.sum(c1c2_conj, axis=0)) + k
     den_ssim_2 = 2 * np.sum(np.abs(c1c2_conj), axis=0) + k
-    
+
     # Construct the result
     ssim_map = (num_ssim_1 / den_ssim_1) * (num_ssim_2 / den_ssim_2)
-    
+
     # Average the per pixel results
     index = np.average(ssim_map)
     return index
@@ -636,9 +612,7 @@ def calculate_iw_ssim_similarity(i1_torch: torch.Tensor, i2_torch: torch.Tensor)
 
 def calculate_fsim_similarity(i1_torch: torch.Tensor, i2_torch: torch.Tensor) -> float:
     """Calculate similarity using Feature Similarity Index."""
-    fsim_similarity = piq.fsim(
-        i1_torch, i2_torch, data_range=1.0, reduction='none', chromatic=False
-    ).item()
+    fsim_similarity = piq.fsim(i1_torch, i2_torch, data_range=1.0, reduction='none', chromatic=False).item()
     return fsim_similarity
 
 
@@ -731,9 +705,7 @@ def get_image_similarity(img1: np.ndarray, img2: np.ndarray, algorithm: str = 'S
     i2_torch = to_torch(i2)
 
     # Ensure both images are the same size for torch-based methods
-    i1_torch = torch.nn.functional.interpolate(
-        i1_torch, size=i2_torch.size()[2:], mode='bilinear', align_corners=False
-    )
+    i1_torch = torch.nn.functional.interpolate(i1_torch, size=i2_torch.size()[2:], mode='bilinear', align_corners=False)
 
     if algorithm == 'SIFT':
         return calculate_sift_similarity(i1, i2)
@@ -767,9 +739,7 @@ def compute_similarity(args):
     return i, j, 1.0
 
 
-def build_similarity_matrix(
-    images: list[np.ndarray], algorithm: str = 'SSIM', fill_diagonal_value: float = 0.0
-) -> np.ndarray:
+def build_similarity_matrix(images: list[np.ndarray], algorithm: str = 'SSIM', fill_diagonal_value: float = 0.0) -> np.ndarray:
     """Builds a similarity matrix for a set of images.
 
     For AffinityPropagation, SpectralClustering, and DBSCAN, one can input
@@ -791,9 +761,7 @@ def build_similarity_matrix(
     np.fill_diagonal(sm, fill_diagonal_value)
 
     # Prepare arguments for multiprocessing
-    args = [
-        (i, j, images, algorithm) for i in range(num_images) for j in range(i + 1, num_images)
-    ]
+    args = [(i, j, images, algorithm) for i in range(num_images) for j in range(i + 1, num_images)]
 
     # Use multiprocessing to compute similarities
     with Pool() as pool:
@@ -806,9 +774,7 @@ def build_similarity_matrix(
     return sm
 
 
-def get_cluster_metrics(
-    X: np.ndarray, labels: np.ndarray, labels_true: Optional[np.ndarray] = None
-) -> dict[str, float]:
+def get_cluster_metrics(X: np.ndarray, labels: np.ndarray, labels_true: Optional[np.ndarray] = None) -> dict[str, float]:
     """Calculate cluster evaluation metrics based on the given data and labels.
     Adapted from https://github.com/llvll/imgcluster
 
@@ -840,9 +806,7 @@ def get_cluster_metrics(
     # Calinski-Harabasz: Higher is better (≥ 0)
 
     if len(set(labels)) > 1:
-        metrics_dict['Silhouette coefficient'] = silhouette_score(
-            X, labels, metric='precomputed'
-        )
+        metrics_dict['Silhouette coefficient'] = silhouette_score(X, labels, metric='precomputed')
         # 1 - X transforms this similarity matrix into a dissimilarity matrix, which is required
         # for the Davies-Bouldin index to calculate meaningful results
         metrics_dict['Davies-Bouldin index'] = davies_bouldin_score(1 - X, labels)
@@ -854,9 +818,7 @@ def get_cluster_metrics(
     return metrics_dict
 
 
-def determine_optimal_clusters(
-    matrix: np.ndarray, method: str = 'silhouette', min_clust: int = 2, max_clust: int = 10
-) -> int:
+def determine_optimal_clusters(matrix: np.ndarray, method: str = 'silhouette', min_clust: int = 2, max_clust: int = 10) -> int:
     """Determines the optimal number of clusters using Spectral Clustering on a
     similarity matrix. After clustering, evaluates the clustering using
     Silhouette score.
@@ -882,9 +844,7 @@ def determine_optimal_clusters(
     if method == 'silhouette':
         spectral_scores = []
         for k in range(min_clust, max_clust + 1):
-            spectral_clustering = SpectralClustering(
-                n_clusters=k, affinity='precomputed', random_state=42
-            )
+            spectral_clustering = SpectralClustering(n_clusters=k, affinity='precomputed', random_state=42)
             labels = spectral_clustering.fit_predict(matrix)  # Use similarity matrix directly
 
             # Evaluate clustering using silhouette score
@@ -903,9 +863,7 @@ def plot_scatter(features):
     st.pyplot(fig)
 
 
-def plot_clusters(
-    images: dict, labels: np.ndarray, n_clusters: int, title: str = 'Clustering results'
-) -> plt.Figure:
+def plot_clusters(images: dict, labels: np.ndarray, n_clusters: int, title: str = 'Clustering results') -> plt.Figure:
     """Plots the clustering results in 2D space using PCA.
 
     Parameters
@@ -943,9 +901,7 @@ def plot_clusters(
     return fig
 
 
-def plot_dendrogram(
-    similarity_matrix: np.ndarray, labels: np.ndarray, method: str = 'ward', title: str = ''
-) -> plt.Figure:
+def plot_dendrogram(similarity_matrix: np.ndarray, labels: np.ndarray, method: str = 'ward', title: str = '') -> plt.Figure:
     """Plots a dendrogram for the clustering results.
 
     Parameters
@@ -1035,9 +991,7 @@ def matrix_based_clustering(
     metrics = {}
 
     if method == 'SpectralClustering':
-        sc = SpectralClustering(
-            n_clusters=n_clusters, random_state=42, affinity='precomputed'
-        ).fit(matrix)
+        sc = SpectralClustering(n_clusters=n_clusters, random_state=42, affinity='precomputed').fit(matrix)
         metrics = get_cluster_metrics(matrix, sc.labels_, labels_true)
         return sc.labels_, metrics, n_clusters
 
@@ -1124,9 +1078,7 @@ def feature_based_clustering(
         n_clusters = len(np.unique(cluster_labels))
     elif cluster_method == 'dbscan':
         unique_labels = set(cluster_labels) if cluster_labels is not None else set()
-        n_clusters = len(unique_labels) - (
-            1 if -1 in unique_labels else 0
-        )  # Exclude noise points
+        n_clusters = len(unique_labels) - (1 if -1 in unique_labels else 0)  # Exclude noise points
 
     # Generate and display dendrogram if applicable
     if cluster_method != 'kmeans':
@@ -1185,9 +1137,7 @@ def extract_foreground_mask(image: np.ndarray) -> np.ndarray:
     return remove(image, mask=True)
 
 
-def extract_outer_contour_from_mask(
-    mask: np.ndarray, min_area: int = 25, approx_method: int = cv2.CHAIN_APPROX_SIMPLE
-) -> Optional[np.ndarray]:
+def extract_outer_contour_from_mask(mask: np.ndarray, min_area: int = 25, approx_method: int = cv2.CHAIN_APPROX_SIMPLE) -> Optional[np.ndarray]:
     """Extract the outer contour from the mask.
 
     Args:
@@ -1202,9 +1152,7 @@ def extract_outer_contour_from_mask(
     """
     # Convert the mask to grayscale if it's in BGR format
     gray_mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
-    _, thresh = cv2.threshold(
-        gray_mask, 1, 255, cv2.THRESH_BINARY
-    )  # threshold to get binary mask
+    _, thresh = cv2.threshold(gray_mask, 1, 255, cv2.THRESH_BINARY)  # threshold to get binary mask
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, approx_method)
 
     # Filter out small contours based on area
@@ -1253,9 +1201,7 @@ def extract_outer_contours_from_aligned_images(aligned_images: dict[str, np.ndar
     return contours_dict
 
 
-def visualize_outer_contours(
-    aligned_images: dict[str, np.ndarray], contours_dict: dict
-) -> None:
+def visualize_outer_contours(aligned_images: dict[str, np.ndarray], contours_dict: dict) -> None:
     """
     Visualize the outer contours for the aligned images on a black background.
     Args:
@@ -1287,14 +1233,10 @@ def visualize_outer_contours(
         contour_images.append(ImageType(name=name, data=contour_canvas))
 
     if contour_images:
-        show_images_widget(
-            contour_images, n_cols=4, key='contour_images', message='Contour Images Only'
-        )
+        show_images_widget(contour_images, n_cols=4, key='contour_images', message='Contour Images Only')
 
 
-def visualize_clusters(
-    labels, image_names, image_list, name_dict, title='Cluster visualization'
-):
+def visualize_clusters(labels, image_names, image_list, name_dict, title='Cluster visualization'):
     """Helper function to visualize clusters of images."""
     if labels is not None:
         st.subheader(title)
@@ -1305,9 +1247,7 @@ def visualize_clusters(
             st.write(f'#### Images from cluster #{cluster_label}')
 
             cluster_indices = np.argwhere(labels == n).flatten()
-            cluster_images = [
-                ImageType(name=image_names[i], data=image_list[i]) for i in cluster_indices
-            ]
+            cluster_images = [ImageType(name=image_names[i], data=image_list[i]) for i in cluster_indices]
 
             # Use the provided dictionary (name_dict) for visualizing the images
             show_images_widget(
@@ -1328,9 +1268,7 @@ def compute_fourier_descriptors(contour: np.ndarray, num_coeff: int = 10) -> np.
     return np.pad(descriptors, (0, max(0, num_coeff - len(descriptors))), 'constant')
 
 
-def compute_fourier_distance(
-    contour1: np.ndarray, contour2: np.ndarray, num_coeff: int = 10
-) -> float:
+def compute_fourier_distance(contour1: np.ndarray, contour2: np.ndarray, num_coeff: int = 10) -> float:
     """Compute the distance between the Fourier descriptors of two contours."""
     # Compute the Fourier descriptors for both contours
     fd1 = compute_fourier_descriptors(contour1, num_coeff)
@@ -1354,22 +1292,16 @@ def compute_hog_features(contour: np.ndarray, image_shape: tuple) -> np.ndarray:
     length."""
     blank_image = np.zeros(image_shape, dtype=np.uint8)
     cv2.drawContours(blank_image, [contour], -1, 255, 1)
-    features, _ = hog(
-        blank_image, pixels_per_cell=(8, 8), cells_per_block=(2, 2), visualize=True
-    )
+    features, _ = hog(blank_image, pixels_per_cell=(8, 8), cells_per_block=(2, 2), visualize=True)
     desired_length = 100  # Example length
-    return np.pad(features, (0, max(0, desired_length - len(features))), 'constant')[
-        :desired_length
-    ]
+    return np.pad(features, (0, max(0, desired_length - len(features))), 'constant')[:desired_length]
 
 
 def resample_contour(contour: np.ndarray, num_points: int = 100) -> np.ndarray:
     """Resamples a given contour to a specified number of points using linear
     interpolation."""
     x, y = contour[:, 0, 0], contour[:, 0, 1]
-    cumulative_lengths = np.cumsum(
-        np.sqrt(np.diff(x, prepend=x[0]) ** 2 + np.diff(y, prepend=y[0]) ** 2)
-    )
+    cumulative_lengths = np.cumsum(np.sqrt(np.diff(x, prepend=x[0]) ** 2 + np.diff(y, prepend=y[0]) ** 2))
     # Normalize to [0, 1]
     cumulative_lengths /= cumulative_lengths[-1]
     # Create interpolation functions
@@ -1420,9 +1352,7 @@ def compute_hausdorff_distance(contour1: np.ndarray, contour2: np.ndarray) -> fl
     )
 
 
-def compute_frechet_distance(
-    contour1: np.ndarray, contour2: np.ndarray, num_points: int = 100
-) -> float:
+def compute_frechet_distance(contour1: np.ndarray, contour2: np.ndarray, num_points: int = 100) -> float:
     """Compute an efficient approximation of the Fréchet distance between two
     contours."""
     # Resample both contours to the same number of points
@@ -1436,9 +1366,7 @@ def compute_frechet_distance(
     return frechet_distance
 
 
-def extract_and_scale_features(
-    contours_dict: dict, selected_features: list, image_shape: tuple
-) -> tuple[np.ndarray, None]:
+def extract_and_scale_features(contours_dict: dict, selected_features: list, image_shape: tuple) -> tuple[np.ndarray, None]:
     """Extract and scale several features from contours.
 
     Parameters:
@@ -1482,9 +1410,7 @@ def extract_and_scale_features(
             avg_hd = np.mean(hausdorff_matrix[idx, :][hausdorff_matrix[idx, :] > 0])
             features_by_type['hd'].append([avg_hd])
         if 'procrustes' in selected_features:
-            procrustes_matrix = compute_feature_matrix(
-                contours_list, compute_procrustes_distance
-            )
+            procrustes_matrix = compute_feature_matrix(contours_list, compute_procrustes_distance)
             avg_procrustes = np.mean(procrustes_matrix[idx, :][procrustes_matrix[idx, :] > 0])
             features_by_type['procrustes'].append([avg_procrustes])
 

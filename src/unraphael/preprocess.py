@@ -64,17 +64,11 @@ def process_image(
     ]
 
     # Apply bilateral blur filter to each color channel
-    channels = [
-        rank.mean_bilateral(channel, footprint=disk(bilateral_strength), s0=55, s1=55)
-        for channel in channels
-    ]
+    channels = [rank.mean_bilateral(channel, footprint=disk(bilateral_strength), s0=55, s1=55) for channel in channels]
 
     # Contrast limited adabtive histogram equalization
     kernel_size = tuple([max(s // clahe_tiles, 1) for s in image.shape[:2]])
-    channels = [
-        equalize_adapthist(channel, clip_limit=clahe_clip_limit, kernel_size=kernel_size)
-        for channel in channels
-    ]
+    channels = [equalize_adapthist(channel, clip_limit=clahe_clip_limit, kernel_size=kernel_size) for channel in channels]
 
     image = np.dstack(channels)
 

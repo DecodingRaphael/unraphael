@@ -16,11 +16,7 @@ def test_home():
     assert not at.exception
 
 
-@pytest.mark.xfail(
-    reason='Fails with Thread "MainThread": missing ScriptRunContext'
-    'on the CI because of rembg dependency. Only the first time the page is'
-    'loaded does the test fail.'
-)
+@pytest.mark.xfail(reason='Fails with Thread "MainThread": missing ScriptRunContext' 'on the CI because of rembg dependency. Only the first time the page is' 'loaded does the test fail.')
 def test_preprocess_load():
     at = AppTest.from_file(str(dash_directory / 'pages' / '1_preprocess.py'))
     at.run(timeout=5)

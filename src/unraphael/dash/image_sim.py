@@ -50,9 +50,7 @@ def image_similarity_feat_ransac_widget(images, *, method: str):
     if not st.checkbox('Continue...', key='continue_ransac'):
         st.stop()
 
-    features = _detect_and_extract(
-        images=images, method=method, **st.session_state.config[method]
-    )
+    features = _detect_and_extract(images=images, method=method, **st.session_state.config[method])
 
     heatmaps = _get_heatmaps(features, **st.session_state.config['ransac'])
 

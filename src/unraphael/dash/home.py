@@ -13,12 +13,7 @@ st.set_page_config(
     menu_items={
         'Get Help': 'https://unraphael.readthedocs.io',
         'Report a bug': 'https://github.com/DedodingRaphael/unraphael/issues',
-        'About': (
-            f'**unraphael**: a dashboard for unraphael ({__version__}). '
-            '\n\nPython toolkit for *unraveling* image similarity with a focus '
-            'on artistic practice. '
-            '\n\nFor more information, see: https://github.com/DedodingRaphael/unraphael'
-        ),
+        'About': (f'**unraphael**: a dashboard for unraphael ({__version__}). ' '\n\nPython toolkit for *unraveling* image similarity with a focus ' 'on artistic practice. ' '\n\nFor more information, see: https://github.com/DedodingRaphael/unraphael'),
     },
 )
 
@@ -36,7 +31,8 @@ paintings within the artist's workshop and to the lasting demand for the master'
 
 This tool aims to provide new insights into Raphael's working methods through new digital
 approaches for the study of artistic practice in art history.
-""")
+"""
+)
 
 # Center-align using Streamlit's layout
 col1, col2, col3 = st.columns([1, 2, 1])  # Middle column is wider
@@ -81,7 +77,7 @@ st.markdown(
 
 This project is maintained by the [Netherlands eScience Center](https://www.esciencecenter.nl/) in collaboration with the [Department of History and Art History](https://www.uu.nl/en/organisation/department-of-history-and-art-history) at the University of Utrecht.
 
-**Principal Investigator:** Dr. L. Costiner ([l.costiner@uu.nl](mailto:l.costiner@uu.nl))  
+**Principal Investigator:** Dr. L. Costiner ([l.costiner@uu.nl](mailto:l.costiner@uu.nl))
 **Technical Support:** Thijs Vroegh, Stef Smeets ([t.vroegh@esciencecenter.nl](mailto:t.vroegh@esciencecenter.nl), [s.smeets@esciencecenter.nl](mailto:s.smeets@esciencecenter.nl))
 
 Supported through a *Small-Scale Initiatives Digital Approaches to the Humanities* grant.
