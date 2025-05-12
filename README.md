@@ -78,15 +78,14 @@ Suggestions, improvements, and edits are most welcome.
 
 ## Self hosted deployment
 
-To run on dashboard with [uv](https://docs.astral.sh/uv/) installed:
+To run on dashboard with:
 
 ```shell
-uvx -p 3.12 --from \
-'unraphael[dash]@git+https://github.com/DecodingRaphael/unraphael.git@0.3' \
-unraphael-dash
+sudo apt-get update && apt-get install libgl1 libglib2.0-0 -y
+# As www-data user
+python3 -m venv venv
+pip install 'unraphael[dash]@git+https://github.com/DecodingRaphael/unraphael.git@0.3'
 ```
-
-Healthcheck url at http://localhost:8501/_stcore/health
 
 <details>
   <summary>Systemd service</summary>
@@ -101,6 +100,11 @@ Description=Unraphael dashboard
 After=network.target
 
 [Service]
+Environment="XDG_CACHE_HOME=/cache/dir" HOME="/writable/dir"
+User=youruser
+WorkingDirectory=/home/youruser
+ExecStart=/home/youruser/.local/bin/unraphael-dash
+Restart=on-failure
 User=youruser
 WorkingDirectory=/home/youruser
 ExecStart=/home/youruser/.local/bin/unraphael-dash
@@ -110,6 +114,7 @@ Restart=on-failure
 WantedBy=multi-user.target
 ```
 
+Replace `/cache/dir` and `/writable/dir` with the actual paths to your cache and writable directories.
 Replace `youruser` with your actual username.  Also, make sure that the path to `unraphael-dash` is correct. You can find the correct path using `which unraphael-dash`.
 
 2.  Enable the service:
