@@ -167,14 +167,13 @@ def calculate_corrected_area(
         photo_height_inches = img_height / dpi
         photo_width_inches = img_width / dpi
         print(
-            '\nPhoto dimensions (inches): '
-            '{photo_height_inches:.2f} x {photo_width_inches:.2f}'
+            '\nPhoto dimensions (inches): {photo_height_inches:.2f} x {photo_width_inches:.2f}'
         )
 
         # Convert real dimensions to inches
         real_height_inches = real_size_cm[0] / 2.54
         real_width_inches = real_size_cm[1] / 2.54
-        print('Real dimensions (inches): ' '{real_height_inches:.2f} x {real_width_inches:.2f}')
+        print('Real dimensions (inches): {real_height_inches:.2f} x {real_width_inches:.2f}')
 
         # Calculate scaling ratios
         height_ratio = real_height_inches / photo_height_inches

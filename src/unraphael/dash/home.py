@@ -36,7 +36,8 @@ paintings within the artist's workshop and to the lasting demand for the master'
 
 This tool aims to provide new insights into Raphael's working methods through new digital
 approaches for the study of artistic practice in art history.
-""")
+"""
+)
 
 # Center-align using Streamlit's layout
 col1, col2, col3 = st.columns([1, 2, 1])  # Middle column is wider

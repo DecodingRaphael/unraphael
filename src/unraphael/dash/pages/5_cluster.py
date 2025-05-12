@@ -211,8 +211,7 @@ def align_to_mean_image_widget(
         [None, 'translation', 'rigid body', 'scaled rotation', 'affine', 'bilinear'],
         index=0,  # default to none
         help=(
-            'The transformation model defines the geometric transformation'
-            'one wants to apply.'
+            'The transformation model defines the geometric transformationone wants to apply.'
         ),
     )
 

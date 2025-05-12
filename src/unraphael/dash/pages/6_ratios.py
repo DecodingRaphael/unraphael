@@ -17,7 +17,7 @@ from matplotlib.colors import LinearSegmentedColormap
 
 def main():
     st.title('Painting Analysis')
-    
+
     st.write(
         (
             'This page estimates and compares the areas of the main figures in the real paintings '
@@ -27,7 +27,6 @@ def main():
             'two paintings may indicate the use of the same template.'
         )
     )
-
 
     # Load information with real dimensions of paintings
     st.sidebar.header('Upload painting dimensions')
@@ -150,9 +149,9 @@ def main():
     for idx, image in enumerate(images):
         mask = remove(image['data'], only_mask=True)
         cols[idx % 3].image(
-            mask, 
-            caption=f'Mask for {image["name"]}', 
-            use_container_width=True  # Changed from use_column_width
+            mask,
+            caption=f'Mask for {image["name"]}',
+            use_container_width=True,  # Changed from use_column_width
         )
 
     # # Calculate corrected areas ----
@@ -167,7 +166,6 @@ def main():
         value=0.05,
         step=0.01,
         help='Adjust the tolerance level for comparing areas (5% = 0.05)',
-
     )
 
     corrected_areas = []
@@ -198,12 +196,14 @@ def main():
                 heatmap_data[i, j] = ratio
 
         # Create custom colormap
-        colors = ['#FF6B6B',  # Light red/coral for extreme values
-                 '#4FB5E6',   # Light blue
-                 '#05445E',   # Dark blue (for values near 1)
-                 '#4FB5E6',   # Light blue
-                 '#FF6B6B']   # Light red/coral for extreme values
-        
+        colors = [
+            '#FF6B6B',  # Light red/coral for extreme values
+            '#4FB5E6',  # Light blue
+            '#05445E',  # Dark blue (for values near 1)
+            '#4FB5E6',  # Light blue
+            '#FF6B6B',
+        ]  # Light red/coral for extreme values
+
         custom_cmap = LinearSegmentedColormap.from_list('custom_blues', colors)
 
         # Create heatmap
