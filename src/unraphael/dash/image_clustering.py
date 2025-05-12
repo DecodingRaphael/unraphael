@@ -15,19 +15,17 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import piq
-import ssim.ssimlib as pyssim
 import streamlit as st
 import torch
 from clusteval import clusteval
-from PIL import Image
 from pystackreg import StackReg
 from rembg import remove
 from scatterd import scatterd
+from scipy import signal
 from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.interpolate import interp1d
 from scipy.spatial import procrustes
 from scipy.spatial.distance import directed_hausdorff, squareform
-from scipy import signal
 from skimage import color, transform
 from skimage.feature import hog
 from skimage.metrics import structural_similarity as ssim
@@ -51,7 +49,6 @@ SIFT_RATIO = 0.7
 MSE_NUMERATOR = 1000.0
 NUM_THREADS = 8
 
-import os
 
 torch.classes.__path__ = []  # Simple fix
 # Alternatively: torch.classes.__path__ = [os.path.join(torch.__path__[0], torch.classes.__file__)]
@@ -548,7 +545,8 @@ def calculate_cw_ssim_similarity(i1: np.ndarray, i2: np.ndarray) -> float:
     Strong for handling small geometric distortions in structural
     comparison.
 
-    Implementation follows the original CW-SSIM algorithm from Wang and Simoncelli.
+    Implementation follows the original CW-SSIM algorithm from Wang and
+    Simoncelli.
     """
 
     # Convert images to grayscale if needed
@@ -568,11 +566,12 @@ def calculate_cw_ssim_similarity(i1: np.ndarray, i2: np.ndarray) -> float:
 
     # Define custom ricker wavelet function as fallback
     def custom_ricker(points, a):
-        """
-        Return a Ricker wavelet (Mexican hat wavelet) of length 'points' with parameter 'a'.
+        """Return a Ricker wavelet (Mexican hat wavelet) of length 'points'
+        with parameter 'a'.
 
-        This is a custom implementation that can be used when scipy.signal.ricker
-        or scipy.signal.windows.ricker are not available.
+        This is a custom implementation that can be used when
+        scipy.signal.ricker or scipy.signal.windows.ricker are not
+        available.
         """
         A = 2 / (np.sqrt(3 * a) * np.pi**0.25)
         wsq = a**2

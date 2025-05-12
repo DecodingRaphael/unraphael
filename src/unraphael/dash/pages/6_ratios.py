@@ -9,10 +9,10 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import streamlit as st
+from matplotlib.colors import LinearSegmentedColormap
 from PIL import Image
 from ratio_analysis import calculate_corrected_area, get_image_size_resolution
 from rembg import remove
-from matplotlib.colors import LinearSegmentedColormap
 
 
 def main():

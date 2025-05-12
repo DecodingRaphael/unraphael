@@ -10,7 +10,6 @@ from align import align_image_to_base, homography_matrix
 from equalize import equalize_image_with_base
 from image_clustering import (
     calculate_brushstroke_similarity,
-    calculate_cw_ssim_similarity,
     calculate_fsim_similarity,
     calculate_iw_ssim_similarity,
     calculate_mse_similarity,

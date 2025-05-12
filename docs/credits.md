@@ -1,6 +1,6 @@
 # Credits and Contact Information
 
-Unraphael is maintained by the [Netherlands eScience Center](https://www.esciencecenter.nl/) in collaboration with the [Department of History and Art History](https://www.uu.nl/en/organisation/department-of-history-and-art-history) at the [University of Utrecht](https://www.uu.nl/). The work was supported through a *Small-Scale Initiatives Digital Approaches to the Humanities* grant 
+Unraphael is maintained by the [Netherlands eScience Center](https://www.esciencecenter.nl/) in collaboration with the [Department of History and Art History](https://www.uu.nl/en/organisation/department-of-history-and-art-history) at the [University of Utrecht](https://www.uu.nl/). The work was supported through a *Small-Scale Initiatives Digital Approaches to the Humanities* grant
 
 If you have any questions, feedback, or need support, please feel free to reach out to us. Below are the primary contacts and useful links for your reference:
 

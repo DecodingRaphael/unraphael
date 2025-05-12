@@ -32,7 +32,7 @@ This then allows us to answer how similar the areas of the main outlines in two 
 ![Dimensions of paintings](painting_dimensions.png)
 
    - **Upload Photos:** Upload the digital photos of the paintings from a folder on your computer. For now, use the *unaligned photos*, preferably with the background removed.
-   
+
 1. **Overview of Image Sizes and DPI:**
    - **Check Image Metrics:** Review the sizes and DPI of the uploaded images. This information helps in converting pixel measurements to physical dimensions.
 

@@ -82,7 +82,7 @@ st.markdown(
 
 This project is maintained by the [Netherlands eScience Center](https://www.esciencecenter.nl/) in collaboration with the [Department of History and Art History](https://www.uu.nl/en/organisation/department-of-history-and-art-history) at the University of Utrecht.
 
-**Principal Investigator:** Dr. L. Costiner ([l.costiner@uu.nl](mailto:l.costiner@uu.nl))  
+**Principal Investigator:** Dr. L. Costiner ([l.costiner@uu.nl](mailto:l.costiner@uu.nl))
 **Technical Support:** Thijs Vroegh, Stef Smeets ([t.vroegh@esciencecenter.nl](mailto:t.vroegh@esciencecenter.nl), [s.smeets@esciencecenter.nl](mailto:s.smeets@esciencecenter.nl))
 
 Supported through a *Small-Scale Initiatives Digital Approaches to the Humanities* grant.
